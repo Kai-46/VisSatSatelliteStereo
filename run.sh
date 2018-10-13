@@ -11,6 +11,6 @@ colmap bundle_adjuster --input_path ./sparse --output_path ./sparse_ba \
 	--BundleAdjustment.gradient_tolerance 1e-10 \
 	--BundleAdjustment.parameter_tolerance 1e-8
 colmap image_undistorter --max_image_size 6000 --image_path ./images --input_path ./sparse_ba --output_path ./dense
-colmap patch_match_stereo --workspace_path ./dense
+colmap patch_match_stereo --workspace_path ./dense --PatchMatchStereo.window_radius 9
 colmap stereo_fusion --workspace_path ./dense --output_path ./dense/fused.ply
 python3 ../geo_reference.py .

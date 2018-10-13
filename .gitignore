@@ -1,5 +1,5 @@
 .idea/
 __pycache__/
-data*
+data_*
 lib/__pycache__/
 *.pyc

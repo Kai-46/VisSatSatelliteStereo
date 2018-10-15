@@ -2,7 +2,7 @@ import lib.read_model as read_model
 import sys
 import os
 import numpy as np
-from lib.plyfile import PlyData
+from lib.plyfile import PlyData, PlyElement
 import json
 
 
@@ -102,4 +102,17 @@ if __name__ == '__main__':
 
     dense.write(os.path.join(proj_dir, 'dense/fused_geo_referenced.ply'))
 
+    # create a ply in s2p format
+    # points = np.hstack((dense['vertex']['x'].reshape((-1, 1)),
+    #                     dense['vertex']['y'].reshape((-1, 1)),
+    #                     dense['vertex']['z'].reshape((-1, 1)),
+    #                     dense['vertex']['red'].reshape((-1, 1)),
+    #                     dense['vertex']['green'].reshape((-1, 1)),
+    #                     dense['vertex']['blue'].reshape((-1, 1))))
+    # vertex = np.array([tuple(point) for point in points], dtype=[('x', 'f8'), ('y', 'f8'), ('z', 'f8'), 
+    #                                                              ('red', 'uint8'), ('green', 'uint8'), ('blue', 'uint8')])
+    # el = PlyElement.describe(vertex, 'vertex')
+    # PlyData([el], text=True, comments=['created by Kai', comment_1]).write(os.path.join(proj_dir, 'dense/s2p_format.ply'))
+    #PlyData([el], byte_order='<', comments=['created by Kai', comment_1]).write(os.path.join(proj_dir, 'dense/s2p_format.ply'))
+    
     # print('hello world!')

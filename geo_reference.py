@@ -81,7 +81,8 @@ if __name__ == '__main__':
     # read json file
     with open(os.path.join(proj_dir, 'roi.json')) as fp:
         roi = json.load(fp)
-    comment_1 = 'zone_number: {}, zone_letter: {}'.format(roi['zone_number'], roi['zone_letter'])
+    # comment_1 = 'zone_number: {}, zone_letter: {}'.format(roi['zone_number'], roi['zone_letter'])
+    comment_1 = 'projection: UTM {}{}'.format(zone_number, zone_letter)
     comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(roi['x'], roi['y'], roi['w'], roi['h'])
     print(comment_1)
     print(comment_2)

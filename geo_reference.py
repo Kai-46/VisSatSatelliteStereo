@@ -31,7 +31,9 @@ def esti_transform(proj_dir):
     d, z, tform = procrustes.procrustes(points_arr, points_ba_arr, reflection=False)   
 
     M = tform['scale'] * tform['rotation'].T
-    t = tform['translation'].T
+    t = tform['translation'].reshape((-1, 1))
+    print('shape of M: {}'.format(M.shape))
+    print('shape of t: {}'.format(t.shape))
 
     # check whether M is close to a rotation matrix
     u, s, vh = np.linalg.svd(M)
@@ -43,10 +45,10 @@ def esti_transform(proj_dir):
 
     # check the MSE after applying the linear map
     points_ba_reg = np.dot(points_ba_arr, M.T) + np.tile(t.T, (sample_cnt, 1))
-    mse_before = np.mean((points_arr - points_ba_arr)**2)
-    mse_after = np.mean((points_arr - points_ba_reg)**2)
-    print('mse before: {}'.format(mse_before))
-    print('mse after: {}'.format(mse_after))
+    mse_before = np.mean(np.sum((points_arr - points_ba_arr)**2, axis=1))
+    mse_after = np.mean(np.sum((points_arr - points_ba_reg)**2, axis=1))
+    print('rmse before: {}'.format(np.sqrt(mse_before)))
+    print('rmse after: {}'.format(np.sqrt(mse_after)))
 
     return M, t
 
@@ -98,10 +100,10 @@ def esti_linear_map(proj_dir):
 
     # check the MSE after applying the linear map
     points_ba_reg = np.dot(points_ba_arr, M.T) + np.tile(t.T, (sample_cnt, 1))
-    mse_before = np.mean((points_arr - points_ba_arr)**2)
-    mse_after = np.mean((points_arr - points_ba_reg)**2)
-    print('mse before: {}'.format(mse_before))
-    print('mse after: {}'.format(mse_after))
+    mse_before = np.mean(np.sum((points_arr - points_ba_arr)**2, axis=1))
+    mse_after = np.mean(np.sum((points_arr - points_ba_reg)**2, axis=1))
+    print('rmse before: {}'.format(np.sqrt(mse_before)))
+    print('rmse after: {}'.format(np.sqrt(mse_after)))
 
     return M, t
 

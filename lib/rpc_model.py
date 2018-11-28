@@ -33,6 +33,7 @@ def apply_poly(poly, x, y, z):
     out += poly[19]*z*z*z
     return out
 
+
 def apply_rfm(num, den, x, y, z):
     """
     Evaluates a Rational Function Model (rfm), on a triplet of numbers.
@@ -85,6 +86,7 @@ def reshape_coefficients_vector(c):
     out[0, 0, 3] = c[19]
     return out
 
+
 def apply_rfm_numpy(num, den, x, y, z):
     """
     Alternative implementation of apply_rfm, that uses numpy to evaluate
@@ -96,200 +98,43 @@ def apply_rfm_numpy(num, den, x, y, z):
     b = np.polynomial.polynomial.polyval3d(x, y, z, c_den)
     return a/b
 
-class RPCModel:
-    def __init__(self, rpc_file):
-        self.nan_rpc()
-        self.read_rpc(rpc_file)
 
-    def nan_rpc(self):
-        self.linOff = np.nan
-        self.colOff = np.nan
-        self.latOff = np.nan
-        self.lonOff = np.nan
-        self.altOff = np.nan
-        self.linScale = np.nan
-        self.colScale = np.nan
-        self.latScale = np.nan
-        self.lonScale = np.nan
-        self.altScale = np.nan
-        self.directLonNum = [np.nan] * 20
-        self.directLonDen = [np.nan] * 20
-        self.directLatNum = [np.nan] * 20
-        self.directLatDen = [np.nan] * 20
-        self.inverseLinNum = [np.nan] * 20
-        self.inverseLinDen = [np.nan] * 20
-        self.inverseColNum = [np.nan] * 20
-        self.inverseColDen = [np.nan] * 20
+class RPCModel(object):
+    def __init__(self, rpc_dict):
+        # normalization constant
+        self.linOff = rpc_dict['linOff']
+        self.linScale = rpc_dict['linScale']
 
-    def read_rpc(self, rpc_file):
-        self.filepath = rpc_file
+        self.colOff = rpc_dict['colOff']
+        self.colScale = rpc_dict['colScale']
 
-        if rpc_file.lower().endswith('xml'):
-            tree = ElementTree()
-            tree.parse(rpc_file)
-            self.tree = tree   # store the xml tree in the object
-            self.read_rpc_xml(tree)
-        else:
-            # we assume that non xml rpc files follow the ikonos convention
-            self.read_rpc_ikonos(rpc_file)
+        self.latOff = rpc_dict['latOff']
+        self.latScale = rpc_dict['latScale']
 
-    def read_rpc_ikonos(self, rpc_file):
-        lines = open(rpc_file).read().split('\n')
-        for l in lines:
-            ll = l.split()
-            if len(ll) > 1: self.add_tag_rpc(ll[0], ll[1])
+        self.lonOff = rpc_dict['lonOff']
+        self.lonScale = rpc_dict['lonScale']
 
-    def add_tag_rpc(self, tag, val):
-        a = tag.split('_')
-        if len(a) == 2:
-            if a[1] == "OFF:":
-                if   a[0] == "LINE":   self.linOff = float(val)
-                elif a[0] == "SAMP":   self.colOff = float(val)
-                elif a[0] == "LAT":    self.latOff = float(val)
-                elif a[0] == "LONG":   self.lonOff = float(val)
-                elif a[0] == "HEIGHT": self.altOff = float(val)
-            elif a[1] == "SCALE:":
-                if   a[0] == "LINE":   self.linScale = float(val)
-                elif a[0] == "SAMP":   self.colScale = float(val)
-                elif a[0] == "LAT":    self.latScale = float(val)
-                elif a[0] == "LONG":   self.lonScale = float(val)
-                elif a[0] == "HEIGHT": self.altScale = float(val)
+        self.altOff = rpc_dict['altOff']
+        self.altScale = rpc_dict['altScale']
 
-        elif len(a) == 4 and a[2] == "COEFF":
-            # remove ':', convert to int and decrease the coeff index
-            a[3] = int(a[3][:-1]) - 1
-            if a[0] == "LINE":
-                if   a[1] == "NUM": self.inverseLinNum[a[3]] = float(val)
-                elif a[1] == "DEN": self.inverseLinDen[a[3]] = float(val)
-            elif a[0] == "SAMP":
-                if   a[1] == "NUM": self.inverseColNum[a[3]] = float(val)
-                elif a[1] == "DEN": self.inverseColDen[a[3]] = float(val)
-
-    def read_rpc_xml(self, tree):
-        # determine wether it's a pleiades, spot-6 or worldview image
-        a = tree.find('Metadata_Identification/METADATA_PROFILE') # PHR_SENSOR
-        b = tree.find('IMD/IMAGE/SATID') # WorldView
-        if a is not None:
-            if a.text in ['PHR_SENSOR', 'S6_SENSOR', 'S7_SENSOR']:
-                self.read_rpc_pleiades(tree)
-            else:
-                print('unknown sensor type')
-        elif b is not None:
-            if b.text == 'WV02' or b.text == 'WV01' or b.text == 'WV03':
-                self.read_rpc_worldview(tree)
-            else:
-                print('unknown sensor type')
-
-    def parse_coeff(self, element, prefix, indices):
-        tab = []
-        for x in indices:
-            tab.append(float(element.find("%s_%s" % (prefix, str(x))).text))
-        return tab
-
-    def read_rpc_pleiades(self, tree):
-        # direct model
-        d = tree.find('Rational_Function_Model/Global_RFM/Direct_Model')
-        self.directLonNum = self.parse_coeff(d, "SAMP_NUM_COEFF", range(1, 21))
-        self.directLonDen = self.parse_coeff(d, "SAMP_DEN_COEFF", range(1, 21))
-        self.directLatNum = self.parse_coeff(d, "LINE_NUM_COEFF", range(1, 21))
-        self.directLatDen = self.parse_coeff(d, "LINE_DEN_COEFF", range(1, 21))
-        self.directBias = self.parse_coeff(d, "ERR_BIAS", ['X', 'Y'])
-        
-        # inverse model
-        i = tree.find('Rational_Function_Model/Global_RFM/Inverse_Model')
-        self.inverseColNum = self.parse_coeff(i, "SAMP_NUM_COEFF", range(1, 21))
-        self.inverseColDen = self.parse_coeff(i, "SAMP_DEN_COEFF", range(1, 21))
-        self.inverseLinNum = self.parse_coeff(i, "LINE_NUM_COEFF", range(1, 21))
-        self.inverseLinDen = self.parse_coeff(i, "LINE_DEN_COEFF", range(1, 21))
-        self.inverseBias = self.parse_coeff(i, "ERR_BIAS", ['ROW', 'COL'])
-        
-        # validity domains
-        v = tree.find('Rational_Function_Model/Global_RFM/RFM_Validity')
-        vd = v.find('Direct_Model_Validity_Domain')
-        self.firstRow = float(vd.find('FIRST_ROW').text)
-        self.firstCol = float(vd.find('FIRST_COL').text)
-        self.lastRow  = float(vd.find('LAST_ROW').text)
-        self.lastCol  = float(vd.find('LAST_COL').text)
-
-        vi = v.find('Inverse_Model_Validity_Domain')
-        self.firstLon = float(vi.find('FIRST_LON').text)
-        self.firstLat = float(vi.find('FIRST_LAT').text)
-        self.lastLon  = float(vi.find('LAST_LON').text)
-        self.lastLat  = float(vi.find('LAST_LAT').text)
-
-        # scale and offset
-        # the -1 in line and column offsets is due to Pleiades RPC convention
-        # that states that the top-left pixel of an image has coordinates
-        # (1, 1)
-        self.linOff   = float(v.find('LINE_OFF').text) - 1
-        self.colOff   = float(v.find('SAMP_OFF').text) - 1
-        self.latOff   = float(v.find('LAT_OFF').text)
-        self.lonOff   = float(v.find('LONG_OFF').text)
-        self.altOff   = float(v.find('HEIGHT_OFF').text)
-        self.linScale = float(v.find('LINE_SCALE').text)
-        self.colScale = float(v.find('SAMP_SCALE').text)
-        self.latScale = float(v.find('LAT_SCALE').text)
-        self.lonScale = float(v.find('LONG_SCALE').text)
-        self.altScale = float(v.find('HEIGHT_SCALE').text)
-
-    def read_rpc_worldview(self, tree):
-        # inverse model
-        im = tree.find('RPB/IMAGE')
-        l = im.find('LINENUMCOEFList/LINENUMCOEF')
-        self.inverseLinNum = [float(c) for c in l.text.split()]
-        l = im.find('LINEDENCOEFList/LINEDENCOEF')
-        self.inverseLinDen = [float(c) for c in l.text.split()]
-        l = im.find('SAMPNUMCOEFList/SAMPNUMCOEF')
-        self.inverseColNum = [float(c) for c in l.text.split()]
-        l = im.find('SAMPDENCOEFList/SAMPDENCOEF')
-        self.inverseColDen = [float(c) for c in l.text.split()]
-        self.inverseBias = float(im.find('ERRBIAS').text)
-
-        # scale and offset
-        self.linOff   = float(im.find('LINEOFFSET').text)
-        self.colOff   = float(im.find('SAMPOFFSET').text)
-        self.latOff   = float(im.find('LATOFFSET').text)
-        self.lonOff   = float(im.find('LONGOFFSET').text)
-        self.altOff   = float(im.find('HEIGHTOFFSET').text)
-
-        self.linScale = float(im.find('LINESCALE').text)
-        self.colScale = float(im.find('SAMPSCALE').text)
-        self.latScale = float(im.find('LATSCALE').text)
-        self.lonScale = float(im.find('LONGSCALE').text)
-        self.altScale = float(im.find('HEIGHTSCALE').text)
-
-        # image dimensions
-        self.lastRow = int(tree.find('IMD/NUMROWS').text)
-        self.lastCol = int(tree.find('IMD/NUMCOLUMNS').text)
-
+        # polynomial coefficients
+        self.linNum = rpc_dict['linNum']
+        self.linDen = rpc_dict['linDen']
+        self.colNum = rpc_dict['colNum']
+        self.colDen = rpc_dict['colDen']
 
     def inverse_estimate(self, lon, lat, alt):
         cLon = (lon - self.lonOff) / self.lonScale
         cLat = (lat - self.latOff) / self.latScale
         cAlt = (alt - self.altOff) / self.altScale
-        cCol = apply_rfm(self.inverseColNum, self.inverseColDen, cLat, cLon, cAlt)
-        cLin = apply_rfm(self.inverseLinNum, self.inverseLinDen, cLat, cLon, cAlt)
+        cCol = apply_rfm(self.colNum, self.colDen, cLat, cLon, cAlt)
+        cLin = apply_rfm(self.linNum, self.linDen, cLat, cLon, cAlt)
         col = cCol*self.colScale + self.colOff
         lin = cLin*self.linScale + self.linOff
         return col, lin, alt
 
-
     def direct_estimate(self, col, lin, alt, return_normalized=False):
-
-        if np.isnan(self.directLatNum[0]):
-            return self.direct_estimate_iterative(col, lin, alt, return_normalized)
-
-        cCol = (col - self.colOff) / self.colScale
-        cLin = (lin - self.linOff) / self.linScale
-        cAlt = (alt - self.altOff) / self.altScale
-        cLon = apply_rfm(self.directLonNum, self.directLonDen, cLin, cCol, cAlt)
-        cLat = apply_rfm(self.directLatNum, self.directLatDen, cLin, cCol, cAlt)
-        lon = cLon*self.lonScale + self.lonOff
-        lat = cLat*self.latScale + self.latOff
-        if return_normalized:
-           return cLon, cLat, cAlt
-        return lon, lat, alt
-
+        return self.direct_estimate_iterative(col, lin, alt, return_normalized)
 
     def direct_estimate_iterative(self, col, row, alt, return_normalized=False):
         """
@@ -302,8 +147,6 @@ class RPCModel:
                 3D point
             return_normalized: boolean flag. If true, then return normalized
                 coordinates
-
-
         Returns:
             lon, lat, alt
         """
@@ -321,14 +164,14 @@ class RPCModel:
         lon = -np.ones(len(Xf))
         lat = -np.ones(len(Xf))
         EPS = 2
-        x0 = apply_rfm(self.inverseColNum, self.inverseColDen, lat, lon, cAlt)
-        y0 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat, lon, cAlt)
-        x1 = apply_rfm(self.inverseColNum, self.inverseColDen, lat, lon + EPS, cAlt)
-        y1 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat, lon + EPS, cAlt)
-        x2 = apply_rfm(self.inverseColNum, self.inverseColDen, lat + EPS, lon, cAlt)
-        y2 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat + EPS, lon, cAlt)
+        x0 = apply_rfm(self.colNum, self.colDen, lat, lon, cAlt)
+        y0 = apply_rfm(self.linNum, self.linDen, lat, lon, cAlt)
+        x1 = apply_rfm(self.colNum, self.colDen, lat, lon + EPS, cAlt)
+        y1 = apply_rfm(self.linNum, self.linDen, lat, lon + EPS, cAlt)
+        x2 = apply_rfm(self.colNum, self.colDen, lat + EPS, lon, cAlt)
+        y2 = apply_rfm(self.linNum, self.linDen, lat + EPS, lon, cAlt)
 
-        n = 0
+        # n = 0
         while not np.all((x0 - cCol) ** 2 + (y0 - cRow) ** 2 < 1e-18):
             X0 = np.vstack([x0, y0]).T
             X1 = np.vstack([x1, y1]).T
@@ -359,12 +202,12 @@ class RPCModel:
 
             # update X0, X1 and X2
             EPS = .1
-            x0 = apply_rfm(self.inverseColNum, self.inverseColDen, lat, lon, cAlt)
-            y0 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat, lon, cAlt)
-            x1 = apply_rfm(self.inverseColNum, self.inverseColDen, lat, lon + EPS, cAlt)
-            y1 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat, lon + EPS, cAlt)
-            x2 = apply_rfm(self.inverseColNum, self.inverseColDen, lat + EPS, lon, cAlt)
-            y2 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat + EPS, lon, cAlt)
+            x0 = apply_rfm(self.colNum, self.colDen, lat, lon, cAlt)
+            y0 = apply_rfm(self.linNum, self.linDen, lat, lon, cAlt)
+            x1 = apply_rfm(self.colNum, self.colDen, lat, lon + EPS, cAlt)
+            y1 = apply_rfm(self.linNum, self.linDen, lat, lon + EPS, cAlt)
+            x2 = apply_rfm(self.colNum, self.colDen, lat + EPS, lon, cAlt)
+            y2 = apply_rfm(self.linNum, self.linDen, lat + EPS, lon, cAlt)
             #n += 1
 
         #print('direct_estimate_iterative: %d iterations' % n)
@@ -377,162 +220,13 @@ class RPCModel:
         lat = lat*self.latScale + self.latOff
         return lon, lat, alt
 
-
-    def __write_pleiades(self, filename):
-        """
-        Writes a new XML file with the rpc parameters
-        If the read was performed on a pleiades RPC
-        write can only be done using the pleiades format.
-        """
-        ## First transfer the coefficients back to the internal xml parsing tree
-        tree = copy.deepcopy(self.tree)
-
-        # list concatenation of direct model parameters
-        direct = self.directLonNum + self.directLonDen + self.directLatNum \
-            + self.directLatDen + self.directBias
-        d = tree.find('Rational_Function_Model/Global_RFM/Direct_Model')
-        for child,id in zip(d,range(82)):
-           child.text = str(direct[id])
-
-        # list concatenation of inverse model parameters
-        inverse = self.inverseColNum + self.inverseColDen + self.inverseLinNum \
-            + self.inverseLinDen + self.inverseBias
-        i = tree.find('Rational_Function_Model/Global_RFM/Inverse_Model')
-        for child,id in zip(i,range(82)):
-           child.text = str(inverse[id])
-
-        # validity domains
-        v = tree.find('Rational_Function_Model/Global_RFM/RFM_Validity')
-        vd = v.find('Direct_Model_Validity_Domain')
-        vd.find('FIRST_ROW').text = str(self.firstRow)
-        vd.find('FIRST_COL').text = str(self.firstCol)
-        vd.find('LAST_ROW').text  = str(self.lastRow )
-        vd.find('LAST_COL').text  = str(self.lastCol )
-
-        vi = v.find('Inverse_Model_Validity_Domain')
-        vi.find('FIRST_LON').text = str(self.firstLon)
-        vi.find('FIRST_LAT').text = str(self.firstLat)
-        vi.find('LAST_LON').text  = str(self.lastLon )
-        vi.find('LAST_LAT').text  = str(self.lastLat )
-
-        # scale and offset
-        v.find('LINE_OFF').text     = str(self.linOff  )
-        v.find('SAMP_OFF').text     = str(self.colOff  )
-        v.find('LAT_OFF').text      = str(self.latOff  )
-        v.find('LONG_OFF').text     = str(self.lonOff  )
-        v.find('HEIGHT_OFF').text   = str(self.altOff  )
-        v.find('LINE_SCALE').text   = str(self.linScale)
-        v.find('SAMP_SCALE').text   = str(self.colScale)
-        v.find('LAT_SCALE').text    = str(self.latScale)
-        v.find('LONG_SCALE').text   = str(self.lonScale)
-        v.find('HEIGHT_SCALE').text = str(self.altScale)
-
-        ## Write the XML file!
-        tree.write(filename)
-
-
-    def __write_worldview(self, filename):
-        """
-        Writes a new XML file with the rpc parameters
-        If the read was performed on a worldview RPC
-        write can only be done using the worldview format.
-        """
-        ## First transfer the coefficients back to the internal xml parsing tree
-        tree = copy.deepcopy(self.tree)
-        v = tree.find('RPB/IMAGE')
-
-        # inverse model parameters
-        a = [str(x) for x in self.inverseLinNum]
-        b = [str(x) for x in self.inverseLinDen]
-        c = [str(x) for x in self.inverseColNum]
-        d = [str(x) for x in self.inverseColDen]
-        v.find('LINENUMCOEFList/LINENUMCOEF').text = ' '.join(a)
-        v.find('LINEDENCOEFList/LINEDENCOEF').text = ' '.join(b)
-        v.find('SAMPNUMCOEFList/SAMPNUMCOEF').text = ' '.join(c)
-        v.find('SAMPDENCOEFList/SAMPDENCOEF').text = ' '.join(d)
-
-        # scale and offset
-        v.find('LINEOFFSET').text   = str(self.linOff)
-        v.find('SAMPOFFSET').text   = str(self.colOff)
-        v.find('LATOFFSET').text    = str(self.latOff)
-        v.find('LONGOFFSET').text   = str(self.lonOff)
-        v.find('HEIGHTOFFSET').text = str(self.altOff)
-        v.find('LINESCALE').text    = str(self.linScale)
-        v.find('SAMPSCALE').text    = str(self.colScale)
-        v.find('LATSCALE').text     = str(self.latScale)
-        v.find('LONGSCALE').text    = str(self.lonScale)
-        v.find('HEIGHTSCALE').text  = str(self.altScale)
-
-        # image dimensions
-        tree.find('IMD/NUMROWS').text = str(self.lastRow)
-        tree.find('IMD/NUMCOLUMNS').text = str(self.lastCol)
-
-        ## Write the XML file!
-        tree.write(filename)
-
-
-    def __write_ikonos(self, filename):
-        """
-        Writes a text file with the rpc parameters in the Ikonos format.
-
-        If the read was performed on an Ikonos RPC, write can only be done
-        using the Ikonos format.
-        """
-        f = open(filename, "w")
-
-        # scale and offset
-        f.write('LINE_OFF: %.12f pixels\n'     % self.linOff  )
-        f.write('SAMP_OFF: %.12f pixels\n'     % self.colOff  )
-        f.write('LAT_OFF: %.12f degrees\n'     % self.latOff  )
-        f.write('LONG_OFF: %.12f degrees\n'    % self.lonOff  )
-        f.write('HEIGHT_OFF: %.12f meters\n'   % self.altOff  )
-        f.write('LINE_SCALE: %.12f pixels\n'   % self.linScale)
-        f.write('SAMP_SCALE: %.12f pixels\n'   % self.colScale)
-        f.write('LAT_SCALE: %.12f degrees\n'   % self.latScale)
-        f.write('LONG_SCALE: %.12f degrees\n'  % self.lonScale)
-        f.write('HEIGHT_SCALE: %.12f meters\n' % self.altScale)
-
-        # inverse model parameters
-        for i in range(20):
-            f.write('LINE_NUM_COEFF_%d: %.12e\n' % (i+1, self.inverseLinNum[i]))
-        for i in range(20):
-            f.write('LINE_DEN_COEFF_%d: %.12e\n' % (i+1, self.inverseLinDen[i]))
-        for i in range(20):
-            f.write('SAMP_NUM_COEFF_%d: %.12e\n' % (i+1, self.inverseColNum[i]))
-        for i in range(20):
-            f.write('SAMP_DEN_COEFF_%d: %.12e\n' % (i+1, self.inverseLinDen[i]))
-        f.close()
-
-    def write(self, filename):
-        """
-        Saves an rpc object to a file, choosing the Pleiades/Worldview/Ikonos
-        format according to the type of the input rpc object
-
-        Args:
-            filename: path to the file
-        """
-        # distinguish 3 cases: pleiades, worldview or ikonos formats
-        if hasattr(self, 'tree') and np.isfinite(self.directLatNum[0]):
-            self.__write_pleiades(filename)
-        elif hasattr(self, 'tree') and np.isnan(self.directLatNum[0]):
-            self.__write_worldview(filename)
-        else:
-            self.__write_ikonos(filename)
-
-
     def __repr__(self):
         return '''
-    ### Direct Model ###
-        directLatNum = {directLatNum}
-        directLatDen = {directLatDen}
-        directLonNum = {directLonNum}
-        directLonDen = {directLonDen}
-
-    ### Inverse Model ###
-        inverseColNum = {inverseColNum}
-        inverseColDen = {inverseColDen}
-        inverseLinNum = {inverseLinNum}
-        inverseLinDen = {inverseLinDen}
+    ### Model ###
+        colNum = {colNum}
+        colDen = {colDen}
+        linNum = {linNum}
+        linDen = {linDen}
 
     ### Scale and Offsets ###
         linOff   = {linOff}
@@ -545,14 +239,10 @@ class RPCModel:
         latScale = {latScale}
         lonScale = {lonScale}
         altScale = {altScale}'''.format(
-        directLatNum  = self.directLatNum,
-        directLatDen  = self.directLatDen,
-        directLonNum  = self.directLonNum,
-        directLonDen  = self.directLonDen,
-        inverseColNum = self.inverseColNum,
-        inverseColDen = self.inverseColDen,
-        inverseLinNum = self.inverseLinNum,
-        inverseLinDen = self.inverseLinDen,
+        colNum = self.colNum,
+        colDen = self.colDen,
+        linNum = self.linNum,
+        linDen = self.linDen,
         lonScale      = self.lonScale,
         lonOff        = self.lonOff,
         latScale      = self.latScale,
@@ -564,6 +254,53 @@ class RPCModel:
         linScale      = self.linScale,
         linOff        = self.linOff)
 
+
+class WVRPCModel(RPCModel):
+    def __init__(self, rpc_file):
+        rpc_dict = self.read_rpc_xml(rpc_file)
+        super(WVRPCModel).__init__(self, rpc_dict)
+
+    def read_rpc_xml(self, rpc_file):
+        rpc_dict = {}
+
+        tree = ElementTree()
+        tree.parse(rpc_file)
+
+        b = tree.find('IMD/IMAGE/SATID') # WorldView
+
+        if b.text not in ['WV01', 'WV02', 'WV03']:
+            raise ValueError('not a WorldView satellite!')
+
+        im = tree.find('RPB/IMAGE')
+        l = im.find('LINENUMCOEFList/LINENUMCOEF')
+        rpc_dict['linNum']= [float(c) for c in l.text.split()]
+        l = im.find('LINEDENCOEFList/LINEDENCOEF')
+        rpc_dict['linDen'] = [float(c) for c in l.text.split()]
+        l = im.find('SAMPNUMCOEFList/SAMPNUMCOEF')
+        rpc_dict['colNum'] = [float(c) for c in l.text.split()]
+        l = im.find('SAMPDENCOEFList/SAMPDENCOEF')
+        rpc_dict['colDen'] = [float(c) for c in l.text.split()]
+
+        # self.inverseBias = float(im.find('ERRBIAS').text)
+
+        # scale and offset
+        rpc_dict['linOff'] = float(im.find('LINEOFFSET').text)
+        rpc_dict['colOff']   = float(im.find('SAMPOFFSET').text)
+        rpc_dict['latOff']   = float(im.find('LATOFFSET').text)
+        rpc_dict['lonOff']   = float(im.find('LONGOFFSET').text)
+        rpc_dict['altOff']   = float(im.find('HEIGHTOFFSET').text)
+
+        rpc_dict['linScale'] = float(im.find('LINESCALE').text)
+        rpc_dict['colScale'] = float(im.find('SAMPSCALE').text)
+        rpc_dict['latScale'] = float(im.find('LATSCALE').text)
+        rpc_dict['lonScale'] = float(im.find('LONGSCALE').text)
+        rpc_dict['altScale'] = float(im.find('HEIGHTSCALE').text)
+
+        # image dimensions
+        numRow = int(tree.find('IMD/NUMROWS').text)
+        numCol = int(tree.find('IMD/NUMCOLUMNS').text)
+
+        return rpc_dict
 
 if __name__ == '__main__':
     # test on the first haiti image

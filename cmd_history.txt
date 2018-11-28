@@ -25,3 +25,6 @@ colmap stereo_fusion --workspace_path ./dense --output_path ./dense/fused.ply
 
 
 colmap patch_match_stereo --workspace_path ./dense --PatchMatchStereo.window_radius 9 --PatchMatchStereo.gpu_index 0,1,2
+
+
+colmap point_triangulator --database_path ./database.db --image_path ./images/ --input_path ./init --output_path ./sparse --Mapper.tri_ignore_two_view_tracks 1 --Mapper.filter_max_reproj_error 1 --Mapper.min_num_matches 3 --Mapper.ba_local_max_num_iterations 1 --Mapper.ba_global_max_num_iterations 1 --Mapper.tri_max_transitivity 5 --Mapper.filter_min_tri_angle 3

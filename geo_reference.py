@@ -50,6 +50,24 @@ def esti_transform(proj_dir):
     print('rmse before: {}'.format(np.sqrt(mse_before)))
     print('rmse after: {}'.format(np.sqrt(mse_after)))
 
+    # plot absolute deviation
+    # import matplotlib.pyplot as plt
+    # plt.subplot(121)
+    # std_dev = np.sqrt(np.sum((points_arr - points_ba_arr)**2, axis=1))
+    # plt.hist(std_dev, bins=100, density=True)
+    # plt.title('before procrustes')
+    # plt.xlabel('Euclidean distance')
+    # plt.ylabel('density')
+    #
+    # plt.subplot(122)
+    # std_dev = np.sqrt(np.sum((points_arr -points_ba_reg)**2, axis=1))
+    # plt.hist(std_dev, bins=100, density=True)
+    # plt.title('after procrustes')
+    # plt.xlabel('Euclidean distance')
+    # plt.ylabel('density')
+    #
+    # plt.show()
+
     return M, t
 
 def esti_linear_map(proj_dir):
@@ -109,8 +127,12 @@ def esti_linear_map(proj_dir):
 
 
 if __name__ == '__main__':
-    proj_dir = sys.argv[1]
-    # proj_dir = 'data_jacksonville_pinhole'
+    # proj_dir = sys.argv[1]
+
+    # proj_dir = 'data_aoi-d1-wpafb_pinhole'
+    #proj_dir = 'data_aoi-d2-wpafb_pinhole'
+    proj_dir = 'data_aoi-d3-ucsd_pinhole'
+    #proj_dir = 'data_aoi-d4-jacksonville_pinhole'
 
     # M, t = esti_linear_map(proj_dir)
     M, t = esti_transform(proj_dir)

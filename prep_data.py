@@ -71,5 +71,9 @@ def prep_data(path):
 
 if __name__ == '__main__':
     # path = sys.argv[1]
-    path = '/home/kai/core3d/wpafb/PAN'
+    # path = '/home/kai/core3d/wpafb/PAN'
+    # path = '/data2/kz298/dataset/core3d/performer_source_data/jacksonville/satellite_imagery/WV3/PAN'
+    # path = '/data2/kz298/dataset/core3d/performer_source_data/san_fernando/satellite_imagery/WV3/PAN'
+    # path = '/data2/kz298/dataset/core3d/performer_source_data/ucsd/satellite_imagery/WV3/PAN'
+    path = '/data2/kz298/dataset/core3d/performer_source_data/wpafb/satellite_imagery/WV3/PAN'
     prep_data(path)

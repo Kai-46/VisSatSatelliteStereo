@@ -3,7 +3,6 @@
 # Copyright (C) 2015, Enric Meinhardt <enric.meinhardt@cmla.ens-cachan.fr>
 
 
-import copy
 import numpy as np
 from xml.etree.ElementTree import ElementTree
 
@@ -102,8 +101,8 @@ def apply_rfm_numpy(num, den, x, y, z):
 class RPCModel(object):
     def __init__(self, rpc_dict):
         # normalization constant
-        self.linOff = rpc_dict['linOff']
-        self.linScale = rpc_dict['linScale']
+        self.rowOff = rpc_dict['rowOff']
+        self.rowScale = rpc_dict['rowScale']
 
         self.colOff = rpc_dict['colOff']
         self.colScale = rpc_dict['colScale']
@@ -118,8 +117,8 @@ class RPCModel(object):
         self.altScale = rpc_dict['altScale']
 
         # polynomial coefficients
-        self.linNum = rpc_dict['linNum']
-        self.linDen = rpc_dict['linDen']
+        self.rowNum = rpc_dict['rowNum']
+        self.rowDen = rpc_dict['rowDen']
         self.colNum = rpc_dict['colNum']
         self.colDen = rpc_dict['colDen']
 
@@ -128,13 +127,13 @@ class RPCModel(object):
         cLat = (lat - self.latOff) / self.latScale
         cAlt = (alt - self.altOff) / self.altScale
         cCol = apply_rfm(self.colNum, self.colDen, cLat, cLon, cAlt)
-        cLin = apply_rfm(self.linNum, self.linDen, cLat, cLon, cAlt)
+        cRow = apply_rfm(self.rowNum, self.rowDen, cLat, cLon, cAlt)
         col = cCol*self.colScale + self.colOff
-        lin = cLin*self.linScale + self.linOff
-        return col, lin, alt
+        row = cRow*self.rowScale + self.rowOff
+        return col, row, alt
 
-    def direct_estimate(self, col, lin, alt, return_normalized=False):
-        return self.direct_estimate_iterative(col, lin, alt, return_normalized)
+    def direct_estimate(self, col, row, alt, return_normalized=False):
+        return self.direct_estimate_iterative(col, row, alt, return_normalized)
 
     def direct_estimate_iterative(self, col, row, alt, return_normalized=False):
         """
@@ -152,7 +151,7 @@ class RPCModel(object):
         """
         # normalise input image coordinates
         cCol = (col - self.colOff) / self.colScale
-        cRow = (row - self.linOff) / self.linScale
+        cRow = (row - self.rowOff) / self.rowScale
         cAlt = (alt - self.altOff) / self.altScale
 
         # target point: Xf (f for final)
@@ -165,11 +164,11 @@ class RPCModel(object):
         lat = -np.ones(len(Xf))
         EPS = 2
         x0 = apply_rfm(self.colNum, self.colDen, lat, lon, cAlt)
-        y0 = apply_rfm(self.linNum, self.linDen, lat, lon, cAlt)
+        y0 = apply_rfm(self.rowNum, self.rowDen, lat, lon, cAlt)
         x1 = apply_rfm(self.colNum, self.colDen, lat, lon + EPS, cAlt)
-        y1 = apply_rfm(self.linNum, self.linDen, lat, lon + EPS, cAlt)
+        y1 = apply_rfm(self.rowNum, self.rowDen, lat, lon + EPS, cAlt)
         x2 = apply_rfm(self.colNum, self.colDen, lat + EPS, lon, cAlt)
-        y2 = apply_rfm(self.linNum, self.linDen, lat + EPS, lon, cAlt)
+        y2 = apply_rfm(self.rowNum, self.rowDen, lat + EPS, lon, cAlt)
 
         # n = 0
         while not np.all((x0 - cCol) ** 2 + (y0 - cRow) ** 2 < 1e-18):
@@ -203,11 +202,11 @@ class RPCModel(object):
             # update X0, X1 and X2
             EPS = .1
             x0 = apply_rfm(self.colNum, self.colDen, lat, lon, cAlt)
-            y0 = apply_rfm(self.linNum, self.linDen, lat, lon, cAlt)
+            y0 = apply_rfm(self.rowNum, self.rowDen, lat, lon, cAlt)
             x1 = apply_rfm(self.colNum, self.colDen, lat, lon + EPS, cAlt)
-            y1 = apply_rfm(self.linNum, self.linDen, lat, lon + EPS, cAlt)
+            y1 = apply_rfm(self.rowNum, self.rowDen, lat, lon + EPS, cAlt)
             x2 = apply_rfm(self.colNum, self.colDen, lat + EPS, lon, cAlt)
-            y2 = apply_rfm(self.linNum, self.linDen, lat + EPS, lon, cAlt)
+            y2 = apply_rfm(self.rowNum, self.rowDen, lat + EPS, lon, cAlt)
             #n += 1
 
         #print('direct_estimate_iterative: %d iterations' % n)
@@ -225,42 +224,43 @@ class RPCModel(object):
     ### Model ###
         colNum = {colNum}
         colDen = {colDen}
-        linNum = {linNum}
-        linDen = {linDen}
+        rowNum = {rowNum}
+        rowDen = {rowDen}
 
     ### Scale and Offsets ###
-        linOff   = {linOff}
+        rowOff   = {rowOff}
+        rowScale = {rowScale}
         colOff   = {colOff}
-        latOff   = {latOff}
-        lonOff   = {lonOff}
-        altOff   = {altOff}
-        linScale = {linScale}
         colScale = {colScale}
+        latOff   = {latOff}
         latScale = {latScale}
+        lonOff   = {lonOff}
         lonScale = {lonScale}
+        altOff   = {altOff}
         altScale = {altScale}'''.format(
-        colNum = self.colNum,
-        colDen = self.colDen,
-        linNum = self.linNum,
-        linDen = self.linDen,
-        lonScale      = self.lonScale,
-        lonOff        = self.lonOff,
-        latScale      = self.latScale,
-        latOff        = self.latOff,
-        altScale      = self.altScale,
-        altOff        = self.altOff,
-        colScale      = self.colScale,
-        colOff        = self.colOff,
-        linScale      = self.linScale,
-        linOff        = self.linOff)
+            colNum=self.colNum,
+            colDen=self.colDen,
+            rowNum=self.rowNum,
+            rowDen=self.rowDen,
+            lonScale=self.lonScale,
+            lonOff=self.lonOff,
+            latScale=self.latScale,
+            latOff=self.latOff,
+            altScale=self.altScale,
+            altOff=self.altOff,
+            colScale=self.colScale,
+            colOff=self.colOff,
+            rowScale=self.rowScale,
+            rowOff=self.rowOff)
 
 
 class WVRPCModel(RPCModel):
     def __init__(self, rpc_file):
-        rpc_dict = self.read_rpc_xml(rpc_file)
-        super(WVRPCModel).__init__(self, rpc_dict)
+        self.rpc_dict = WVRPCModel.read_rpc_xml(rpc_file)
+        super(WVRPCModel, self).__init__(self.rpc_dict)
 
-    def read_rpc_xml(self, rpc_file):
+    @classmethod
+    def read_rpc_xml(cls, rpc_file):
         rpc_dict = {}
 
         tree = ElementTree()
@@ -273,9 +273,9 @@ class WVRPCModel(RPCModel):
 
         im = tree.find('RPB/IMAGE')
         l = im.find('LINENUMCOEFList/LINENUMCOEF')
-        rpc_dict['linNum']= [float(c) for c in l.text.split()]
+        rpc_dict['rowNum']= [float(c) for c in l.text.split()]
         l = im.find('LINEDENCOEFList/LINEDENCOEF')
-        rpc_dict['linDen'] = [float(c) for c in l.text.split()]
+        rpc_dict['rowDen'] = [float(c) for c in l.text.split()]
         l = im.find('SAMPNUMCOEFList/SAMPNUMCOEF')
         rpc_dict['colNum'] = [float(c) for c in l.text.split()]
         l = im.find('SAMPDENCOEFList/SAMPDENCOEF')
@@ -284,31 +284,35 @@ class WVRPCModel(RPCModel):
         # self.inverseBias = float(im.find('ERRBIAS').text)
 
         # scale and offset
-        rpc_dict['linOff'] = float(im.find('LINEOFFSET').text)
+        rpc_dict['rowOff'] = float(im.find('LINEOFFSET').text)
         rpc_dict['colOff']   = float(im.find('SAMPOFFSET').text)
         rpc_dict['latOff']   = float(im.find('LATOFFSET').text)
         rpc_dict['lonOff']   = float(im.find('LONGOFFSET').text)
         rpc_dict['altOff']   = float(im.find('HEIGHTOFFSET').text)
 
-        rpc_dict['linScale'] = float(im.find('LINESCALE').text)
+        rpc_dict['rowScale'] = float(im.find('LINESCALE').text)
         rpc_dict['colScale'] = float(im.find('SAMPSCALE').text)
         rpc_dict['latScale'] = float(im.find('LATSCALE').text)
         rpc_dict['lonScale'] = float(im.find('LONGSCALE').text)
         rpc_dict['altScale'] = float(im.find('HEIGHTSCALE').text)
 
         # image dimensions
-        numRow = int(tree.find('IMD/NUMROWS').text)
-        numCol = int(tree.find('IMD/NUMCOLUMNS').text)
+        rpc_dict['numRow'] = int(tree.find('IMD/NUMROWS').text)
+        rpc_dict['numCol'] = int(tree.find('IMD/NUMCOLUMNS').text)
 
         return rpc_dict
+
+    def get_rpc_dict(self):
+        return self.rpc_dict
+
 
 if __name__ == '__main__':
     # test on the first haiti image
     rpc = RPCModel('../pleiades_data/rpc/haiti/rpc01.xml')
-    col, lin = 20000, 8000
+    col, row = 20000, 8000
     alt = 90
-    print('col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt))
-    lon, lat, alt = rpc.direct_estimate(col, lin, alt)
+    print('col={col}, row={row}, alt={alt}'.format(col=col, row=row, alt=alt))
+    lon, lat, alt = rpc.direct_estimate(col, row, alt)
     print('lon={lon}, lat={lat}, alt={alt}'.format(lon=lon, lat=lat, alt=alt))
-    col, lin, alt = rpc.inverse_estimate(lon, lat, alt)
-    print('col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt))
+    col, row, alt = rpc.inverse_estimate(lon, lat, alt)
+    print('col={col}, row={row}, alt={alt}'.format(col=col, row=row, alt=alt))

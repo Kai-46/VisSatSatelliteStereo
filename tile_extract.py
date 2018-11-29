@@ -1,7 +1,7 @@
 # extract tiles
 
 import os
-import lib.rpc_model as rpc_model
+from lib.rpc_model import WVRPCModel
 import utm
 import numpy as np
 import shutil
@@ -205,6 +205,7 @@ def pinhole_approx(in_folder, out_folder):
 
     shutil.copy(os.path.join(in_folder, 'roi.json'), out_folder)
 
+
 class TileExtractor(object):
     def __init__(self, path):
         self.path = path
@@ -219,7 +220,7 @@ class TileExtractor(object):
                 if not TileExtractor.has_cloud(rpc_file):
                     self.ntf_list.append(os.path.join(cleaned_data, item))
                     self.xml_list.append(rpc_file)
-        self.rpc_models = [rpc_model.RPCModel(rpc_file) for rpc_file in self.xml_list]
+        self.rpc_models = [WVRPCModel(rpc_file) for rpc_file in self.xml_list]
         self.cnt = len(self.ntf_list)
         self.min_height, self.max_height = self.height_range()
 

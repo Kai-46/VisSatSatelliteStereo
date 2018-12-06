@@ -51,22 +51,22 @@ def esti_transform(proj_dir):
     print('rmse after: {}'.format(np.sqrt(mse_after)))
 
     # plot absolute deviation
-    # import matplotlib.pyplot as plt
-    # plt.subplot(121)
-    # std_dev = np.sqrt(np.sum((points_arr - points_ba_arr)**2, axis=1))
-    # plt.hist(std_dev, bins=100, density=True)
-    # plt.title('before procrustes')
-    # plt.xlabel('Euclidean distance')
-    # plt.ylabel('density')
-    #
-    # plt.subplot(122)
-    # std_dev = np.sqrt(np.sum((points_arr -points_ba_reg)**2, axis=1))
-    # plt.hist(std_dev, bins=100, density=True)
-    # plt.title('after procrustes')
-    # plt.xlabel('Euclidean distance')
-    # plt.ylabel('density')
-    #
-    # plt.show()
+    import matplotlib.pyplot as plt
+    plt.subplot(121)
+    std_dev = np.sqrt(np.sum((points_arr - points_ba_arr)**2, axis=1))
+    plt.hist(std_dev, bins=100, density=True)
+    plt.title('before procrustes')
+    plt.xlabel('Euclidean distance')
+    plt.ylabel('density')
+
+    plt.subplot(122)
+    std_dev = np.sqrt(np.sum((points_arr -points_ba_reg)**2, axis=1))
+    plt.hist(std_dev, bins=100, density=True)
+    plt.title('after procrustes')
+    plt.xlabel('Euclidean distance')
+    plt.ylabel('density')
+
+    plt.show()
 
     return M, t
 

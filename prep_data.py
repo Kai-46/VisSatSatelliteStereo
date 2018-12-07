@@ -9,7 +9,6 @@ import shutil
 # then extract rpc file and preview image from the .tar file
 # save hard links to the .NTF file in 'cleaned_data/'
 
-
 def prep_data(path):
     path = os.path.abspath(path)
     print('dataset path: {}'.format(path))

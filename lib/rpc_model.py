@@ -4,8 +4,6 @@
 
 
 import numpy as np
-from xml.etree.ElementTree import ElementTree
-
 
 def apply_poly(poly, x, y, z):
     """
@@ -122,7 +120,7 @@ class RPCModel(object):
         self.colNum = rpc_dict['colNum']
         self.colDen = rpc_dict['colDen']
 
-    def inverse_estimate(self, lon, lat, alt):
+    def projection(self, lon, lat, alt):
         cLon = (lon - self.lonOff) / self.lonScale
         cLat = (lat - self.latOff) / self.latScale
         cAlt = (alt - self.altOff) / self.altScale
@@ -132,14 +130,8 @@ class RPCModel(object):
         row = cRow*self.rowScale + self.rowOff
         return col, row, alt
 
-    def direct_estimate(self, col, row, alt, return_normalized=False):
-        return self.direct_estimate_iterative(col, row, alt, return_normalized)
-
-    def direct_estimate_iterative(self, col, row, alt, return_normalized=False):
+    def inverse_projection(self, col, row, alt, return_normalized=False):
         """
-        Iterative estimation of direct projection (image to ground), for a
-        list (or array) of image points expressed in image coordinates.
-
         Args:
             col, row: image coordinates
             alt: altitude (in meters above the ellipsoid) of the corresponding
@@ -209,7 +201,7 @@ class RPCModel(object):
             y2 = apply_rfm(self.rowNum, self.rowDen, lat + EPS, lon, cAlt)
             #n += 1
 
-        #print('direct_estimate_iterative: %d iterations' % n)
+        #print('# of iterations: %d' % n)
 
         if return_normalized:
            return lon, lat, cAlt
@@ -220,12 +212,12 @@ class RPCModel(object):
         return lon, lat, alt
 
     def __repr__(self):
-        return '''
+        return '''        
     ### Model ###
+        rowNum = {rowNum}
+        rowDen = {rowDen}   
         colNum = {colNum}
         colDen = {colDen}
-        rowNum = {rowNum}
-        rowDen = {rowDen}
 
     ### Scale and Offsets ###
         rowOff   = {rowOff}
@@ -238,81 +230,24 @@ class RPCModel(object):
         lonScale = {lonScale}
         altOff   = {altOff}
         altScale = {altScale}'''.format(
-            colNum=self.colNum,
-            colDen=self.colDen,
             rowNum=self.rowNum,
             rowDen=self.rowDen,
-            lonScale=self.lonScale,
-            lonOff=self.lonOff,
-            latScale=self.latScale,
-            latOff=self.latOff,
-            altScale=self.altScale,
-            altOff=self.altOff,
-            colScale=self.colScale,
-            colOff=self.colOff,
+            colNum=self.colNum,
+            colDen=self.colDen,
+            rowOff=self.rowOff,
             rowScale=self.rowScale,
-            rowOff=self.rowOff)
-
-
-class WVRPCModel(RPCModel):
-    def __init__(self, rpc_file):
-        self.rpc_dict = WVRPCModel.read_rpc_xml(rpc_file)
-        super(WVRPCModel, self).__init__(self.rpc_dict)
-
-    @classmethod
-    def read_rpc_xml(cls, rpc_file):
-        rpc_dict = {}
-
-        tree = ElementTree()
-        tree.parse(rpc_file)
-
-        b = tree.find('IMD/IMAGE/SATID') # WorldView
-
-        if b.text not in ['WV01', 'WV02', 'WV03']:
-            raise ValueError('not a WorldView satellite!')
-
-        im = tree.find('RPB/IMAGE')
-        l = im.find('LINENUMCOEFList/LINENUMCOEF')
-        rpc_dict['rowNum']= [float(c) for c in l.text.split()]
-        l = im.find('LINEDENCOEFList/LINEDENCOEF')
-        rpc_dict['rowDen'] = [float(c) for c in l.text.split()]
-        l = im.find('SAMPNUMCOEFList/SAMPNUMCOEF')
-        rpc_dict['colNum'] = [float(c) for c in l.text.split()]
-        l = im.find('SAMPDENCOEFList/SAMPDENCOEF')
-        rpc_dict['colDen'] = [float(c) for c in l.text.split()]
-
-        # self.inverseBias = float(im.find('ERRBIAS').text)
-
-        # scale and offset
-        rpc_dict['rowOff'] = float(im.find('LINEOFFSET').text)
-        rpc_dict['colOff']   = float(im.find('SAMPOFFSET').text)
-        rpc_dict['latOff']   = float(im.find('LATOFFSET').text)
-        rpc_dict['lonOff']   = float(im.find('LONGOFFSET').text)
-        rpc_dict['altOff']   = float(im.find('HEIGHTOFFSET').text)
-
-        rpc_dict['rowScale'] = float(im.find('LINESCALE').text)
-        rpc_dict['colScale'] = float(im.find('SAMPSCALE').text)
-        rpc_dict['latScale'] = float(im.find('LATSCALE').text)
-        rpc_dict['lonScale'] = float(im.find('LONGSCALE').text)
-        rpc_dict['altScale'] = float(im.find('HEIGHTSCALE').text)
-
-        # image dimensions
-        rpc_dict['numRow'] = int(tree.find('IMD/NUMROWS').text)
-        rpc_dict['numCol'] = int(tree.find('IMD/NUMCOLUMNS').text)
-
-        return rpc_dict
-
-    def get_rpc_dict(self):
-        return self.rpc_dict
+            colOff=self.colOff,
+            colScale=self.colScale,
+            latOff=self.latOff,
+            latScale=self.latScale,
+            lonOff=self.lonOff,
+            lonScale=self.lonScale,
+            altOff=self.altOff,
+            altScale=self.altScale)
 
 
 if __name__ == '__main__':
-    # test on the first haiti image
-    rpc = RPCModel('../pleiades_data/rpc/haiti/rpc01.xml')
-    col, row = 20000, 8000
-    alt = 90
-    print('col={col}, row={row}, alt={alt}'.format(col=col, row=row, alt=alt))
-    lon, lat, alt = rpc.direct_estimate(col, row, alt)
-    print('lon={lon}, lat={lat}, alt={alt}'.format(lon=lon, lat=lat, alt=alt))
-    col, row, alt = rpc.inverse_estimate(lon, lat, alt)
-    print('col={col}, row={row}, alt={alt}'.format(col=col, row=row, alt=alt))
+    from lib.parse_meta import parse_meta
+    meta_dict = parse_meta('/data2/kz298/dataset/core3d/performer_source_data/jacksonville/satellite_imagery/WV3/PAN/cleaned_data/17APR22163213-P1BS-501504472100_01_P004.XML')
+    rpc_model = RPCModel(meta_dict['rpc'])
+    print(rpc_model)

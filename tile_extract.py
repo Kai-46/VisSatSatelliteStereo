@@ -1,7 +1,8 @@
 # extract tiles
 
 import os
-from lib.rpc_model import WVRPCModel
+from lib.rpc_model import RPCModel
+from lib.parse_meta import parse_meta
 import utm
 import numpy as np
 import shutil
@@ -166,6 +167,9 @@ def pinhole_approx(in_folder, out_folder):
     cameras_line_format = '{camera_id} PINHOLE {width} {height} {fx} {fy} {cx} {cy}\n'
     with open(os.path.join(in_folder, 'camera_data.json')) as fp:
         camera_dict = json.load(fp)
+
+    skew_dict = {}
+
     for img_name in camera_dict:
         params = camera_dict[img_name][0].strip().split(' ')
         width = int(params[2])
@@ -177,6 +181,9 @@ def pinhole_approx(in_folder, out_folder):
         s = float(params[8])
         # compute homography
         norm_skew = s / fy
+
+        skew_dict[img_name] = norm_skew
+
         print('removing skew, image: {}, normalized skew: {}'.format(img_name, norm_skew))
         homography = np.array([[1, -norm_skew, 0],
                                [0, 1, 0],
@@ -203,8 +210,11 @@ def pinhole_approx(in_folder, out_folder):
     with open(os.path.join(out_folder, 'camera_data.json'), 'w') as fp:
         json.dump(camera_dict, fp, indent=2)
 
-    shutil.copy(os.path.join(in_folder, 'roi.json'), out_folder)
+    with open(os.path.join(out_folder, 'skews.json'), 'w') as fp:
+        json.dump(skew_dict, fp, indent=2)
 
+    shutil.copy(os.path.join(in_folder, 'roi.json'), out_folder)
+    shutil.copytree(os.path.join(in_folder, 'metas'), os.path.join(out_folder, 'metas'))
 
 class TileExtractor(object):
     def __init__(self, path):
@@ -216,12 +226,19 @@ class TileExtractor(object):
         cleaned_data = os.path.join(path, 'cleaned_data')
         for item in sorted(os.listdir(cleaned_data)):
             if item[-4:] == '.NTF':
-                rpc_file = os.path.join(cleaned_data, '{}.XML'.format(item[:-4]))
-                if not TileExtractor.has_cloud(rpc_file):
+                xml_file = os.path.join(cleaned_data, '{}.XML'.format(item[:-4]))
+                if not TileExtractor.has_cloud(xml_file):
                     self.ntf_list.append(os.path.join(cleaned_data, item))
-                    self.xml_list.append(rpc_file)
-        self.rpc_models = [WVRPCModel(rpc_file) for rpc_file in self.xml_list]
+                    self.xml_list.append(xml_file)
+        self.meta_dicts = [parse_meta(xml_file) for xml_file in self.xml_list]
+        self.rpc_models = [RPCModel(meta_dict['rpc']) for meta_dict in self.meta_dicts]
+
         self.cnt = len(self.ntf_list)
+        # create a ascending date index
+        tmp = [(i, self.meta_dicts[i]['capTime']) for i in range(self.cnt)]
+        tmp = sorted(tmp, key=lambda x: x[1])
+        self.time_index = [x[0] for x in tmp]
+
         self.min_height, self.max_height = self.height_range()
 
     def height_range(self):
@@ -243,6 +260,7 @@ class TileExtractor(object):
         print('out_folder: {}'.format(out_folder))
         os.mkdir(out_folder)
         os.mkdir(os.path.join(out_folder, 'images'))
+        os.mkdir(os.path.join(out_folder, 'metas'))
 
         # write to roi.json
         roi_dict = { 'zone_number': zone_number,
@@ -280,15 +298,17 @@ class TileExtractor(object):
         xx_lat = np.tile(xx_lat, (z_point_cnt, 1))
         yy_lon = np.tile(yy_lon, (z_point_cnt, 1))
 
-        for i in range(self.cnt):
-            print('processing image {}/{} ...'.format(i, self.cnt))
+        for k in range(self.cnt):
+            print('processing image {}/{} ...'.format(k, self.cnt))
+
+            i = self.time_index[k]   # image index
 
             zz = np.zeros((point_cnt, 1))
             for j in range(z_point_cnt):
                 idx1 = j * x_point_cnt * y_point_cnt
                 idx2 = (j + 1) * x_point_cnt * y_point_cnt
                 zz[idx1:idx2, 0] = z_points[j]
-            col, row, _ = self.rpc_models[i].inverse_estimate(yy_lon, xx_lat, zz)
+            col, row, _ = self.rpc_models[i].projection(yy_lon, xx_lat, zz)
 
             # compute the bounding box
             ul_row = int(np.round(np.min(row)))
@@ -298,7 +318,8 @@ class TileExtractor(object):
 
             # cut image
             in_ntf = self.ntf_list[i]
-            out_png = os.path.join(out_folder, 'images/{}_image.png'.format(i))
+            cap_time = self.meta_dicts[i]['capTime'].strftime("%Y%m%d%H%M%S")
+            out_png = os.path.join(out_folder, 'images/{:03d}_{}.png'.format(k, cap_time))
             status = TileExtractor.cut_image(in_ntf, out_png, ul_col, ul_row, width, height)
             if not status:
                 continue
@@ -311,6 +332,16 @@ class TileExtractor(object):
             yy = np.reshape(yy, (-1, 1))
             xx = np.tile(xx, (z_point_cnt, 1))
             yy = np.tile(yy, (z_point_cnt, 1))
+
+            # modify RPC camera parameters
+            meta_dict = self.meta_dicts[i]
+            rpc_dict = meta_dict['rpc']
+            rpc_dict['rowOff'] = rpc_dict['rowOff'] + rpc_dict['rowScale'] * ul_row
+            rpc_dict['colOff'] = rpc_dict['colOff'] + rpc_dict['colScale'] * ul_col
+            meta_dict['rpc'] = rpc_dict
+            meta_dict['capTime'] = meta_dict['capTime'].isoformat()
+            with open(os.path.join(out_folder, 'metas/{:03d}_{}.json'.format(k, cap_time)), 'w') as fp:
+                json.dump(meta_dict, fp, indent=2)
 
             # use a smaller number
             xx -= ul_north
@@ -427,21 +458,23 @@ def remove_control_characters(s):
 
 
 def extract_aoi(aoi_name, data_name):
+    print('aoi_name: {}, data_name: {}'.format(aoi_name, data_name))
+
     with open('roi_utm.json') as fp:
         roi = json.load(fp)[aoi_name]
 
-    out_folder = 'data_{}'.format(aoi_name)
+    out_folder = '/data2/kz298/core3d_aoi/{}'.format(aoi_name)
     if os.path.exists(out_folder):
         shutil.rmtree(out_folder, ignore_errors=True)
     os.mkdir(out_folder)
 
-    path = '/home/kai/core3d/{}/PAN'
+    path = '/data2/kz298/core3d_pan/{}'
     tile_extractor = TileExtractor(path.format(data_name))
     tile_extractor.extract_roi_utm(roi['utm_band'], roi['hemisphere'],
                                    roi['x'], roi['y'], roi['x'] + roi['w'], roi['y'] - roi['h'], out_folder)
     pinhole_approx(out_folder, '{}_pinhole'.format(out_folder))
 
-    shutil.rmtree(out_folder, ignore_errors=True)
+    # shutil.rmtree(out_folder, ignore_errors=True)
 
 
 def test():
@@ -454,7 +487,11 @@ if __name__ == '__main__':
 
     # extract_aoi('wpafb')
 
-    extract_aoi(sys.argv[1], sys.argv[2])
+    #extract_aoi(sys.argv[1], sys.argv[2])
+    extract_aoi('aoi-d1-wpafb', 'wpafb')
+    extract_aoi('aoi-d2-wpafb', 'wpafb')
+    extract_aoi('aoi-d3-ucsd', 'ucsd')
+    extract_aoi('aoi-d4-jacksonville', 'jacksonville')
 
     # path = '/home/kai/satellite_project/dataset/core3d/PAN/jacksonville'
     # tile_extractor = TileExtractor(path)

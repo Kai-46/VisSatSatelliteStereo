@@ -47,53 +47,53 @@ def apply_rfm(num, den, x, y, z):
     return apply_poly(num, x, y, z) / apply_poly(den, x, y, z)
 
 
-# this function was written to use numpy.polynomial.polynomial.polyval3d
-# function, instead of our apply_poly function.
-def reshape_coefficients_vector(c):
-    """
-    Transform a 1D array of coefficients of a 3D polynom into a 3D array.
-
-    Args:
-        c: 1D array of length 20, containing the coefficients of the
-            3-variables polynom of degree 3, ordered with the RPC convention.
-    Returns:
-        a 4x4x4 ndarray, with at most 20 non-zero entries, containing the
-        coefficients of input array.
-    """
-    out = np.zeros((4, 4, 4))
-    out[0, 0, 0] = c[0]
-    out[0, 1, 0] = c[1]
-    out[1, 0, 0] = c[2]
-    out[0, 0, 1] = c[3]
-    out[1, 1, 0] = c[4]
-    out[0, 1, 1] = c[5]
-    out[1, 0, 1] = c[6]
-    out[0, 2, 0] = c[7]
-    out[2, 0, 0] = c[8]
-    out[0, 0, 2] = c[9]
-    out[1, 1, 1] = c[10]
-    out[0, 3, 0] = c[11]
-    out[2, 1, 0] = c[12]
-    out[0, 1, 2] = c[13]
-    out[1, 2, 0] = c[14]
-    out[3, 0, 0] = c[15]
-    out[1, 0, 2] = c[16]
-    out[0, 2, 1] = c[17]
-    out[2, 0, 1] = c[18]
-    out[0, 0, 3] = c[19]
-    return out
-
-
-def apply_rfm_numpy(num, den, x, y, z):
-    """
-    Alternative implementation of apply_rfm, that uses numpy to evaluate
-    polynoms.
-    """
-    c_num = reshape_coefficients_vector(num)
-    c_den = reshape_coefficients_vector(den)
-    a = np.polynomial.polynomial.polyval3d(x, y, z, c_num)
-    b = np.polynomial.polynomial.polyval3d(x, y, z, c_den)
-    return a/b
+# # this function was written to use numpy.polynomial.polynomial.polyval3d
+# # function, instead of our apply_poly function.
+# def reshape_coefficients_vector(c):
+#     """
+#     Transform a 1D array of coefficients of a 3D polynom into a 3D array.
+#
+#     Args:
+#         c: 1D array of length 20, containing the coefficients of the
+#             3-variables polynom of degree 3, ordered with the RPC convention.
+#     Returns:
+#         a 4x4x4 ndarray, with at most 20 non-zero entries, containing the
+#         coefficients of input array.
+#     """
+#     out = np.zeros((4, 4, 4))
+#     out[0, 0, 0] = c[0]
+#     out[0, 1, 0] = c[1]
+#     out[1, 0, 0] = c[2]
+#     out[0, 0, 1] = c[3]
+#     out[1, 1, 0] = c[4]
+#     out[0, 1, 1] = c[5]
+#     out[1, 0, 1] = c[6]
+#     out[0, 2, 0] = c[7]
+#     out[2, 0, 0] = c[8]
+#     out[0, 0, 2] = c[9]
+#     out[1, 1, 1] = c[10]
+#     out[0, 3, 0] = c[11]
+#     out[2, 1, 0] = c[12]
+#     out[0, 1, 2] = c[13]
+#     out[1, 2, 0] = c[14]
+#     out[3, 0, 0] = c[15]
+#     out[1, 0, 2] = c[16]
+#     out[0, 2, 1] = c[17]
+#     out[2, 0, 1] = c[18]
+#     out[0, 0, 3] = c[19]
+#     return out
+#
+#
+# def apply_rfm_numpy(num, den, x, y, z):
+#     """
+#     Alternative implementation of apply_rfm, that uses numpy to evaluate
+#     polynoms.
+#     """
+#     c_num = reshape_coefficients_vector(num)
+#     c_den = reshape_coefficients_vector(den)
+#     a = np.polynomial.polynomial.polyval3d(x, y, z, c_num)
+#     b = np.polynomial.polynomial.polyval3d(x, y, z, c_den)
+#     return a/b
 
 
 class RPCModel(object):
@@ -120,7 +120,7 @@ class RPCModel(object):
         self.colNum = rpc_dict['colNum']
         self.colDen = rpc_dict['colDen']
 
-    def projection(self, lon, lat, alt):
+    def projection(self, lat, lon, alt):
         cLon = (lon - self.lonOff) / self.lonScale
         cLat = (lat - self.latOff) / self.latScale
         cAlt = (alt - self.altOff) / self.altScale
@@ -128,7 +128,7 @@ class RPCModel(object):
         cRow = apply_rfm(self.rowNum, self.rowDen, cLat, cLon, cAlt)
         col = cCol*self.colScale + self.colOff
         row = cRow*self.rowScale + self.rowOff
-        return col, row, alt
+        return col, row
 
     def inverse_projection(self, col, row, alt, return_normalized=False):
         """

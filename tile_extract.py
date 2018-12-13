@@ -4,11 +4,11 @@ import os
 from lib.rpc_model import RPCModel
 from lib.parse_meta import parse_meta
 from lib.gen_grid import gen_grid
+from lib.approx_perspective import solve_perspective
 import utm
 import numpy as np
 import shutil
 import imageio
-from scipy import linalg
 import quaternion
 import json
 import cv2
@@ -20,139 +20,6 @@ import xml.etree.ElementTree as ET
 import unicodedata
 
 # import matplotlib.pyplot as plt
-
-
-def factorize(matrix):
-    # QR factorize the submatrix
-    r, q = linalg.rq(matrix[:, :3])
-    # compute the translation
-    t = linalg.lstsq(r, matrix[:, 3:4])[0]
-
-    # fix the intrinsic and rotation matrix
-    # intrinsic matrix's diagonal entries must be all positive
-    # rotation matrix's determinant must be 1
-    print('before fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
-    neg_sign_cnt = int(r[0, 0] < 0) + int(r[1, 1] < 0) + int(r[2, 2] < 0)
-    if neg_sign_cnt == 1 or neg_sign_cnt == 3:
-        r = -r
-
-    new_neg_sign_cnt = int(r[0, 0] < 0) + int(r[1, 1] < 0) + int(r[2, 2] < 0)
-    assert (new_neg_sign_cnt == 0 or new_neg_sign_cnt == 2)
-
-    fix = np.diag((1, 1, 1))
-    if r[0, 0] < 0 and r[1, 1] < 0:
-        fix = np.diag((-1, -1, 1))
-    elif r[0, 0] < 0 and r[2, 2] < 0:
-        fix = np.diag((-1, 1, -1))
-    elif r[1, 1] < 0 and r[2, 2] < 0:
-        fix = np.diag((1, -1, -1))
-    r = np.dot(r, fix)
-    q = np.dot(fix, q)
-    t = np.dot(fix, t)
-
-    assert (linalg.det(q) > 0)
-    print('after fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
-
-    # check correctness
-    ratio = np.dot(r, np.hstack((q, t))) / matrix
-    assert (np.all(ratio > 0) or np.all(ratio < 0))
-    tmp = np.max(np.abs(np.abs(ratio) - np.ones((3, 4))))
-    print('factorization, max relative error: {}'.format(tmp))
-    assert (np.max(tmp) < 1e-9)
-
-    # normalize the r matrix
-    r /= r[2, 2]
-
-    return r, q, t
-
-
-# colmap convention for pixel indices: (col, row)
-def approx_perspective(xx, yy, zz, col, row):
-    print('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    print('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    print('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-
-    diff_size = np.array([yy.size - xx.size, zz.size - xx.size, col.size - xx.size, row.size - xx.size])
-    assert (np.all(diff_size == 0))
-
-    point_cnt = xx.size
-    all_ones = np.ones((point_cnt, 1))
-    all_zeros = np.zeros((point_cnt, 4))
-    # construct the least square problem
-    A1 = np.hstack((xx, yy, zz, all_ones,
-                    all_zeros,
-                    -col * xx, -col * yy, -col * zz, -col * all_ones))
-    A2 = np.hstack((all_zeros,
-                    xx, yy, zz, all_ones,
-                    -row * xx, -row * yy, -row * zz, -row * all_ones))
-
-    A = np.vstack((A1, A2))
-    u, s, vh = linalg.svd(A)
-    print('smallest singular value: {}'.format(s[11]))
-    P = np.real(vh[11, :]).reshape((3, 4))
-
-    # factorize into standard form
-    r, q, t = factorize(P)
-
-    # check the order of the quantities
-    print('fx: {}, fy: {}, cx: {} cy: {}, skew: {}'.format(r[0, 0], r[1, 1], r[0, 2], r[1, 2], r[0, 1]))
-    translation = np.tile(t.T, (point_cnt, 1))
-    result = np.dot(np.hstack((xx, yy, zz)), q.T) + translation
-    cam_xx = result[:, 0:1]
-    cam_yy = result[:, 1:2]
-    cam_zz = result[:, 2:3]
-    print("cam_xx: {}, {}".format(np.min(cam_xx), np.max(cam_xx)))
-    print("cam_yy: {}, {}".format(np.min(cam_yy), np.max(cam_yy)))
-    print("cam_zz: {}, {}".format(np.min(cam_zz), np.max(cam_zz)))
-    # drift caused by skew
-    drift = r[0, 1] * cam_yy / cam_zz
-    min_drift = np.min(drift)
-    max_drift = np.max(drift)
-    print("drift caused by skew (pixel): {}, {}, {}".format(min_drift, max_drift, max_drift - min_drift))
-
-    # decompose the intrinsic
-    print("normalized skew: {}, fx: {}, fy: {}, cx: {}, cy: {}".format(
-        r[0, 1] / r[1, 1], r[0, 0], r[1, 1], r[0, 2] - r[0, 1] * r[1, 2] / r[1, 1], r[1, 2]))
-
-    # check projection accuracy
-    P_hat = np.dot(r, np.hstack((q, t)))
-    result = np.dot(np.hstack((xx, yy, zz, all_ones)), P_hat.T)
-    esti_col = result[:, 0:1] / result[:, 2:3]
-    esti_row = result[:, 1:2] / result[:, 2:3]
-    max_row_err = np.max(np.abs(esti_row - row))
-    max_col_err = np.max(np.abs(esti_col - col))
-    print('projection accuracy, max_row_err: {}, max_col_err: {}'.format(max_row_err, max_col_err))
-
-    # check inverse projection accuracy
-    # assume the matching are correct
-    result = np.dot(np.hstack((col, row, all_ones)), linalg.inv(r.T))
-    esti_cam_xx = result[:, 0:1]  # in camera coordinate
-    esti_cam_yy = result[:, 1:2]
-    esti_cam_zz = result[:, 2:3]
-
-    # compute scale
-    scale = (cam_xx * esti_cam_xx + cam_yy * esti_cam_yy + cam_zz * esti_cam_zz) / (
-            esti_cam_xx * esti_cam_xx + esti_cam_yy * esti_cam_yy + esti_cam_zz * esti_cam_zz)
-    assert (np.all(scale > 0))
-    esti_cam_xx = esti_cam_xx * scale
-    esti_cam_yy = esti_cam_yy * scale
-    esti_cam_zz = esti_cam_zz * scale
-
-    # check accuarcy in camera coordinate frame
-    print('inverse projection accuracy, cam xx: {}'.format(np.max(np.abs(esti_cam_xx - cam_xx))))
-    print('inverse projection accuracy, cam yy: {}'.format(np.max(np.abs(esti_cam_yy - cam_yy))))
-    print('inverse projection accuracy, cam zz: {}'.format(np.max(np.abs(esti_cam_zz - cam_zz))))
-    # check accuracy in object coordinate frame
-    result = np.dot(np.hstack((esti_cam_xx, esti_cam_yy, esti_cam_zz)) - translation, linalg.inv(q.T))
-    esti_xx = result[:, 0:1]
-    esti_yy = result[:, 1:2]
-    esti_zz = result[:, 2:3]
-    print('inverse projection accuracy, xx: {}'.format(np.max(np.abs(esti_xx - xx))))
-    print('inverse projection accuracy, yy: {}'.format(np.max(np.abs(esti_yy - yy))))
-    print('inverse projection accuracy, zz: {}'.format(np.max(np.abs(esti_zz - zz))))
-
-    return r, q, t, P
-
 
 # pinhole approx and undistort the image
 # in_folder is the folder for perspective cameras
@@ -207,9 +74,9 @@ def pinhole_approx(in_folder, out_folder):
         imageio.imwrite(os.path.join(out_folder, 'images', img_name), img_dst.astype(dtype=np.uint8))
 
         # also save the uncrop version for diagnosis
-        w = int(np.max((points[0, 1], points[0, 2]-points[0, 3])))
-        h = int(np.max((points[1, 2], points[1, 3])))
-        img_uncrop = cv2.warpPerspective(im_src, homography, (w, h))
+        w_big = int(np.max((points[0, 1], points[0, 2]-points[0, 3])))
+        h_big = int(np.max((points[1, 2], points[1, 3])))
+        img_uncrop = cv2.warpPerspective(im_src, homography, (w_big, h_big))
         imageio.imwrite(os.path.join(out_folder, 'images_uncrop', img_name), img_uncrop.astype(dtype=np.uint8))
 
         camera_line = cameras_line_format.format(camera_id="{camera_id}", width=w, height=h,
@@ -242,7 +109,7 @@ class TileExtractor(object):
                     self.ntf_list.append(os.path.join(cleaned_data, item))
                     self.xml_list.append(xml_file)
         self.meta_dicts = [parse_meta(xml_file) for xml_file in self.xml_list]
-        self.rpc_models = [RPCModel(meta_dict['rpc']) for meta_dict in self.meta_dicts]
+        self.rpc_models = [RPCModel(meta_dict) for meta_dict in self.meta_dicts]
 
         self.cnt = len(self.ntf_list)
         # create a ascending date index
@@ -285,46 +152,41 @@ class TileExtractor(object):
         with open(os.path.join(out_folder, 'roi.json'), 'w') as fp:
             json.dump(roi_dict, fp, indent=2)
 
-        x_point_cnt = 20
-        y_point_cnt = 20
-        z_point_cnt = 20
-        point_cnt = x_point_cnt * y_point_cnt * z_point_cnt
-
-        x_points = np.linspace(ul_north, lr_north, x_point_cnt)
-        y_points = np.linspace(ul_east, lr_east, y_point_cnt)
-        z_points = np.linspace(self.min_height, self.max_height, z_point_cnt)
-
         ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
         lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
-
-        x_points_lat = np.linspace(ul_lat, lr_lat, x_point_cnt)
-        y_points_lon = np.linspace(ul_lon, lr_lon, y_point_cnt)
 
         cameras_line_format = '{camera_id} PERSPECTIVE {width} {height} {fx} {fy} {cx} {cy} {s}\n'
         images_line_format = '{image_id} {qw} {qx} {qy} {qz} {tx} {ty} {tz} {camera_id} {image_name}\n\n'
         camera_dict = {}
 
-        # create lat_lon grid
-        xx_lat, yy_lon = np.meshgrid(x_points_lat, y_points_lon)
-        xx_lat = np.reshape(xx_lat, (-1, 1))
-        yy_lon = np.reshape(yy_lon, (-1, 1))
-        xx_lat = np.tile(xx_lat, (z_point_cnt, 1))
-        yy_lon = np.tile(yy_lon, (z_point_cnt, 1))
+        # create lat_lon_height grid
+        lat_points = np.linspace(ul_lat, lr_lat, 20)
+        lon_points = np.linspace(ul_lon, lr_lon, 20)
+        z_points = np.linspace(self.min_height, self.max_height, 20)
+
+        xx_lat, yy_lon, zz = gen_grid(lat_points, lon_points, z_points)
+
+        # create north_east_height grid
+        north_points = np.linspace(ul_north, lr_north, 20)
+        east_points = np.linspace(ul_east, lr_east, 20)
+
+        xx, yy, zz = gen_grid(north_points, east_points, z_points)
+
+        # use a smaller number and change to the right-handed coordinate frame
+        xx = ul_north - xx
+        yy = yy - ul_east
 
         useful_cnt = 0 # number of useful images
         for k in range(self.cnt):
-
-            #k = 43 # debug
+            # debug
+            # if k==0:
+            #     continue
+            #k = 1 # debug
 
             print('processing image {}/{}, already collect {} useful images...'.format(k, self.cnt, useful_cnt))
 
             i = self.time_index[k]   # image index
 
-            zz = np.zeros((point_cnt, 1))
-            for j in range(z_point_cnt):
-                idx1 = j * x_point_cnt * y_point_cnt
-                idx2 = (j + 1) * x_point_cnt * y_point_cnt
-                zz[idx1:idx2, 0] = z_points[j]
             col, row = self.rpc_models[i].projection(xx_lat, yy_lon, zz)
 
             # compute the bounding box
@@ -351,31 +213,28 @@ class TileExtractor(object):
             TileExtractor.cut_image(in_ntf, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height))
 
             # approximate the camera
+            # try remove the outliers in order to improve approximation accuracy
+            keep_mask = np.logical_and(row >= ul_row, col >=  ul_col)
+            keep_mask = np.logical_and(keep_mask, row < ul_row + height)
+            keep_mask = np.logical_and(keep_mask, col < ul_col + width)
+
+            # subtract the cutting offset
             row -= ul_row
             col -= ul_col
-            xx, yy = np.meshgrid(x_points, y_points)
-            xx = np.reshape(xx, (-1, 1))
-            yy = np.reshape(yy, (-1, 1))
-            xx = np.tile(xx, (z_point_cnt, 1))
-            yy = np.tile(yy, (z_point_cnt, 1))
 
             # modify RPC camera parameters
             meta_dict = self.meta_dicts[i]
             rpc_dict = meta_dict['rpc']
-            rpc_dict['rowOff'] = rpc_dict['rowOff'] + rpc_dict['rowScale'] * ul_row
-            rpc_dict['colOff'] = rpc_dict['colOff'] + rpc_dict['colScale'] * ul_col
+            # also subtract the cutting offset here
+            rpc_dict['rowOff'] = rpc_dict['rowOff'] - ul_row
+            rpc_dict['colOff'] = rpc_dict['colOff'] - ul_col
+
             meta_dict['rpc'] = rpc_dict
             meta_dict['capTime'] = meta_dict['capTime'].isoformat()
             with open(os.path.join(out_folder, 'metas/{:03d}_{}.json'.format(useful_cnt, cap_time)), 'w') as fp:
                 json.dump(meta_dict, fp, indent=2)
 
-            # use a smaller number
-            xx -= ul_north
-            yy -= ul_east
-            # now change to the right-handed coordinate frame
-            xx = -xx
-
-            r, q, t, _ = approx_perspective(xx, yy, zz, col, row)
+            r, q, t, _ = solve_perspective(xx, yy, zz, col, row, keep_mask)
 
             # write to colmap format
             img_name = out_png[out_png.rfind('/')+1:]
@@ -567,9 +426,9 @@ if __name__ == '__main__':
     #extract_aoi(sys.argv[1], sys.argv[2])
 
     extract_aoi('aoi-d1-wpafb', 'wpafb')
-    #extract_aoi('aoi-d2-wpafb', 'wpafb')
-    #extract_aoi('aoi-d3-ucsd', 'ucsd')
-    #extract_aoi('aoi-d4-jacksonville', 'jacksonville')
+    extract_aoi('aoi-d2-wpafb', 'wpafb')
+    extract_aoi('aoi-d3-ucsd', 'ucsd')
+    extract_aoi('aoi-d4-jacksonville', 'jacksonville')
 
     # path = '/home/kai/satellite_project/dataset/core3d/PAN/jacksonville'
     # tile_extractor = TileExtractor(path)

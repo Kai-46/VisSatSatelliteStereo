@@ -109,4 +109,8 @@ def procrustes(X, Y, scaling=True, reflection='best'):
     #transformation values 
     tform = {'rotation':T, 'scale':b, 'translation':c}
 
+
+    # check distance
+    # new_err = np.sum(np.sum((Z - X) ** 2, axis=1))
+
     return d, Z, tform

@@ -3,8 +3,17 @@ import utm
 from lib.rpc_model import RPCModel
 import numpy as np
 from lib.gen_grid import gen_grid
+import os
 
-def solve_affine(xx, yy, zz, col, row):
+
+def solve_affine(xx, yy, zz, col, row, keep_mask):
+    print('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
+    xx = xx[keep_mask].reshape((-1, 1))
+    yy = yy[keep_mask].reshape((-1, 1))
+    zz = zz[keep_mask].reshape((-1, 1))
+    row = row[keep_mask].reshape((-1, 1))
+    col = col[keep_mask].reshape((-1, 1))
+
     # construct a least square problem
     print('xx: {}, {}'.format(np.min(xx), np.max(xx)))
     print('yy: {}, {}'.format(np.min(yy), np.max(yy)))
@@ -37,10 +46,17 @@ def approx_affine(rpc_model, ul_lat, ul_lon, lr_lat, lr_lon):
     z_min = rpc_model.altOff - 0. * rpc_model.altScale
     z_max = rpc_model.altOff + 0.7 * rpc_model.altScale
 
-    xx, yy, zz = gen_grid(ul_lat, lr_lat, ul_lon, lr_lon, z_min, z_max)
+    lat_points = np.linspace(ul_lat, lr_lat, 20)
+    lon_points = np.linspace(ul_lon, lr_lon, 20)
+    z_points = np.linspace(z_min, z_max, 20)
+
+    xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
     col, row = rpc_model.projection(xx, yy, zz)
 
-    P = solve_affine(xx, yy, zz, col, row)
+    keep_mask = np.logical_and(col >= 0, row >= 0)
+    keep_mask = np.logical_and(keep_mask, col < rpc_model.width)
+    keep_mask = np.logical_and(keep_mask, row < rpc_model.height)
+    P = solve_affine(xx, yy, zz, col, row, keep_mask)
 
     return P
 
@@ -59,6 +75,7 @@ def compute_reproj_err(rpc_models, track, point):
         err += (col - proj_col) ** 2 + (row - proj_row) ** 2
     err = np.sqrt(err / len(track))
 
+    print('reproj. err.: {}'.format(err))
     return err
 
 
@@ -100,7 +117,7 @@ def write_to_taskfile(init, rpc_models, track, out_file):
     lines.append('{}\n'.format(err))
 
     for i in range(len(track)):
-        line = '{} {}'.format(track[0], track[1])
+        line = '{} {}'.format(track[i][0], track[i][1])
 
         assert (len(rpc_models[i].rowNum) == 20)
         for j in range(20):
@@ -121,6 +138,46 @@ def write_to_taskfile(init, rpc_models, track, out_file):
         fp.writelines(lines)
 
 
+# track is a list of observations
+def triangulate(track, rpc_models, roi_dict, out_file):
+    ul_east = roi_dict['x']
+    ul_north = roi_dict['y']
+    lr_east = ul_east + roi_dict['w']
+    lr_north = ul_north - roi_dict['h']
+    zone_letter = roi_dict['zone_letter']
+    zone_number = roi_dict['zone_number']
+
+    init = solve_init(rpc_models, track, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+    write_to_taskfile(init, rpc_models, track, out_file)
+
+    # triangulate
+    os.system('ceres_rpc {} {}.result.txt'.format(out_file, out_file))
+
+    # read result
+    with open(out_file) as fp:
+        lines = fp.readlines()
+        init_point = [float(x) for x in lines[0].strip().split(' ')]
+        init_err = float(lines[1].strip())
+    with open(out_file) as fp:
+        lines = fp.readlines()
+        final_point = [float(x) for x in lines[0].strip().split(' ')]
+        final_err = float(lines[1].strip())
+
+    # double final_err
+    tmp = compute_reproj_err(rpc_models, track, final_point)
+    assert (np.abs(tmp - final_err) < 0.1)
+
+    tmp = utm.from_latlon(init_point[0], init_point[1], zone_number)
+    init_point_utm = [tmp[0], tmp[1], init_point[2]]
+
+    tmp = utm.from_latlon(final_point[0], final_point[1], zone_number)
+    final_point_utm = [tmp[0], tmp[1], final_point[2]]
+
+    print('init point: {}, {}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
+    print('final point: {}, {}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
+
+    return final_point_utm
+
 def test():
     rpc_models = []
 
@@ -129,8 +186,8 @@ def test():
                       'example_triangulate/002_20141011155720.json']
     for fname in rpc_dict_files:
         with open(fname) as fp:
-            rpc_dict = json.load(fp)['rpc']
-            rpc_models.append(RPCModel(rpc_dict))
+            meta_dict = json.load(fp)
+            rpc_models.append(RPCModel(meta_dict))
 
     track = []
     with open('example_triangulate/track.txt') as fp:

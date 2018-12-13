@@ -97,7 +97,8 @@ def apply_rfm(num, den, x, y, z):
 
 
 class RPCModel(object):
-    def __init__(self, rpc_dict):
+    def __init__(self, meta_dict):
+        rpc_dict = meta_dict['rpc']
         # normalization constant
         self.rowOff = rpc_dict['rowOff']
         self.rowScale = rpc_dict['rowScale']
@@ -119,6 +120,10 @@ class RPCModel(object):
         self.rowDen = rpc_dict['rowDen']
         self.colNum = rpc_dict['colNum']
         self.colDen = rpc_dict['colDen']
+
+        # width, height
+        self.width = meta_dict['width']
+        self.height = meta_dict['height']
 
     def projection(self, lat, lon, alt):
         cLon = (lon - self.lonOff) / self.lonScale

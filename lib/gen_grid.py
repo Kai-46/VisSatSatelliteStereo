@@ -1,13 +1,18 @@
 import numpy as np
 
+# point_cnt = x_point_cnt * y_point_cnt * z_point_cnt
+#
+# x_points = np.linspace(x_min, x_max, x_point_cnt)
+# y_points = np.linspace(y_min, y_max, y_point_cnt)
+# z_points = np.linspace(z_min, z_max, z_point_cnt)
 
 # generate a 3D grid
-def gen_grid(x_min, x_max, y_min, y_max, z_min, z_max, x_point_cnt=20, y_point_cnt=20, z_point_cnt=20):
+# x_points, y_points, z_points are numpy array
+def gen_grid(x_points, y_points, z_points):
+    x_point_cnt = x_points.size
+    y_point_cnt = y_points.size
+    z_point_cnt = z_points.size
     point_cnt = x_point_cnt * y_point_cnt * z_point_cnt
-
-    x_points = np.linspace(x_min, x_max, x_point_cnt)
-    y_points = np.linspace(y_min, y_max, y_point_cnt)
-    z_points = np.linspace(z_min, z_max, z_point_cnt)
 
     xx, yy = np.meshgrid(x_points, y_points)
     xx = np.reshape(xx, (-1, 1))

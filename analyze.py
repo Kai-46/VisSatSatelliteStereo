@@ -3,19 +3,25 @@
 import lib.read_model
 import os
 import matplotlib.pyplot as plt
-from collections import OrderedDict
 import json
 import numpy as np
 
-class SparseModel(object):
-    def __init__(self, sparse_dir, ext):
+
+class InspectSparseModel(object):
+    def __init__(self, sparse_dir, out_dir, ext='.bin'):
         self.sparse_dir = os.path.abspath(sparse_dir)
+        self.out_dir = os.path.abspath(out_dir)
 
         self.cameras, self.images, self.points3D = lib.read_model.read_model(self.sparse_dir, ext)
 
         self.img_cnt = len(self.images.keys())
 
+    def inspect(self):
+        self.inspect_feature_tracks()
+        self.inspect_image_key_points()
+
     def inspect_image_key_points(self):
+        img_id2name = []
         img_names = []
         img_widths = []
         img_heights = []
@@ -23,12 +29,17 @@ class SparseModel(object):
         key_point_cnt = []
         for image_id in self.images:
             image = self.images[image_id]
+
+            img_id2name.append((image_id, image.name))
             img_names.append(image.name)
             key_point_cnt.append(len(image.xys))
 
             cam = self.cameras[image.camera_id]
             img_widths.append(cam.width)
             img_heights.append(cam.height)
+
+        with open(os.path.join(self.out_dir, 'inspect_img_id2name.png'), 'w') as fp:
+            json.dump(img_id2name, fp)
 
         plt.clf()
         plt.bar(range(0, self.img_cnt), key_point_cnt)
@@ -38,7 +49,7 @@ class SparseModel(object):
         plt.title('total # of images: {}'.format(self.img_cnt))
         plt.tight_layout()
 
-        plt.savefig(os.path.join(self.sparse_dir, 'inspect_key_points.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_key_points.png'))
         #plt.show()
 
         plt.clf()
@@ -53,17 +64,7 @@ class SparseModel(object):
         plt.grid(True)
         plt.title('total # of images: {}'.format(self.img_cnt))
         plt.tight_layout()
-        plt.savefig(os.path.join(self.sparse_dir, 'inspect_image_size.png'))
-        #return (img_names, key_point_cnt)
-
-    def stats_points3D(self):
-        for point3D_id in self.points3D:
-            print(self.points3D[point3D_id].id)
-            print(self.points3D[point3D_id].xyz)
-            print(self.points3D[point3D_id].error)
-            print(len(self.points3D[point3D_id].image_ids))
-            print(len(self.points3D[point3D_id].point2D_idxs))
-            print('\n')
+        plt.savefig(os.path.join(self.out_dir, 'inspect_image_size.png'))
 
     def inspect_feature_tracks(self):
         all_tracks = []
@@ -95,16 +96,16 @@ class SparseModel(object):
         print('number of feature tracks: {}'.format(len(all_tracks)))
         print('first feature track: {}'.format(all_tracks[0]))
 
-        with open(os.path.join(self.sparse_dir, 'inspect_points_id.json'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'inspect_points_id.json'), 'w') as fp:
             json.dump(all_points_id, fp, indent=2)
 
-        with open(os.path.join(self.sparse_dir, 'inspect_points_tracks.json'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'inspect_points_tracks.json'), 'w') as fp:
             json.dump(all_tracks, fp, indent=2)
 
-        with open(os.path.join(self.sparse_dir, 'inspect_points_xyz.json'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'inspect_points_xyz.json'), 'w') as fp:
             json.dump(all_points_xyz, fp, indent=2)
 
-        with open(os.path.join(self.sparse_dir, 'inspect_points_err.json'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'inspect_points_err.json'), 'w') as fp:
             json.dump(all_points_err, fp, indent=2)
 
         # check distribution of track_len
@@ -119,7 +120,7 @@ class SparseModel(object):
                   .format(self.img_cnt, len(all_tracks), min(track_len), max_track_len))
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.sparse_dir, 'inspect_track_len.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_track_len.png'))
 
         #plt.show()
 
@@ -136,11 +137,8 @@ class SparseModel(object):
                   .format(self.img_cnt, len(all_points_err), min(all_points_err), np.mean(all_points_err), np.median(all_points_err), max_points_err))
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.sparse_dir, 'inspect_reproj_err.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.png'))
         #plt.show()
-
-        #return all_tracks
-
 
 
 def test():
@@ -151,7 +149,7 @@ def test():
 
     ext = '.bin'
 
-    sparse_model = SparseModel(sparse_dir, ext)
+    sparse_model = InspectSparseModel(sparse_dir, sparse_dir, ext)
 
     sparse_model.inspect_feature_tracks()
     sparse_model.inspect_image_key_points()

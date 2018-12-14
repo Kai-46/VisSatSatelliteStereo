@@ -14,6 +14,7 @@ if __name__ == '__main__':
     since = time()
 
     # read config file
+    #config_file = 'aoi_config/aoi-d1-wpafb.json'
     config_file = 'aoi_config/aoi-d4-jacksonville.json'
     with open(config_file) as fp:
         config = json.load(fp)

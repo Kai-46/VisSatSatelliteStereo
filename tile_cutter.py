@@ -54,6 +54,8 @@ class TileCutter(object):
         if not os.path.exists(self.regions_subdir):
             os.mkdir(self.regions_subdir)
 
+        self.useful_cnt = 0
+
     # cut area of interest; might divide the aoi into smaller regions
     def cut_aoi(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
         # save to aoi_dict
@@ -65,8 +67,45 @@ class TileCutter(object):
                     'h': ul_north - lr_north}
         with open(os.path.join(self.out_dir, 'aoi.json'), 'w') as fp:
             json.dump(aoi_dict, fp)
+
+        self.useful_cnt = 0
+
         # view the whole aoi as a region
-        self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+        # self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+
+        # overlap cutting
+        self.overlap_cut(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+
+    # 3 * 3 overlap cutting
+    # one image will be cut into 10 smaller regions
+    def overlap_cut(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
+        dilate_ratio = 0.3
+
+        east_sep = np.linspace(ul_east, lr_east, 3 + 1)
+        north_sep = np.linspace(ul_north, lr_north, 3 + 1)
+
+        logging.info('start overlap cutting, dilate_ratio: {}'.format(dilate_ratio))
+        for i in range(3):
+            region_ul_east = east_sep[i]
+            w = east_sep[i+1] - region_ul_east
+            for j in range(3):
+                region_ul_north = north_sep[j]
+                h = region_ul_north - north_sep[j+1]
+                # dialate the bounding box
+                region_ul_east = region_ul_east - w * dilate_ratio / 2
+                region_ul_north = region_ul_north + h * dilate_ratio / 2
+                w = w * (1 + dilate_ratio)
+                h = h * (1 + dilate_ratio)
+                region_lr_east = region_ul_east + w
+                region_lr_north = region_ul_north - h
+                # correct
+                region_ul_east = region_ul_east if region_ul_east >= ul_east else ul_east
+                region_ul_north = region_ul_north if region_ul_north <= ul_north else ul_north
+                region_lr_east = region_lr_east if region_lr_east <= lr_east else lr_east
+                region_lr_north = region_lr_north if region_lr_north >= lr_north else lr_north
+
+                self.cut_region(zone_number, zone_letter, region_ul_east, region_ul_north, region_lr_east, region_lr_north)
+
 
     def cut_region(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
         ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
@@ -78,9 +117,8 @@ class TileCutter(object):
         xx_lat, yy_lon, zz = gen_grid(lat_points, lon_points, z_points)
 
         # start to process the images
-        useful_cnt = 0 # number of useful images
         for k in range(self.cnt):
-            logging.info('processing image {}/{}, already collect {} useful images...'.format(k+1, self.cnt, useful_cnt))
+            logging.info('processing image {}/{}, already collect {} useful images...'.format(k+1, self.cnt, self.useful_cnt))
             i = self.time_index[k]   # image index
 
             # check whether the image is too cloudy
@@ -113,11 +151,14 @@ class TileCutter(object):
             # cut image
             in_ntf = self.ntf_list[i]
             cap_time = self.meta_dicts[i]['capTime'].strftime("%Y%m%d%H%M%S")
-            out_png = os.path.join(self.image_subdir, '{:03d}_{}.png'.format(useful_cnt, cap_time))
+            out_png = os.path.join(self.image_subdir, '{:03d}_{}.png'.format(self.useful_cnt, cap_time))
 
             cut_image(in_ntf, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height))
             # tone mapping
-            tone_map(out_png, out_png)
+            out_jpg = out_png[:-4] + '.jpg'
+            tone_map(out_png, out_jpg)
+            # remove out_png
+            os.remove(out_png)
 
             # save metadata
             # need to modify the rpc function and image width, height
@@ -133,7 +174,7 @@ class TileCutter(object):
             # change datetime object to string
             meta_dict['capTime'] = meta_dict['capTime'].isoformat()
 
-            with open(os.path.join(self.metas_subdir, '{:03d}_{}.json'.format(useful_cnt, cap_time)), 'w') as fp:
+            with open(os.path.join(self.metas_subdir, '{:03d}_{}.json'.format(self.useful_cnt, cap_time)), 'w') as fp:
                 json.dump(meta_dict, fp, indent=2)
 
             # save region
@@ -143,11 +184,11 @@ class TileCutter(object):
                            'y': ul_north,
                            'w': lr_east - ul_east,
                            'h': ul_north - lr_north}
-            with open(os.path.join(self.regions_subdir, '{:03d}_{}.json'.format(useful_cnt, cap_time)), 'w') as fp:
+            with open(os.path.join(self.regions_subdir, '{:03d}_{}.json'.format(self.useful_cnt, cap_time)), 'w') as fp:
                 json.dump(region_dict, fp)
 
             # increase number of useful images
-            useful_cnt += 1
+            self.useful_cnt += 1
 
             logging.info('\n')
 

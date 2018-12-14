@@ -6,13 +6,15 @@ from approx import Approx
 from prep_for_colmap import prep_for_colmap, create_init_files
 from time import time
 from lib.georegister_dense import georegister_dense
+import shutil
+
 
 if __name__ == '__main__':
     stages = {}
     since = time()
 
     # read config file
-    config_file = 'aoi_config/aoi-d1-wpafb.json'
+    config_file = 'aoi_config/aoi-d4-jacksonville.json'
     with open(config_file) as fp:
         config = json.load(fp)
 
@@ -26,8 +28,10 @@ if __name__ == '__main__':
 
     # clean data
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
-    if not os.path.exists(cleaned_data_dir):
-        os.mkdir(cleaned_data_dir)
+    if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
+        shutil.rmtree(cleaned_data_dir, ignore_errors=True)
+    os.mkdir(cleaned_data_dir)
+
     clean_data(dataset_dir, cleaned_data_dir)
 
     # cut image and tone map
@@ -44,11 +48,11 @@ if __name__ == '__main__':
     appr = Approx(work_dir)
     perspective_dict = appr.approx_perspective_utm()
     with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
-        json.dump(perspective_dict, fp)
+        json.dump(perspective_dict, fp, indent=2)
 
     affine_dict = appr.approx_affine_latlon()
     with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
-        json.dump(affine_dict)
+        json.dump(affine_dict, fp, indent=2)
 
     # prepare colmap workspace
     colmap_dir = os.path.join(work_dir, 'colmap')
@@ -148,7 +152,7 @@ if __name__ == '__main__':
     c, R, t = compute_transform(colmap_dir)
     georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
                       os.path.join(colmap_dir, 'dense/fused_registered.ply'),
-                      os.path.join(colmap_dir, 'aoi.json'), c, R, t)
+                      os.path.join(work_dir, 'aoi.json'), c, R, t)
 
     # record time
     elapsed = (time()- since) / 60.

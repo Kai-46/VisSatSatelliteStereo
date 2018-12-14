@@ -18,7 +18,7 @@ if __name__ == '__main__':
     points3D_file = sys.argv[1]
     ply_file = sys.argv[2]
 
-    print('points3D_file: {}'.format(points3D_file))
-    print('ply_file: {}'.format(ply_file))
+    logging.info('points3D_file: {}'.format(points3D_file))
+    logging.info('ply_file: {}'.format(ply_file))
 
     points3D_to_ply(points3D_file, ply_file)

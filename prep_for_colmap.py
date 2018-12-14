@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import imageio
 import colmap.database as database
-
+import logging
 
 def make_subdirs(out_dir):
     subdirs = [ os.path.join(out_dir, 'images'),
@@ -49,10 +49,10 @@ def prep_for_colmap(tile_dir, out_dir):
 
         # compute homography and update s, cx
         norm_skew = s / fy
-        s = 0.
         cx = cx - s * cy / fy
+        # s = 0.
 
-        print('removing skew, image: {}, normalized skew: {}'.format(item, norm_skew))
+        logging.info('\nremoving skew, image: {}, normalized skew: {}'.format(item, norm_skew))
         homography = np.array([[1, -norm_skew, 0],
                                [0, 1, 0],
                                [0, 0, 1]])
@@ -67,12 +67,12 @@ def prep_for_colmap(tile_dir, out_dir):
                                               [1., 1., 1., 1.]]))
         w = int(np.min((points[0, 1], points[0, 2])))
         h = int(np.min((points[1, 2], points[1, 3])))
-        print('original image size, width: {}, height: {}'.format(width, height))
-        print('skew-corrected image size, width: {}, height: {}'.format(w, h))
+        logging.info('original image size, width: {}, height: {}'.format(width, height))
+        logging.info('skew-corrected image size, width: {}, height: {}'.format(w, h))
 
         # warp image
         img_dst = cv2.warpPerspective(im_src, homography, (w, h))
-        imageio.imwrite(os.path.join(image_subdir, 'images', item), img_dst.astype(dtype=np.uint8))
+        imageio.imwrite(os.path.join(image_subdir, item), img_dst.astype(dtype=np.uint8))
 
         # write to template
         cam_line = cameras_line_template.format(camera_id="{camera_id}", width=w, height=h,
@@ -82,8 +82,8 @@ def prep_for_colmap(tile_dir, out_dir):
                                             image_name=item)
         template[item] = (cam_line, img_line)
 
-    with open(init_subdir, 'template.json') as fp:
-        json.dump(template, fp)
+    with open(os.path.join(init_subdir, 'template.json'), 'w') as fp:
+        json.dump(template, fp, indent=2)
 
 
 def create_init_files(colmap_dir):
@@ -119,3 +119,11 @@ def create_init_files(colmap_dir):
     # create an empty points3D.txt
     fp = open(os.path.join(init_dir, 'points3D.txt'), 'w')
     fp.close()
+
+if __name__ == '__main__':
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'
+    # prepare colmap workspace
+    colmap_dir = os.path.join(work_dir, 'colmap')
+    if not os.path.exists(colmap_dir):
+        os.mkdir(colmap_dir)
+    prep_for_colmap(work_dir, colmap_dir)

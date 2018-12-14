@@ -72,7 +72,7 @@ class Approx(object):
 
             # write to file
             img_name = self.img_names[i]
-            P = list(P.reshape((1,)))
+            P = list(P.reshape((8,)))
             affine_dict[img_name] = P
 
         # with open(os.path.join(self.tile_dir, 'affine_latlon.json'), 'w') as fp:
@@ -140,3 +140,13 @@ class Approx(object):
         return perspective_dict
 
 
+if __name__ == '__main__':
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'
+    appr = Approx(work_dir)
+    perspective_dict = appr.approx_perspective_utm()
+    with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
+        json.dump(perspective_dict, fp, indent=2)
+
+    affine_dict = appr.approx_affine_latlon()
+    with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
+        json.dump(affine_dict, fp, indent=2)

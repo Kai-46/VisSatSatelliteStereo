@@ -91,8 +91,8 @@ class InspectSparseModel(object):
                 cur_track.append((img_name, point2D[0], point2D[1]))
             all_tracks.append(cur_track)
 
-        print('number of feature tracks: {}'.format(len(all_tracks)))
-        print('first feature track: {}'.format(all_tracks[0]))
+        logging.info('number of feature tracks: {}'.format(len(all_tracks)))
+        logging.info('first feature track: {}'.format(all_tracks[0]))
 
         with open(os.path.join(self.out_dir, 'inspect_points_id.json'), 'w') as fp:
             json.dump(all_points_id, fp, indent=2)

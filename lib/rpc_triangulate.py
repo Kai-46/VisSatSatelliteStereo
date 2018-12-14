@@ -3,11 +3,11 @@ import utm
 from lib.rpc_model import RPCModel
 import numpy as np
 from lib.gen_grid import gen_grid
-import os
-
+from lib.run_cmd import run_cmd
+import logging
 
 def solve_affine(xx, yy, zz, col, row, keep_mask):
-    print('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
+    logging.info('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
     xx = xx[keep_mask].reshape((-1, 1))
     yy = yy[keep_mask].reshape((-1, 1))
     zz = zz[keep_mask].reshape((-1, 1))
@@ -15,11 +15,11 @@ def solve_affine(xx, yy, zz, col, row, keep_mask):
     col = col[keep_mask].reshape((-1, 1))
 
     # construct a least square problem
-    print('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    print('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    print('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-    print('col: {}, {}'.format(np.min(col), np.max(col)))
-    print('row: {}, {}'.format(np.min(row), np.max(row)))
+    logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
+    logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
+    logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
+    logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
+    logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
 
     diff_size = np.array([yy.size - xx.size, zz.size - xx.size, col.size - xx.size, row.size - xx.size])
     assert (np.all(diff_size == 0))
@@ -35,7 +35,7 @@ def solve_affine(xx, yy, zz, col, row, keep_mask):
     b = np.vstack((col, row))
     res = np.linalg.lstsq(A, b)
 
-    print('residual error (pixels): {}'.format(np.sqrt(res[1][0] / point_cnt)))
+    logging.info('residual error (pixels): {}'.format(np.sqrt(res[1][0] / point_cnt)))
 
     P = res[0].reshape((2, 4))
 
@@ -75,7 +75,7 @@ def compute_reproj_err(rpc_models, track, point):
         err += (col - proj_col) ** 2 + (row - proj_row) ** 2
     err = np.sqrt(err / len(track))
 
-    print('reproj. err.: {}'.format(err))
+    logging.info('reproj. err.: {}'.format(err))
     return err
 
 
@@ -151,7 +151,7 @@ def triangulate(track, rpc_models, roi_dict, out_file):
     write_to_taskfile(init, rpc_models, track, out_file)
 
     # triangulate
-    os.system('ceres_rpc {} {}.result.txt'.format(out_file, out_file))
+    run_cmd('ceres_rpc {} {}.result.txt'.format(out_file, out_file))
 
     # read result
     with open(out_file) as fp:
@@ -173,8 +173,8 @@ def triangulate(track, rpc_models, roi_dict, out_file):
     tmp = utm.from_latlon(final_point[0], final_point[1], zone_number)
     final_point_utm = [tmp[0], tmp[1], final_point[2]]
 
-    print('init point: {}, {}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
-    print('final point: {}, {}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
+    logging.info('init point: {}, {}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
+    logging.info('final point: {}, {}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
 
     return final_point_utm
 

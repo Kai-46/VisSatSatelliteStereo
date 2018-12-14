@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-
+import logging
 
 def factorize(matrix):
     # QR factorize the submatrix
@@ -11,7 +11,7 @@ def factorize(matrix):
     # fix the intrinsic and rotation matrix
     # intrinsic matrix's diagonal entries must be all positive
     # rotation matrix's determinant must be 1
-    print('before fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
+    logging.info('before fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
     neg_sign_cnt = int(r[0, 0] < 0) + int(r[1, 1] < 0) + int(r[2, 2] < 0)
     if neg_sign_cnt == 1 or neg_sign_cnt == 3:
         r = -r
@@ -31,13 +31,13 @@ def factorize(matrix):
     t = np.dot(fix, t)
 
     assert (linalg.det(q) > 0)
-    print('after fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
+    logging.info('after fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
 
     # check correctness
     ratio = np.dot(r, np.hstack((q, t))) / matrix
     assert (np.all(ratio > 0) or np.all(ratio < 0))
     tmp = np.max(np.abs(np.abs(ratio) - np.ones((3, 4))))
-    print('factorization, max relative error: {}'.format(tmp))
+    logging.info('factorization, max relative error: {}'.format(tmp))
     assert (np.max(tmp) < 1e-9)
 
     # normalize the r matrix
@@ -52,18 +52,18 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
     assert (np.all(diff_size == 0))
 
     if keep_mask is not None:
-        print('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
+        logging.info('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
         xx = xx[keep_mask].reshape((-1, 1))
         yy = yy[keep_mask].reshape((-1, 1))
         zz = zz[keep_mask].reshape((-1, 1))
         row = row[keep_mask].reshape((-1, 1))
         col = col[keep_mask].reshape((-1, 1))
 
-    print('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    print('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    print('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-    print('col: {}, {}'.format(np.min(col), np.max(col)))
-    print('row: {}, {}'.format(np.min(row), np.max(row)))
+    logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
+    logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
+    logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
+    logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
+    logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
 
     point_cnt = xx.size
     all_ones = np.ones((point_cnt, 1))
@@ -78,7 +78,7 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
 
     A = np.vstack((A1, A2))
     u, s, vh = linalg.svd(A)
-    print('smallest singular value: {}'.format(s[11]))
+    logging.info('smallest singular value: {}'.format(s[11]))
     P = np.real(vh[11, :]).reshape((3, 4))
 
     # factorize into standard form
@@ -90,25 +90,26 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
 
 def check_accuracy(xx, yy, zz, col, row, r, q, t):
     point_cnt = xx.size
-
+    all_ones = np.ones((point_cnt, 1))
     # check the order of the quantities
-    print('fx: {}, fy: {}, cx: {} cy: {}, skew: {}'.format(r[0, 0], r[1, 1], r[0, 2], r[1, 2], r[0, 1]))
+    logging.info('\n\n')
+    logging.info('fx: {}, fy: {}, cx: {} cy: {}, skew: {}'.format(r[0, 0], r[1, 1], r[0, 2], r[1, 2], r[0, 1]))
     translation = np.tile(t.T, (point_cnt, 1))
     result = np.dot(np.hstack((xx, yy, zz)), q.T) + translation
     cam_xx = result[:, 0:1]
     cam_yy = result[:, 1:2]
     cam_zz = result[:, 2:3]
-    print("cam_xx: {}, {}".format(np.min(cam_xx), np.max(cam_xx)))
-    print("cam_yy: {}, {}".format(np.min(cam_yy), np.max(cam_yy)))
-    print("cam_zz: {}, {}".format(np.min(cam_zz), np.max(cam_zz)))
+    logging.info("cam_xx: {}, {}".format(np.min(cam_xx), np.max(cam_xx)))
+    logging.info("cam_yy: {}, {}".format(np.min(cam_yy), np.max(cam_yy)))
+    logging.info("cam_zz: {}, {}".format(np.min(cam_zz), np.max(cam_zz)))
     # drift caused by skew
     drift = r[0, 1] * cam_yy / cam_zz
     min_drift = np.min(drift)
     max_drift = np.max(drift)
-    print("drift caused by skew (pixel): {}, {}, {}".format(min_drift, max_drift, max_drift - min_drift))
+    logging.info("drift caused by skew (pixel): {}, {}, {}".format(min_drift, max_drift, max_drift - min_drift))
 
     # decompose the intrinsic
-    # print("normalized skew: {}, fx: {}, fy: {}, cx: {}, cy: {}".format(
+    # logging.info("normalized skew: {}, fx: {}, fy: {}, cx: {}, cy: {}".format(
     #     r[0, 1] / r[1, 1], r[0, 0], r[1, 1], r[0, 2] - r[0, 1] * r[1, 2] / r[1, 1], r[1, 2]))
 
     # check projection accuracy
@@ -118,7 +119,7 @@ def check_accuracy(xx, yy, zz, col, row, r, q, t):
     esti_row = result[:, 1:2] / result[:, 2:3]
     max_row_err = np.max(np.abs(esti_row - row))
     max_col_err = np.max(np.abs(esti_col - col))
-    print('projection accuracy, max_row_err: {}, max_col_err: {}'.format(max_row_err, max_col_err))
+    logging.info('projection accuracy, max_row_err: {}, max_col_err: {}'.format(max_row_err, max_col_err))
 
     # check inverse projection accuracy
     # assume the matching are correct
@@ -136,14 +137,14 @@ def check_accuracy(xx, yy, zz, col, row, r, q, t):
     esti_cam_zz = esti_cam_zz * scale
 
     # check accuarcy in camera coordinate frame
-    print('inverse projection accuracy, cam xx: {}'.format(np.max(np.abs(esti_cam_xx - cam_xx))))
-    print('inverse projection accuracy, cam yy: {}'.format(np.max(np.abs(esti_cam_yy - cam_yy))))
-    print('inverse projection accuracy, cam zz: {}'.format(np.max(np.abs(esti_cam_zz - cam_zz))))
+    logging.info('inverse projection accuracy, cam xx: {}'.format(np.max(np.abs(esti_cam_xx - cam_xx))))
+    logging.info('inverse projection accuracy, cam yy: {}'.format(np.max(np.abs(esti_cam_yy - cam_yy))))
+    logging.info('inverse projection accuracy, cam zz: {}'.format(np.max(np.abs(esti_cam_zz - cam_zz))))
     # check accuracy in object coordinate frame
     result = np.dot(np.hstack((esti_cam_xx, esti_cam_yy, esti_cam_zz)) - translation, linalg.inv(q.T))
     esti_xx = result[:, 0:1]
     esti_yy = result[:, 1:2]
     esti_zz = result[:, 2:3]
-    print('inverse projection accuracy, xx: {}'.format(np.max(np.abs(esti_xx - xx))))
-    print('inverse projection accuracy, yy: {}'.format(np.max(np.abs(esti_yy - yy))))
-    print('inverse projection accuracy, zz: {}'.format(np.max(np.abs(esti_zz - zz))))
+    logging.info('inverse projection accuracy, xx: {}'.format(np.max(np.abs(esti_xx - xx))))
+    logging.info('inverse projection accuracy, yy: {}'.format(np.max(np.abs(esti_yy - yy))))
+    logging.info('inverse projection accuracy, zz: {}'.format(np.max(np.abs(esti_zz - zz))))

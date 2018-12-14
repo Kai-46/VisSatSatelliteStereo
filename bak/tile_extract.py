@@ -26,8 +26,8 @@ def pinhole_approx(in_folder, out_folder):
     out_folder = os.path.abspath(out_folder)
     if os.path.exists(out_folder):
         shutil.rmtree(out_folder, ignore_errors=True)
-    print('in_folder: {}'.format(in_folder))
-    print('out_folder: {}'.format(out_folder))
+    logging.info('in_folder: {}'.format(in_folder))
+    logging.info('out_folder: {}'.format(out_folder))
     os.mkdir(out_folder)
     os.mkdir(os.path.join(out_folder, 'images'))
     os.mkdir(os.path.join(out_folder, 'images_uncrop'))
@@ -52,7 +52,7 @@ def pinhole_approx(in_folder, out_folder):
 
         skew_dict[img_name] = norm_skew
 
-        print('removing skew, image: {}, normalized skew: {}'.format(img_name, norm_skew))
+        logging.info('removing skew, image: {}, normalized skew: {}'.format(img_name, norm_skew))
         homography = np.array([[1, -norm_skew, 0],
                                [0, 1, 0],
                                [0, 0, 1]])
@@ -63,8 +63,8 @@ def pinhole_approx(in_folder, out_folder):
         w = int(np.min((points[0, 1], points[0, 2])))
         h = int(np.min((points[1, 2], points[1, 3])))
 
-        print('original image size, width: {}, height: {}'.format(width, height))
-        print('corrected image size, width: {}, height: {}'.format(w, h))
+        logging.info('original image size, width: {}, height: {}'.format(width, height))
+        logging.info('corrected image size, width: {}, height: {}'.format(w, h))
         im_src = imageio.imread(os.path.join(in_folder, 'images', img_name)).astype(dtype=np.float64)
 
         # note that opencv axis direction might be (row, col)???????
@@ -82,7 +82,7 @@ def pinhole_approx(in_folder, out_folder):
                                                  fx=fx, fy=fy, cx=cx - s * cy / fy, cy=cy)
         camera_dict[img_name][0] = camera_line
 
-        print('\n\n')
+        logging.info('\n\n')
 
     with open(os.path.join(out_folder, 'camera_data.json'), 'w') as fp:
         json.dump(camera_dict, fp, indent=2)
@@ -117,7 +117,7 @@ class TileExtractor(object):
 
         self.min_height, self.max_height = self.height_range()
 
-        print('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
+        logging.info('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
 
     def height_range(self):
         z_min = -1e10
@@ -135,7 +135,7 @@ class TileExtractor(object):
         out_folder = os.path.abspath(out_folder)
         if os.path.exists(out_folder):
             shutil.rmtree(out_folder, ignore_errors=True)
-        print('out_folder: {}'.format(out_folder))
+        logging.info('out_folder: {}'.format(out_folder))
         os.mkdir(out_folder)
         os.mkdir(os.path.join(out_folder, 'images'))
         os.mkdir(os.path.join(out_folder, 'metas'))
@@ -181,7 +181,7 @@ class TileExtractor(object):
             #     continue
             #k = 1 # debug
 
-            print('processing image {}/{}, already collect {} useful images...'.format(k, self.cnt, useful_cnt))
+            logging.info('processing image {}/{}, already collect {} useful images...'.format(k, self.cnt, useful_cnt))
 
             i = self.time_index[k]   # image index
 
@@ -202,7 +202,7 @@ class TileExtractor(object):
             # check if the bounding box goes out of the image
             keep, bbx = TileExtractor.check_bbx((ntf_width, ntf_height), (ul_col, ul_row, width, height))
             if not keep:
-                warnings.warn('will discard this image due to small coverage of target area, ntf: {}'.format(in_ntf))
+                logging.warning('will discard this image due to small coverage of target area, ntf: {}'.format(in_ntf))
                 continue
             else:
                 ul_col, ul_row, width, height = bbx
@@ -236,7 +236,7 @@ class TileExtractor(object):
 
             # write to colmap format
             img_name = out_png[out_png.rfind('/')+1:]
-            print('write to camera dict: {}'.format(img_name))
+            logging.info('write to camera dict: {}'.format(img_name))
             camera_line = cameras_line_format.format(camera_id="{camera_id}", width=width, height=height,
                                                      fx=r[0, 0], fy=r[1, 1], cx=r[0, 2], cy=r[1, 2], s=r[0, 1])
             quat = quaternion.from_rotation_matrix(q)
@@ -248,7 +248,7 @@ class TileExtractor(object):
             # increase number of useful images
             useful_cnt += 1
 
-            print('\n\n')
+            logging.info('\n\n')
 
         with open(os.path.join(out_folder, 'camera_data.json'), 'w') as fp:
             json.dump(camera_dict, fp, indent=2)
@@ -263,7 +263,7 @@ class TileExtractor(object):
         with open(rpc_file, encoding='utf-8', errors='ignore') as fp:
             content = fp.read()
         if content.find('UTF-8') < 0:
-            warnings.warn('will discard this rpc file because it is not encoded in utf-8: {}'.format(rpc_file))
+            logging.warning('will discard this rpc file because it is not encoded in utf-8: {}'.format(rpc_file))
             return True
 
         # remove control characters
@@ -277,7 +277,7 @@ class TileExtractor(object):
         has_cloud = float(has_cloud)
         thres = 0.5
         if has_cloud > thres:
-            warnings.warn('will discard this image because of too many clouds, has_cloud: {}, rpc: {}'.format(has_cloud, rpc_file))
+            logging.warning('will discard this image because of too many clouds, has_cloud: {}, rpc: {}'.format(has_cloud, rpc_file))
             return True
         return False
 
@@ -292,10 +292,10 @@ class TileExtractor(object):
 
         # check if the bounding box goes out of the image
         if ul_col < 0 or ul_row < 0 or lr_col >= ntf_width or lr_row >= ntf_height:
-            warnings.warn('bounding box out of content, ntf_width, ntf_height: {}, {}, bounding box: {}, {}, {}, {}'
+            logging.warning('bounding box out of content, ntf_width, ntf_height: {}, {}, bounding box: {}, {}, {}, {}'
                           .format(ntf_width, ntf_height, ul_col, ul_row, width, height))
             if  ul_col >= ntf_width or lr_col < 0 or ul_row >= ntf_height or lr_row < 0:
-                warnings.warn('bounding box completely out of content')
+                logging.warning('bounding box completely out of content')
                 keep = False
             else:
                 # compute how much portion that goes out of content
@@ -308,12 +308,12 @@ class TileExtractor(object):
                 inside_height = inside_lr_row - inside_ul_row + 1
                 overlap_ratio = float( inside_width * inside_height) / (width * height)
 
-                print('{} of bounding box out of content'.format(1 - overlap_ratio))
+                logging.info('{} of bounding box out of content'.format(1 - overlap_ratio))
 
                 if overlap_ratio < 0.5:
                     keep = False
                 else:
-                    print('fixing bounding box, previous: {}, {}, {}, {}, fixed: {}, {}, {}, {}'.format(
+                    logging.info('fixing bounding box, previous: {}, {}, {}, {}, fixed: {}, {}, {}, {}'.format(
                         ul_col, ul_row, width, height, inside_ul_col, inside_ul_row, inside_width, inside_height
                     ))
                     bbx_size = (inside_ul_col, inside_ul_row, inside_width, inside_height)
@@ -331,9 +331,9 @@ class TileExtractor(object):
         # assert bounding box is completely inside the image
         assert(ul_col + width - 1 < ntf_width and ul_row + height - 1 < ntf_height)
 
-        print('ntf image to cut: {}, width, height: {}, {}'.format(in_ntf, ntf_width, ntf_height))
-        print('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row, width, height))
-        print('png image to save: {}'.format(out_png))
+        logging.info('ntf image to cut: {}, width, height: {}, {}'.format(in_ntf, ntf_width, ntf_height))
+        logging.info('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row, width, height))
+        logging.info('png image to save: {}'.format(out_png))
 
         # note the coordinate system of .ntf
         cmd = 'gdal_translate -of png -ot UInt16 -srcwin {} {} {} {} {} {}'\
@@ -345,7 +345,7 @@ class TileExtractor(object):
         im = imageio.imread(out_png).astype(dtype=np.float64)
         # h, w = im.shape
         # if w != width or h != height:
-        #     warnings.warn('cut image size is not what is wanted, discarding: {}'.format(in_ntf))
+        #     logging.warning('cut image size is not what is wanted, discarding: {}'.format(in_ntf))
         #     os.remove(out_png)
         #     return False
 
@@ -387,7 +387,7 @@ class TileExtractor(object):
         # return True
 
 def extract_aoi(aoi_name, data_name):
-    print('aoi_name: {}, data_name: {}'.format(aoi_name, data_name))
+    logging.info('aoi_name: {}, data_name: {}'.format(aoi_name, data_name))
 
     with open('aoi_utm.json') as fp:
         roi = json.load(fp)[aoi_name]

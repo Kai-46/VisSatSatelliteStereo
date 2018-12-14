@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 def inspect_align(source, target, source_aligned, out_dir):
     mse_before = np.mean(np.sum((source - target)**2, axis=1))
     mse_after = np.mean(np.sum((source_aligned - target)**2, axis=1))
-    print('rmse before: {}'.format(np.sqrt(mse_before)))
-    print('rmse after: {}'.format(np.sqrt(mse_after)))
+    logging.info('rmse before: {}'.format(np.sqrt(mse_before)))
+    logging.info('rmse after: {}'.format(np.sqrt(mse_after)))
 
     # plot absolute deviation
     plt.figure(figsize=(8, 4))

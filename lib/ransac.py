@@ -1,8 +1,8 @@
 import numpy as np
 from lib.procrustes import procrustes
+import logging
 
-
-def esti_simiarity(source, target, samples_per_trial=5, num_of_trials=5000, thres=1.):
+def esti_simiarity(source, target, samples_per_trial=3, num_of_trials=5000, thres=1.):
     assert (source.shape[0] == target.shape[0])
 
     samples_cnt = source.shape[0]
@@ -21,9 +21,9 @@ def esti_simiarity(source, target, samples_per_trial=5, num_of_trials=5000, thre
         source_subset = np.array([source[idx, :] for idx in subset_idx])
         target_subset = np.array([target[idx, :] for idx in subset_idx])
 
-        err, source_subset_aligned, trans = procrustes(target_subset, source_subset, reflection=False)
+        _, source_subset_aligned, trans = procrustes(target_subset, source_subset, reflection=False)
 
-        # check_err = np.min(np.sqrt(np.sum((source_subset_aligned - target_subset) ** 2, axis=1)))
+        check_err = np.mean(np.sqrt(np.sum((source_subset_aligned - target_subset) ** 2, axis=1)))
 
         transforms.append(trans)
         # apply transform to the whole set
@@ -35,22 +35,22 @@ def esti_simiarity(source, target, samples_per_trial=5, num_of_trials=5000, thre
         support_sizes[cnt] = np.sum(err < thres) / samples_cnt * 100
 
 
-        print('ransac trial: {} / {}, thres: {}, support size: {}'.format(cnt + 1, num_of_trials, thres, support_sizes[cnt]))
+        logging.info('ransac trial: {} / {}, check_err: {}, thres: {}, support size: {}'.format(cnt + 1, num_of_trials, check_err, thres, support_sizes[cnt]))
 
         cnt += 1
     # return the best result
     idx = np.argmax(support_sizes)
 
-    print('ransac summary: ')
-    print('\tsamples_per_trial: {}, num_of_trials: {}, thres {}'.format(samples_per_trial, num_of_trials, thres))
-    print('\tsupport size, min: {}, max: {}'.format(np.min(support_sizes), np.max(support_sizes)))
+    logging.info('ransac summary: ')
+    logging.info('\tsamples_per_trial: {}, num_of_trials: {}, thres {}'.format(samples_per_trial, num_of_trials, thres))
+    logging.info('\tsupport size, min: {}, max: {}'.format(np.min(support_sizes), np.max(support_sizes)))
     # compute re-projection error over the whole set
     err = np.sqrt(np.sum((source - target) ** 2, axis=1))
-    print('\talignment error before, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
+    logging.info('\talignment error before, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
     source_modified = np.dot(source, transforms[idx]['scale'] * transforms[idx]['rotation']) \
                       + np.tile(transforms[idx]['translation'], (samples_cnt, 1))
     err = np.sqrt(np.sum((source_modified - target) ** 2, axis=1))
-    print('\talignment error after, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
+    logging.info('\talignment error after, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
 
 
     return transforms[idx]['scale'], transforms[idx]['rotation'], transforms[idx]['translation']

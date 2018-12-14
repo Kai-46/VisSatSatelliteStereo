@@ -11,8 +11,8 @@ from lib.tone_map import tone_map
 import utm
 import json
 import numpy as np
-import warnings
 import copy
+import logging
 
 
 class TileCutter(object):
@@ -41,7 +41,7 @@ class TileCutter(object):
 
         self.min_height, self.max_height = height_range(self.rpc_models)
 
-        print('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
+        logging.info('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
 
         # prepare directory structure
         self.image_subdir = os.path.join(self.out_dir, 'images')
@@ -63,7 +63,7 @@ class TileCutter(object):
                     'y': ul_north,
                     'w': lr_east - ul_east,
                     'h': ul_north - lr_north}
-        with open(os.path.join(self.out_dir, 'aoi_dict.json'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'aoi.json'), 'w') as fp:
             json.dump(aoi_dict, fp)
         # view the whole aoi as a region
         self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
@@ -80,13 +80,13 @@ class TileCutter(object):
         # start to process the images
         useful_cnt = 0 # number of useful images
         for k in range(self.cnt):
-            print('processing image {}/{}, already collect {} useful images...'.format(k, self.cnt, useful_cnt))
+            logging.info('processing image {}/{}, already collect {} useful images...'.format(k+1, self.cnt, useful_cnt))
             i = self.time_index[k]   # image index
 
             # check whether the image is too cloudy
             cloudy_thres = 0.5
             if self.meta_dicts[i]['cloudCover'] > cloudy_thres:
-                warnings.warn('discarding this image because of too many clouds, cloudy level: {}, ntf: {}'
+                logging.warning('discarding this image because of too many clouds, cloudy level: {}, ntf: {}'
                               .format(self.meta_dicts[i]['cloudCover'], self.ntf_list[i]))
                 continue
 
@@ -104,7 +104,7 @@ class TileCutter(object):
                                               (ul_col, ul_row, width, height))
             overlap_thres = 0.5
             if overlap < overlap_thres:
-                warnings.warn('discarding this image due to small coverage of target area, overlap: {}, ntf: {}'
+                logging.warning('discarding this image due to small coverage of target area, overlap: {}, ntf: {}'
                               .format(overlap, self.ntf_list[i]))
                 continue
 
@@ -130,6 +130,8 @@ class TileCutter(object):
             # modify width, height
             meta_dict['width'] = width
             meta_dict['height'] = height
+            # change datetime object to string
+            meta_dict['capTime'] = meta_dict['capTime'].isoformat()
 
             with open(os.path.join(self.metas_subdir, '{:03d}_{}.json'.format(useful_cnt, cap_time)), 'w') as fp:
                 json.dump(meta_dict, fp, indent=2)
@@ -142,9 +144,23 @@ class TileCutter(object):
                            'w': lr_east - ul_east,
                            'h': ul_north - lr_north}
             with open(os.path.join(self.regions_subdir, '{:03d}_{}.json'.format(useful_cnt, cap_time)), 'w') as fp:
-                json.dump(region_dict, fp, indent=2)
+                json.dump(region_dict, fp)
 
             # increase number of useful images
             useful_cnt += 1
 
-            print('\n')
+            logging.info('\n')
+
+
+if __name__ == '__main__':
+    cleaned_data_dir = '/data2/kz298/core3d_pan/jacksonville/cleaned_data'
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'
+    if not os.path.exists(work_dir):
+        os.mkdir(work_dir)
+    with open('aoi_config/aoi-d4-jacksonville.json') as fp:
+        config = json.load(fp)
+    bbx = config['bounding_box']
+    # cut image and tone map
+    cutter = TileCutter(cleaned_data_dir, work_dir)
+    cutter.cut_aoi(bbx['zone_number'], bbx['zone_letter'],
+                   bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])

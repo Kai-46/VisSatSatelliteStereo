@@ -1,6 +1,7 @@
 import numpy as np
 from lib.plyfile import PlyData, PlyElement
 import json
+import logging
 
 
 def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
@@ -24,7 +25,7 @@ def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
     # z = points_reg[:, 2]
     # below_thres = np.percentile(z, 0)
     # above_thres = np.percentile(z, 100)
-    # print('below_thres: {}, above_thres: {}'.format(below_thres, above_thres))
+    # logging.info('below_thres: {}, above_thres: {}'.format(below_thres, above_thres))
     #
     # mask = np.logical_and(z>=below_thres, z<=above_thres)
     # #mask = np.tile(mask.reshape((-1, 1)), (1, 3))
@@ -41,8 +42,8 @@ def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
         roi = json.load(fp)
     comment_1 = 'projection: UTM {}{}'.format(roi['zone_number'], roi['zone_letter'])
     comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(roi['x'], roi['y'], roi['w'], roi['h'])
-    print(comment_1)
-    print(comment_2)
+    logging.info(comment_1)
+    logging.info(comment_2)
 
     comments = [comment_1, comment_2]
 

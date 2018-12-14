@@ -206,7 +206,7 @@ class RPCModel(object):
             y2 = apply_rfm(self.rowNum, self.rowDen, lat + EPS, lon, cAlt)
             #n += 1
 
-        #print('# of iterations: %d' % n)
+        #logging.info('# of iterations: %d' % n)
 
         if return_normalized:
            return lon, lat, cAlt
@@ -255,4 +255,7 @@ if __name__ == '__main__':
     from lib.parse_meta import parse_meta
     meta_dict = parse_meta('/data2/kz298/dataset/core3d/performer_source_data/jacksonville/satellite_imagery/WV3/PAN/cleaned_data/17APR22163213-P1BS-501504472100_01_P004.XML')
     rpc_model = RPCModel(meta_dict['rpc'])
-    print(rpc_model)
+
+    import logging
+
+    logging.info(rpc_model)

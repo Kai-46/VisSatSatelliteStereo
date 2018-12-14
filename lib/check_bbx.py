@@ -39,5 +39,7 @@ if __name__ == '__main__':
     first_bbx = (0, 0, 50, 40)
     second_bbx = (48, 10, 30, 40)
 
-    print(check_bbx(first_bbx, second_bbx))
-    print(check_bbx(second_bbx, first_bbx))
+    import logging
+
+    logging.info(check_bbx(first_bbx, second_bbx))
+    logging.info(check_bbx(second_bbx, first_bbx))

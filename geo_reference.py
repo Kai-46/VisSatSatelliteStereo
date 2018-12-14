@@ -6,7 +6,7 @@ from lib.plyfile import PlyData, PlyElement
 import json
 from lib.ransac import esti_simiarity
 import matplotlib.pyplot as plt
-
+import logging
 
 def read_data(proj_dir):
     points = read_model.read_points3d_binary(os.path.join(proj_dir, 'sparse/points3D.bin'))
@@ -38,8 +38,8 @@ def read_data(proj_dir):
 def inspect_align(source, target, source_aligned, out_dir):
     mse_before = np.mean(np.sum((source - target)**2, axis=1))
     mse_after = np.mean(np.sum((source_aligned - target)**2, axis=1))
-    print('rmse before: {}'.format(np.sqrt(mse_before)))
-    print('rmse after: {}'.format(np.sqrt(mse_after)))
+    logging.info('rmse before: {}'.format(np.sqrt(mse_before)))
+    logging.info('rmse after: {}'.format(np.sqrt(mse_after)))
 
     # plot absolute deviation
     plt.figure(figsize=(8, 4))
@@ -98,7 +98,7 @@ def align(proj_dir):
     # z = points_reg[:, 2]
     # below_thres = np.percentile(z, 0)
     # above_thres = np.percentile(z, 100)
-    # print('below_thres: {}, above_thres: {}'.format(below_thres, above_thres))
+    # logging.info('below_thres: {}, above_thres: {}'.format(below_thres, above_thres))
     #
     # mask = np.logical_and(z>=below_thres, z<=above_thres)
     # #mask = np.tile(mask.reshape((-1, 1)), (1, 3))
@@ -113,8 +113,8 @@ def align(proj_dir):
     # comment_1 = 'zone_number: {}, zone_letter: {}'.format(roi['zone_number'], roi['zone_letter'])
     comment_1 = 'projection: UTM {}{}'.format(roi['zone_number'], roi['zone_letter'])
     comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(roi['x'], roi['y'], roi['w'], roi['h'])
-    print(comment_1)
-    print(comment_2)
+    logging.info(comment_1)
+    logging.info(comment_2)
 
     comments = [comment_1, comment_2]
 

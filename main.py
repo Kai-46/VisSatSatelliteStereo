@@ -7,6 +7,9 @@ from prep_for_colmap import prep_for_colmap, create_init_files
 from time import time
 from lib.georegister_dense import georegister_dense
 import shutil
+import logging
+from lib.run_cmd import run_cmd
+from datetime import datetime
 
 
 if __name__ == '__main__':
@@ -27,6 +30,12 @@ if __name__ == '__main__':
     if not os.path.exists(work_dir):
         os.mkdir(work_dir)
 
+    # set log file
+    log_file = os.path.join(work_dir, 'log.txt')
+    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+
+    logging.info('Starting pipeline at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
     # clean data
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
     if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
@@ -42,7 +51,7 @@ if __name__ == '__main__':
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till cut image done'] = elapsed
 
     # derive approximations for later uses
@@ -63,7 +72,7 @@ if __name__ == '__main__':
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till skew correction done'] = elapsed
 
     # start colmap commands
@@ -74,13 +83,13 @@ if __name__ == '__main__':
                         --SiftExtraction.max_image_size 5000  \
                         --SiftExtraction.estimate_affine_shape 1 \
                         --SiftExtraction.domain_size_pooling 1'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # feature matching
     cmd = 'colmap exhaustive_matcher --database_path {colmap_dir}/database.db \
                                 --SiftMatching.guided_matching 1'.format(colmap_dir=colmap_dir)
 
-    os.system(cmd)
+    run_cmd(cmd)
 
     # create initial poses
     create_init_files(colmap_dir)
@@ -97,7 +106,7 @@ if __name__ == '__main__':
                                  --Mapper.ba_local_max_num_iterations 40 \
                                  --Mapper.ba_local_max_refinements 3 \
                                  --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # global bundle adjustment
     cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
@@ -106,11 +115,11 @@ if __name__ == '__main__':
 	                            --BundleAdjustment.function_tolerance 1e-6 \
 	                            --BundleAdjustment.gradient_tolerance 1e-10 \
 	                            --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till sfm done'] = elapsed
 
     # prepare dense reconstruction
@@ -118,38 +127,38 @@ if __name__ == '__main__':
                     --image_path {colmap_dir}/images  \
                     --input_path {colmap_dir}/sparse_ba \
                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # PMVS
     cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
                 --PatchMatchStereo.window_radius 9 \
                 --PatchMatchStereo.filter_min_triangulation_angle 1 \
-                --PatchMatchStereo.geom_consistency 0 \
+                --PatchMatchStereo.geom_consistency 1 \
                 --PatchMatchStereo.filter_min_ncc 0.05'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till mvs done'] = elapsed
 
     # stereo fusion
     cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/dense \
                      --output_path {colmap_dir}/dense/fused.ply \
-                     --input_type photometric \
+                     --input_type geometric \
                      --StereoFusion.min_num_pixels 3'.format(colmap_dir=colmap_dir)
-    os.system(cmd)
+    run_cmd(cmd)
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till fusion done'] = elapsed
 
     # alignment
     # decide which solution to take
-    from align_sparse import compute_transform
+    #from align_sparse import compute_transform
     # from align_rpc import compute_transform
-    # from align_cam import compute_transform
+    from align_cam import compute_transform
     c, R, t = compute_transform(colmap_dir)
     georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
                       os.path.join(colmap_dir, 'dense/fused_registered.ply'),
@@ -157,10 +166,11 @@ if __name__ == '__main__':
 
     # record time
     elapsed = (time()- since) / 60.
-    print ('\nelapsed: {} min\n'.format(elapsed))
+    logging.info ('\nelapsed: {} min\n'.format(elapsed))
     stages['till registration done'] = elapsed
 
-    print('\ntime consumption summary:')
+    logging.info('\ntime consumption summary:')
     for key in stages:
-        print('\t{} : {} minutes'.format(key, stages[key]))
-    print('completed!')
+        logging.info('\t{} : {} minutes'.format(key, stages[key]))
+
+    logging.info('completed pipeline at {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))

@@ -234,7 +234,7 @@ def example_usage():
     args = parser.parse_args()
 
     if os.path.exists(args.database_path):
-        print("ERROR: database path already exists -- will not modify it.")
+        logging.info("ERROR: database path already exists -- will not modify it.")
         return
 
     # Open the database.

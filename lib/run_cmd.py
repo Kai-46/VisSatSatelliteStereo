@@ -12,7 +12,7 @@ def run_cmd(cmd):
         output, _ = p.communicate()
         output = output.decode('ascii')
         logging.info(output)
-        print('output: {}'.format(output))
+        #print('output: {}'.format(output))
     except (OSError, subprocess.CalledProcessError) as exception:
         logging.error('Exception occured: {}'.format(exception))
         logging.error('Subprocess failed')

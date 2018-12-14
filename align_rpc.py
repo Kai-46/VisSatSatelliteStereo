@@ -50,7 +50,7 @@ def triangulate_all_points(work_dir):
     img_2_rpc= {}
     for item in os.listdir(os.path.join(work_dir, 'metas')):
         # .json
-        img_name = item[:-5] + '.png'
+        img_name = item[:-5] + '.jpg'
         with open(os.path.join(work_dir, 'metas/{}'.format(item))) as fp:
             img_2_rpc[img_name] = RPCModel(json.load(fp))
 

@@ -76,7 +76,7 @@ def align(proj_dir):
 
     # inspect the alignment
     points_ba_reg = np.dot(points_ba_arr, c * R) + np.tile(t, (points_ba_arr.shape[0], 1))
-    out_dir = os.path.join(proj_dir, 'dense/align_residual.png')
+    out_dir = os.path.join(proj_dir, 'dense/align_residual.jpg')
     inspect_align(points_ba_arr, points_arr, points_ba_reg, out_dir)
 
     # map the dense point cloud into absolute coordinate frame

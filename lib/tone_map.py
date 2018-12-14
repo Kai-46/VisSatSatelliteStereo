@@ -3,10 +3,10 @@ import imageio
 import os
 
 
-# in_png is 16-bit png, while out_png is 8 bit
-def tone_map(in_png, out_png):
+# hdr_img is 16-bit, while ldr_img is 8 bit
+def tone_map(hdr_img, ldr_img):
     # scale to [0, 255]
-    im = imageio.imread(in_png).astype(dtype=np.float64)
+    im = imageio.imread(hdr_img).astype(dtype=np.float64)
 
     # tmp = im.reshape((-1, 1))
     # tmp = (tmp - np.min(tmp)) / (np.max(tmp) - np.min(tmp))
@@ -40,7 +40,7 @@ def tone_map(in_png, out_png):
     # plt.show()
 
     # remove the unneeded one
-    if os.path.exists(out_png):
-        os.remove(out_png)
+    if os.path.exists(ldr_img):
+        os.remove(ldr_img)
 
-    imageio.imwrite(out_png, im.astype(dtype=np.uint8))
+    imageio.imwrite(ldr_img, im.astype(dtype=np.uint8))

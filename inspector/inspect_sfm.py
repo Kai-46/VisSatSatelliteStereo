@@ -36,7 +36,7 @@ class InspectSparseModel(object):
             img_widths.append(cam.width)
             img_heights.append(cam.height)
 
-        with open(os.path.join(self.out_dir, 'inspect_img_id2name.png'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'inspect_img_id2name.jpg'), 'w') as fp:
             json.dump(img_id2name, fp)
 
         plt.clf()
@@ -47,7 +47,7 @@ class InspectSparseModel(object):
         plt.title('total # of images: {}'.format(self.img_cnt))
         plt.tight_layout()
 
-        plt.savefig(os.path.join(self.out_dir, 'inspect_key_points.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_key_points.jpg'))
         #plt.show()
 
         plt.clf()
@@ -62,7 +62,7 @@ class InspectSparseModel(object):
         plt.grid(True)
         plt.title('total # of images: {}'.format(self.img_cnt))
         plt.tight_layout()
-        plt.savefig(os.path.join(self.out_dir, 'inspect_image_size.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_image_size.jpg'))
 
     def inspect_feature_tracks(self):
         all_tracks = []
@@ -118,7 +118,7 @@ class InspectSparseModel(object):
                   .format(self.img_cnt, len(all_tracks), min(track_len), max_track_len))
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.out_dir, 'inspect_track_len.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_track_len.jpg'))
 
         #plt.show()
 
@@ -135,7 +135,7 @@ class InspectSparseModel(object):
                   .format(self.img_cnt, len(all_points_err), min(all_points_err), np.mean(all_points_err), np.median(all_points_err), max_points_err))
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.png'))
+        plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.jpg'))
         #plt.show()
 
 

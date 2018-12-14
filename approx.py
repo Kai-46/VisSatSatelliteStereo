@@ -27,7 +27,7 @@ class Approx(object):
         metas_subdir = os.path.join(self.tile_dir, 'metas/')
         regions_subdir = os.path.join(self.tile_dir, 'regions/')
         for item in os.listdir(metas_subdir):
-            self.img_names.append(item[:-5] + '.png')
+            self.img_names.append(item[:-5] + '.jpg')
             with open(os.path.join(metas_subdir, item)) as fp:
                 self.rpc_models.append(RPCModel(json.load(fp)))
             with open(os.path.join(regions_subdir, item)) as fp:

@@ -1,10 +1,11 @@
 import os
 import quaternion
 import numpy as np
-import lib.read_model
+import colmap.read_model as read_model
 from lib.ransac import esti_simiarity
 
-def read_cam(proj_dir):
+
+def read_data(proj_dir):
     init_dir = os.path.join(proj_dir, 'init')
 
     init_cam_positions = {}
@@ -23,7 +24,7 @@ def read_cam(proj_dir):
     sparse_ba_dir = os.path.join(proj_dir, 'sparse_ba')
 
     ba_cam_positions = {}
-    _, images, _ = lib.read_model.read_model(sparse_ba_dir, '.bin')
+    _, images, _ = read_model.read_model(sparse_ba_dir, '.bin')
     for img_id in images:
         img = images[img_id]
         qvec = img.qvec
@@ -43,5 +44,11 @@ def read_cam(proj_dir):
 
     return source, target
 
+def compute_transform(colmap_dir):
+    source, target = read_data(colmap_dir)
+
+    c, R, t = esti_simiarity(source, target)
+
+    return c, R, t
 
 

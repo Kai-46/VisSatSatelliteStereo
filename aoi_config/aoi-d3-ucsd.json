@@ -1,0 +1,12 @@
+{
+  "dataset_dir":  "/data2/kz298/core3d_pan/ucsd",
+  "work_dir": "/data2/kz298/core3d_aoi/aoi-d3-ucsd",
+  "bounding_box": {
+        "zone_number" : 11,
+        "zone_letter" : "N",
+        "x" : 477268.000,
+        "y" : 3638307.000,
+        "w" : 988.0,
+        "h" : 974.0
+    }
+}

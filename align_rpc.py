@@ -13,7 +13,7 @@ from lib.ransac import esti_simiarity
 def read_tracks(colmap_dir):
     sparse_dir = os.path.join(colmap_dir, 'sparse_ba')
 
-    colmap_cameras, colmap_images, colmap_points3D = read_model.read_model(sparse_dir, '.bin')
+    colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, '.bin')
 
     all_tracks = []
 
@@ -51,16 +51,16 @@ def read_data(work_dir):
         perspective_dict = json.load(fp)
 
     for i in range(len(all_tracks)):
-        for pixel in all_tracks[i]['pixels']:
-            img_name, col, row = pixel
+        for j in range(len(all_tracks[i]['pixels'])):
+            img_name, col, row = all_tracks[i]['pixels'][j]
 
-            params = perspective_dict['img_name']
+            params = perspective_dict[img_name]
             fy = params[1]
             s = params[4]
             norm_skew = s / fy
             col += norm_skew * row
 
-            all_tracks[i]['pixels'] = (img_name, col, row)
+            all_tracks[i]['pixels'][j] = (img_name, col, row)
 
     # now start to create all points
     with open(os.path.join(work_dir, 'approx_affine_latlon.json')) as fp:
@@ -69,14 +69,16 @@ def read_data(work_dir):
     source = []
     target = []
     for i in range(len(all_tracks)):
-        source.append(all_tracks['xyz'])
+        source.append(all_tracks[i]['xyz'])
 
         rpc_models = []
         affine_models = []
         track = []
         for pixel in all_tracks[i]['pixels']:
             img_name, col, row = pixel
-            meta_file = os.path.join(work_dir, img_name[:img_name.rfind('.')] + '.json')
+            track.append((col, row))
+
+            meta_file = os.path.join(work_dir, 'metas/{}.json'.format(img_name[:img_name.rfind('.')]))
             with open(meta_file) as fp:
                 meta_dict = json.load(fp)
             rpc_models.append(RPCModel(meta_dict))
@@ -85,7 +87,8 @@ def read_data(work_dir):
 
             affine_models.append(P)
 
-        _, final_point_utm = triangulate(track, rpc_models, affine_models)
+        out_file = os.path.join(work_dir, 'tmpfile.txt')
+        _, final_point_utm = triangulate(track, rpc_models, affine_models, out_file)
         target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
 
     source = np.array(source)

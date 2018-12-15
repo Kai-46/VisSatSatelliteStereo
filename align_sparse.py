@@ -2,6 +2,7 @@ import colmap.read_model as read_model
 import sys
 import os
 import numpy as np
+
 from lib.ransac import esti_simiarity
 
 
@@ -40,7 +41,16 @@ def compute_transform(colmap_dir):
     return c, R, t
 
 if __name__ == '__main__':
-    proj_dir = sys.argv[1]
+    import logging
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
+    #colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/'
+    colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/'
+
+    c, R, t = compute_transform(colmap_dir)
+
+    # proj_dir = sys.argv[1]
 
     #proj_dir = '/data2/kz298/bak/data_aoi-d3-ucsd_pinhole/'
     #proj_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/'

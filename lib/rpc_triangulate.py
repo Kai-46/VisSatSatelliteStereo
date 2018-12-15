@@ -2,63 +2,8 @@ import json
 import utm
 from lib.rpc_model import RPCModel
 import numpy as np
-from lib.gen_grid import gen_grid
 from lib.run_cmd import run_cmd
 import logging
-
-def solve_affine(xx, yy, zz, col, row, keep_mask):
-    logging.info('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
-    xx = xx[keep_mask].reshape((-1, 1))
-    yy = yy[keep_mask].reshape((-1, 1))
-    zz = zz[keep_mask].reshape((-1, 1))
-    row = row[keep_mask].reshape((-1, 1))
-    col = col[keep_mask].reshape((-1, 1))
-
-    # construct a least square problem
-    logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-    logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
-    logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
-
-    diff_size = np.array([yy.size - xx.size, zz.size - xx.size, col.size - xx.size, row.size - xx.size])
-    assert (np.all(diff_size == 0))
-
-    point_cnt = xx.size
-    all_ones = np.ones((point_cnt, 1))
-    all_zeros = np.zeros((point_cnt, 4))
-    # construct the least square problem
-    A1 = np.hstack((xx, yy, zz, all_ones, all_zeros))
-    A2 = np.hstack((all_zeros, xx, yy, zz, all_ones))
-
-    A = np.vstack((A1, A2))
-    b = np.vstack((col, row))
-    res = np.linalg.lstsq(A, b)
-
-    logging.info('residual error (pixels): {}'.format(np.sqrt(res[1][0] / point_cnt)))
-
-    P = res[0].reshape((2, 4))
-
-    return P
-
-
-def approx_affine(rpc_model, ul_lat, ul_lon, lr_lat, lr_lon):
-    z_min = rpc_model.altOff - 0. * rpc_model.altScale
-    z_max = rpc_model.altOff + 0.7 * rpc_model.altScale
-
-    lat_points = np.linspace(ul_lat, lr_lat, 20)
-    lon_points = np.linspace(ul_lon, lr_lon, 20)
-    z_points = np.linspace(z_min, z_max, 20)
-
-    xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
-    col, row = rpc_model.projection(xx, yy, zz)
-
-    keep_mask = np.logical_and(col >= 0, row >= 0)
-    keep_mask = np.logical_and(keep_mask, col < rpc_model.width)
-    keep_mask = np.logical_and(keep_mask, row < rpc_model.height)
-    P = solve_affine(xx, yy, zz, col, row, keep_mask)
-
-    return P
 
 
 def compute_reproj_err(rpc_models, track, point):
@@ -79,27 +24,20 @@ def compute_reproj_err(rpc_models, track, point):
     return err
 
 
-def solve_init(rpc_models, track, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
-    assert (len(rpc_models) == len(track))
-
-    ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
-    lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
-
-    P = []
+# affine_model is an approximation of the rpc model
+def solve_init(track, rpc_models, affine_models):
     cnt = len(track)
-    for i in range(cnt):
-        tmp = approx_affine(rpc_models[i], ul_lat, ul_lon, lr_lat, lr_lon)
-        P.append(tmp)
+    assert(len(rpc_models) == cnt and len(affine_models) == cnt)
 
     A = np.zeros((2 * cnt, 3))
     b = np.zeros((2 * cnt, 1))
 
     for i in range(cnt):
-        A[i, :] = P[i][0, 0:3]
-        b[i, 0] = track[i][0] - P[i][0, 3]
+        A[i, :] = affine_models[i][0, 0:3]
+        b[i, 0] = track[i][0] - affine_models[i][0, 3]
 
-        A[cnt + i, :] = P[i][1, 0:3]
-        b[cnt + i, 0] = track[i][1] - P[i][1, 3]
+        A[cnt + i, :] = affine_models[i][1, 0:3]
+        b[cnt + i, 0] = track[i][1] - affine_models[i][1, 3]
 
     res = np.linalg.lstsq(A, b)
     init = res[0].reshape((3, ))
@@ -107,7 +45,7 @@ def solve_init(rpc_models, track, zone_number, zone_letter, ul_east, ul_north, l
     return init
 
 
-def write_to_taskfile(init, rpc_models, track, out_file):
+def write_to_taskfile(track, rpc_models, init, out_file):
     assert (len(rpc_models) == len(track))
 
     lines = []
@@ -139,19 +77,12 @@ def write_to_taskfile(init, rpc_models, track, out_file):
 
 
 # track is a list of observations
-def triangulate(track, rpc_models, roi_dict, out_file):
-    ul_east = roi_dict['x']
-    ul_north = roi_dict['y']
-    lr_east = ul_east + roi_dict['w']
-    lr_north = ul_north - roi_dict['h']
-    zone_letter = roi_dict['zone_letter']
-    zone_number = roi_dict['zone_number']
-
-    init = solve_init(rpc_models, track, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
-    write_to_taskfile(init, rpc_models, track, out_file)
+def triangulate(track, rpc_models, affine_models, out_file):
+    init = solve_init(track, rpc_models, affine_models)
+    write_to_taskfile(track, rpc_models, init, out_file)
 
     # triangulate
-    run_cmd('ceres_rpc {} {}.result.txt'.format(out_file, out_file))
+    run_cmd('multi_rpc_triangulate/multi_rpc_triangulate {} {}.result.txt'.format(out_file, out_file))
 
     # read result
     with open(out_file) as fp:
@@ -163,20 +94,21 @@ def triangulate(track, rpc_models, roi_dict, out_file):
         final_point = [float(x) for x in lines[0].strip().split(' ')]
         final_err = float(lines[1].strip())
 
-    # double final_err
+    # double check the final_err
     tmp = compute_reproj_err(rpc_models, track, final_point)
     assert (np.abs(tmp - final_err) < 0.1)
 
-    tmp = utm.from_latlon(init_point[0], init_point[1], zone_number)
-    init_point_utm = [tmp[0], tmp[1], init_point[2]]
+    tmp = utm.from_latlon(init_point[0], init_point[1])
+    init_point_utm = [tmp[0], tmp[1], init_point[2], tmp[2], tmp[3]]
 
-    tmp = utm.from_latlon(final_point[0], final_point[1], zone_number)
-    final_point_utm = [tmp[0], tmp[1], final_point[2]]
+    tmp = utm.from_latlon(final_point[0], final_point[1])
+    final_point_utm = [tmp[0], tmp[1], final_point[2], tmp[2], tmp[3]]
 
-    logging.info('init point: {}, {}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
-    logging.info('final point: {}, {}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
+    logging.info('init point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
+    logging.info('final point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
 
-    return final_point_utm
+    return final_point, final_point_utm
+
 
 def test():
     rpc_models = []

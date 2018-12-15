@@ -15,10 +15,13 @@ def points3D_to_ply(points3D_file, ply_file):
 
 
 if __name__ == '__main__':
-    points3D_file = sys.argv[1]
-    ply_file = sys.argv[2]
+    points3D_file = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/sparse_ba/points3D.bin'
+    ply_file = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/sparse_ba/points3D.ply'
 
-    logging.info('points3D_file: {}'.format(points3D_file))
-    logging.info('ply_file: {}'.format(ply_file))
+    #points3D_file = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/points3D.bin'
+    #ply_file = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/points3D.ply'
+
+    # logging.info('points3D_file: {}'.format(points3D_file))
+    # logging.info('ply_file: {}'.format(ply_file))
 
     points3D_to_ply(points3D_file, ply_file)

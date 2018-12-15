@@ -91,8 +91,8 @@ class InspectSparseModel(object):
                 cur_track.append((img_name, point2D[0], point2D[1]))
             all_tracks.append(cur_track)
 
-        logging.info('number of feature tracks: {}'.format(len(all_tracks)))
-        logging.info('first feature track: {}'.format(all_tracks[0]))
+        print('number of feature tracks: {}'.format(len(all_tracks)))
+        print('first feature track: {}'.format(all_tracks[0]))
 
         with open(os.path.join(self.out_dir, 'inspect_points_id.json'), 'w') as fp:
             json.dump(all_points_id, fp, indent=2)
@@ -143,9 +143,14 @@ def test():
     # sparse_dir = '/data2/kz298/bak/data_aoi-d1-wpafb_pinhole/sparse_ba'
     # sparse_dir = '/data2/kz298/bak/data_aoi-d2-wpafb_pinhole/sparse_ba'
     # sparse_dir = '/data2/kz298/bak/data_aoi-d3-ucsd_pinhole/sparse_ba'
-    sparse_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/sparse_ba'
+    # sparse_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/sparse_ba'
 
-    sparse_inspector = InspectSparseModel(sparse_dir, sparse_dir)
+    sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/sparse_ba/'
+    out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/inspect/sparse/'
+
+    # sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/'
+    # out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/inspect/sparse/'
+    sparse_inspector = InspectSparseModel(sparse_dir, out_dir)
     sparse_inspector.inspect()
 
 

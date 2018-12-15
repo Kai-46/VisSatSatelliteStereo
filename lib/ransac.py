@@ -35,7 +35,7 @@ def esti_simiarity(source, target, samples_per_trial=3, num_of_trials=5000, thre
         support_sizes[cnt] = np.sum(err < thres) / samples_cnt * 100
 
 
-        logging.info('ransac trial: {} / {}, check_err: {}, thres: {}, support size: {}'.format(cnt + 1, num_of_trials, check_err, thres, support_sizes[cnt]))
+        logging.info('ransac trial: {} / {}, check_err: {}, thres: {}, support size: {} %'.format(cnt + 1, num_of_trials, check_err, thres, support_sizes[cnt]))
 
         cnt += 1
     # return the best result
@@ -43,7 +43,7 @@ def esti_simiarity(source, target, samples_per_trial=3, num_of_trials=5000, thre
 
     logging.info('ransac summary: ')
     logging.info('\tsamples_per_trial: {}, num_of_trials: {}, thres {}'.format(samples_per_trial, num_of_trials, thres))
-    logging.info('\tsupport size, min: {}, max: {}'.format(np.min(support_sizes), np.max(support_sizes)))
+    logging.info('\tsupport size, min: {} %, max: {} %'.format(np.min(support_sizes), np.max(support_sizes)))
     # compute re-projection error over the whole set
     err = np.sqrt(np.sum((source - target) ** 2, axis=1))
     logging.info('\talignment error before, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))

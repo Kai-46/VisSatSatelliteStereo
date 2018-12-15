@@ -1,75 +1,111 @@
-import analyze.InspectSparseModel as InspectSparseModel
-from lib import rpc_triangulate as triangulate
-
+from lib.rpc_triangulate import triangulate
+from colmap.read_model import read_model
 import os
-import shutil
 import json
 from lib.rpc_model import RPCModel
+import numpy as np
+
+from lib.ransac import esti_simiarity
 
 
-def create_workspace(proj_dir):
-    work_dir = os.path.join(proj_dir, 'align')
-    if not os.path.exists(work_dir):
-        os.mkdir(work_dir)
+# read tracks
+# each track is dict
+def read_tracks(colmap_dir):
+    sparse_dir = os.path.join(colmap_dir, 'sparse_ba')
 
-    sparse_dir = os.path.join(proj_dir, 'sparse_ba')
-    sparse_inspector = InspectSparseModel(sparse_dir, work_dir)
-    sparse_inspector.inspect()
+    colmap_cameras, colmap_images, colmap_points3D = read_model.read_model(sparse_dir, '.bin')
 
-    # copy skew
-    if not os.path.exists(os.path.join(work_dir, 'skews.json')):
-        shutil.copy(os.path.join(proj_dir, 'skews.json'), work_dir)
+    all_tracks = []
 
-    # copy metas
-    if not os.path.exists(os.path.join(work_dir, 'metas')):
-        shutil.copytree(os.path.join(proj_dir, 'metas'), os.path.join(work_dir, 'metas'))
+    for point3D_id in colmap_points3D:
+        point3D = colmap_points3D[point3D_id]
+        image_ids = point3D.image_ids
+        point2D_idxs = point3D.point2D_idxs
 
-    # map feature track into grid before skew correction
-    with open(os.path.join(work_dir, 'inspect_points_track.json')) as fp:
-        tracks = json.load(fp)
+        cur_track = {}
+        cur_track['xyz'] = (point3D.xyz[0], point3D.xyz[1], point3D.xyz[2])
+        cur_track['err'] = point3D.error
 
-    with open(os.path.join(work_dir, 'skews.json')) as fp:
-        skews = json.load(fp)
+        cur_track_len = len(image_ids)
+        assert (cur_track_len == len(point2D_idxs))
+        pixels = []
+        for i in range(cur_track_len):
+            image = colmap_images[image_ids[i]]
+            img_name = image.name
 
+            point2D_idx = point2D_idxs[i]
+            point2D = image.xys[point2D_idx]
+            assert (image.point3D_ids[point2D_idx] == point3D_id)
 
-    for i in range(len(tracks)):
-        for j in range(len(tracks[i])):
-            img_name, col, row = tracks[i][j]
-            # add skew back
-            col += skews[img_name] * row
+            pixels.append((img_name, point2D[0], point2D[1]))
 
-            tracks[i][j] = (img_name, col, row)
+        cur_track['pixels'] = pixels
+        all_tracks.append(cur_track)
 
-    with open(os.path.join(work_dir, 'track_original.json'), 'w') as fp:
-        json.dump(tracks, fp)
+    return all_tracks
 
-def triangulate_all_points(work_dir):
-    with open(os.path.join(work_dir, 'track_original.json'), 'w') as fp:
-        tracks = json.load(fp)
+def read_data(work_dir):
+    all_tracks = read_tracks(os.path.join(work_dir, 'colmap'))
 
-    img_2_rpc= {}
-    for item in os.listdir(os.path.join(work_dir, 'metas')):
-        # .json
-        img_name = item[:-5] + '.jpg'
-        with open(os.path.join(work_dir, 'metas/{}'.format(item))) as fp:
-            img_2_rpc[img_name] = RPCModel(json.load(fp))
+    with open(os.path.join(work_dir, 'approx_perspective_utm.json')) as fp:
+        perspective_dict = json.load(fp)
 
-    with open(os.path.join(work_dir, 'roi.json')) as fp:
-        roi_dict = json.load(fp)
+    for i in range(len(all_tracks)):
+        for pixel in all_tracks[i]['pixels']:
+            img_name, col, row = pixel
 
-    points = []
-    for i in range(len(tracks)):
-        track = []
+            params = perspective_dict['img_name']
+            fy = params[1]
+            s = params[4]
+            norm_skew = s / fy
+            col += norm_skew * row
+
+            all_tracks[i]['pixels'] = (img_name, col, row)
+
+    # now start to create all points
+    with open(os.path.join(work_dir, 'approx_affine_latlon.json')) as fp:
+        affine_dict = json.load(fp)
+
+    source = []
+    target = []
+    for i in range(len(all_tracks)):
+        source.append(all_tracks['xyz'])
+
         rpc_models = []
-        for j in range(len(tracks[i])):
-            img_name, col, row = tracks[i][j]
-            # add skew back
-            track.append((col, row))
-            rpc_models.append(img_2_rpc[img_name])
-        # create task
-        out_file = os.path.join(work_dir, 'task.txt')
-        point = triangulate(track, rpc_models, roi_dict, out_file)
-        points.append(point)
+        affine_models = []
+        track = []
+        for pixel in all_tracks[i]['pixels']:
+            img_name, col, row = pixel
+            meta_file = os.path.join(work_dir, img_name[:img_name.rfind('.')] + '.json')
+            with open(meta_file) as fp:
+                meta_dict = json.load(fp)
+            rpc_models.append(RPCModel(meta_dict))
 
-    with open(os.path.join(work_dir, 'points.json'), 'w') as fp:
-        json.dump(points, fp)
+            P = np.array(affine_dict[img_name]).reshape((2, 4))
+
+            affine_models.append(P)
+
+        _, final_point_utm = triangulate(track, rpc_models, affine_models)
+        target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
+
+    source = np.array(source)
+    target = np.array(target)
+    return source, target
+
+def compute_transform(work_dir):
+    source, target = read_data(work_dir)
+
+    c, R, t = esti_simiarity(source, target)
+
+    return c, R, t
+
+if __name__ == '__main__':
+    import logging
+    import sys
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
+
+    c, R, t = compute_transform(work_dir)

@@ -1,11 +1,3 @@
-/*
- * rpc_triangulation.cc
- *
- *  Created on: Dec 10, 2018
- *      Author: kai
- */
-
-
 #include "ceres/ceres.h"
 #include "glog/logging.h"
 
@@ -72,7 +64,7 @@ struct ReprojResidual {
         T row_numera = this->apply_poly(cam.row_numera, lat_normed, lon_normed, alt_normed);
         T row_denomi = this->apply_poly(cam.row_denomi, lat_normed, lon_normed, alt_normed);
         
-        T predict_row = row_numera / row_denomi * cam.row_scale + cam.row_off;
+        T predict_row = row_numera / row_denomi * T(cam.row_scale) + T(cam.row_off);
         
         T col_numera = this->apply_poly(cam.col_numera, lat_normed, lon_normed, alt_normed);
         T col_denomi = this->apply_poly(cam.col_denomi, lat_normed, lon_normed, alt_normed);
@@ -125,7 +117,13 @@ double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector
     options.minimizer_progress_to_stdout = true;
     
     Solver::Summary summary;
-    
+
+//    // for debug
+//    double init_error = 0.;
+//    problem.Evaluate(Problem::EvaluateOptions(), &init_error, NULL, NULL, NULL);
+//    // note that ceres add 1/2 before the cost function
+//    init_error = sqrt(init_error * 2 / pixels.size());
+
     Solve(options, &problem, &summary);
     cout << summary.BriefReport() << "\n";
     
@@ -137,10 +135,13 @@ double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector
     final[1] = lon;
     final[2] = alt;
     
-    double error = 0.0;
-    problem.Evaluate(Problem::EvaluateOptions(), &error, NULL, NULL, NULL);
-    error = sqrt(error / pixels.size());
-    return error;
+    double final_error = 0.0;
+    problem.Evaluate(Problem::EvaluateOptions(), &final_error, NULL, NULL, NULL);
+    // note that ceres add 1/2 before the cost function
+    final_error = sqrt(final_error * 2 / pixels.size());
+
+    // cout << "Inside ceres: init_error: " << init_error << " pixels, " << "final_error: " << final_error << " pixels\n";
+    return final_error;
 }
 
 

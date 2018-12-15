@@ -20,7 +20,7 @@ def compute_reproj_err(rpc_models, track, point):
         err += (col - proj_col) ** 2 + (row - proj_row) ** 2
     err = np.sqrt(err / len(track))
 
-    logging.info('reproj. err.: {}'.format(err))
+    # logging.info('reproj. err.: {}'.format(err))
     return err
 
 
@@ -82,21 +82,22 @@ def triangulate(track, rpc_models, affine_models, out_file):
     write_to_taskfile(track, rpc_models, init, out_file)
 
     # triangulate
-    run_cmd('multi_rpc_triangulate/multi_rpc_triangulate {} {}.result.txt'.format(out_file, out_file))
+    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}.result.txt'.format(out_file, out_file))
 
     # read result
     with open(out_file) as fp:
         lines = fp.readlines()
         init_point = [float(x) for x in lines[0].strip().split(' ')]
         init_err = float(lines[1].strip())
-    with open(out_file) as fp:
+    with open('{}.result.txt'.format(out_file)) as fp:
         lines = fp.readlines()
         final_point = [float(x) for x in lines[0].strip().split(' ')]
         final_err = float(lines[1].strip())
 
     # double check the final_err
-    tmp = compute_reproj_err(rpc_models, track, final_point)
-    assert (np.abs(tmp - final_err) < 0.1)
+    # tmp = compute_reproj_err(rpc_models, track, final_point)
+    # #print('here ceres final_err: {}, python: {}'.format(final_err, tmp))
+    # assert (np.abs(tmp - final_err) < 0.001)
 
     tmp = utm.from_latlon(init_point[0], init_point[1])
     init_point_utm = [tmp[0], tmp[1], init_point[2], tmp[2], tmp[3]]

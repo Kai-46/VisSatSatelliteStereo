@@ -16,7 +16,7 @@ def run_cmd(cmd):
 
         # interacting with long-running subprocess
         while True:
-            output = process.stdout.readline()
+            output = process.stdout.readline().decode()
             if output == '' and process.poll() is not None:
                 break
             if output:

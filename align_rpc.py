@@ -4,7 +4,7 @@ import os
 import json
 from lib.rpc_model import RPCModel
 import numpy as np
-
+import logging
 from lib.ransac import esti_simiarity
 
 
@@ -69,6 +69,9 @@ def read_data(work_dir):
     source = []
     target = []
     for i in range(len(all_tracks)):
+        # if len(all_tracks[i]['pixels']) == 2: # ignore two-view tracks
+        #     continue
+
         source.append(all_tracks[i]['xyz'])
 
         rpc_models = []
@@ -88,6 +91,7 @@ def read_data(work_dir):
             affine_models.append(P)
 
         out_file = os.path.join(work_dir, 'tmpfile.txt')
+        logging.info('triangulating {}/{} points, track length: {}'.format(i+1, len(all_tracks), len(track)))
         _, final_point_utm = triangulate(track, rpc_models, affine_models, out_file)
         target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
 
@@ -103,12 +107,18 @@ def compute_transform(work_dir):
     return c, R, t
 
 if __name__ == '__main__':
-    import logging
-    import sys
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    # import sys
+    # logging.getLogger().setLevel(logging.INFO)
+    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
+    from datetime import datetimea
 
     work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
+    log_file = os.path.join(work_dir, 'log_rpc_triangulate.txt')
+    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+
+    logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     c, R, t = compute_transform(work_dir)
+    logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))

@@ -188,4 +188,8 @@ if __name__ == '__main__':
                     'aoi_config/aoi-d3-ucsd.json',
                     'aoi_config/aoi-d4-jacksonville.json']
     for config_file in config_files:
+        # remove all the existing logging handlers
+        for handler in logging.root.handlers:
+            logging.root.removeHandler(handler)
+
         main(config_file)

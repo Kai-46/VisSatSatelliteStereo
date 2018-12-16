@@ -68,6 +68,7 @@ def read_data(work_dir):
 
     source = []
     target = []
+    tmp_file = os.path.join(work_dir, 'tmpfile.txt')
     for i in range(len(all_tracks)):
         # if len(all_tracks[i]['pixels']) == 2: # ignore two-view tracks
         #     continue
@@ -90,10 +91,12 @@ def read_data(work_dir):
 
             affine_models.append(P)
 
-        out_file = os.path.join(work_dir, 'tmpfile.txt')
         logging.info('triangulating {}/{} points, track length: {}'.format(i+1, len(all_tracks), len(track)))
-        _, final_point_utm = triangulate(track, rpc_models, affine_models, out_file)
+        _, final_point_utm = triangulate(track, rpc_models, affine_models, tmp_file)
         target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
+
+    # remove tmpfile.txt
+    os.remove(tmp_file)
 
     source = np.array(source)
     target = np.array(target)
@@ -111,14 +114,18 @@ if __name__ == '__main__':
     # logging.getLogger().setLevel(logging.INFO)
     # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    from datetime import datetimea
-
     work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
-    log_file = os.path.join(work_dir, 'log_rpc_triangulate.txt')
+    log_file = os.path.join(work_dir, 'log_align_rpc.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 
-    logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    from datetime import datetime
+    since = datetime.now()
+    logging.info('Starting at {} ...'.format(since.strftime('%Y-%m-%d %H:%M:%S')))
+
     c, R, t = compute_transform(work_dir)
-    logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    ending = datetime.now()
+    duration = (ending - since).total_seconds() / 60. # in minutes
+    logging.info('Finishing at {}, duration: {}'.format(ending.strftime('%Y-%m-%d %H:%M:%S'), duration))

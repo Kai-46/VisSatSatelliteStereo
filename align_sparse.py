@@ -33,7 +33,8 @@ def read_data(colmap_dir):
     return source, target
 
 
-def compute_transform(colmap_dir):
+def compute_transform(work_dir):
+    colmap_dir = os.path.join(work_dir, 'colmap')
     source, target = read_data(colmap_dir)
 
     c, R, t = esti_simiarity(source, target)
@@ -42,16 +43,21 @@ def compute_transform(colmap_dir):
 
 if __name__ == '__main__':
     import logging
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    #colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/'
-    colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/'
+    # logging.getLogger().setLevel(logging.INFO)
+    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    c, R, t = compute_transform(colmap_dir)
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
+    # work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
-    # proj_dir = sys.argv[1]
+    log_file = os.path.join(work_dir, 'log_align_sparse.txt')
+    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 
-    #proj_dir = '/data2/kz298/bak/data_aoi-d3-ucsd_pinhole/'
-    #proj_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/'
+    from datetime import datetime
+    logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    c, R, t = compute_transform(work_dir)
+
+    logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
 

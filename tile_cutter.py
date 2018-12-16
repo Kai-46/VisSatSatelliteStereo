@@ -57,7 +57,7 @@ class TileCutter(object):
         self.useful_cnt = 0
 
     # cut area of interest; might divide the aoi into smaller regions
-    def cut_aoi(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
+    def cut_aoi(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north, use_small_regions=False):
         # save to aoi_dict
         aoi_dict = {'zone_number': zone_number,
                     'zone_letter': zone_letter,
@@ -71,10 +71,11 @@ class TileCutter(object):
         self.useful_cnt = 0
 
         # view the whole aoi as a region
-        # self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
-
-        # overlap cutting
-        self.overlap_cut(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+        if not use_small_regions:
+            self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+        else:
+            # overlap cutting
+            self.overlap_cut(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
 
     # 3 * 3 overlap cutting
     # one image will be cut into 10 smaller regions

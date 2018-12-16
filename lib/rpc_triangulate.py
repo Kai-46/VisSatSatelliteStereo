@@ -4,6 +4,7 @@ from lib.rpc_model import RPCModel
 import numpy as np
 from lib.run_cmd import run_cmd
 import logging
+import os
 
 
 def compute_reproj_err(rpc_models, track, point):
@@ -82,17 +83,21 @@ def triangulate(track, rpc_models, affine_models, out_file):
     write_to_taskfile(track, rpc_models, init, out_file)
 
     # triangulate
-    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}.result.txt'.format(out_file, out_file))
+    tmp_file = '{}.result.txt'.format(out_file)
+    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(out_file, tmp_file))
 
     # read result
     with open(out_file) as fp:
         lines = fp.readlines()
         init_point = [float(x) for x in lines[0].strip().split(' ')]
         init_err = float(lines[1].strip())
-    with open('{}.result.txt'.format(out_file)) as fp:
+    with open(tmp_file) as fp:
         lines = fp.readlines()
         final_point = [float(x) for x in lines[0].strip().split(' ')]
         final_err = float(lines[1].strip())
+
+    # remove tmpfile
+    os.remove(tmp_file)
 
     # double check the final_err
     # tmp = compute_reproj_err(rpc_models, track, final_point)

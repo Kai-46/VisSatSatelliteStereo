@@ -44,17 +44,31 @@ def read_data(colmap_dir):
 
     return source, target
 
-def compute_transform(colmap_dir):
+def compute_transform(work_dir):
+    colmap_dir = os.path.join(work_dir, 'colmap')
+
     source, target = read_data(colmap_dir)
 
-    c, R, t = esti_simiarity(source, target, thres=1000)
+    c, R, t = esti_simiarity(source, target, thres=1.)
 
     return c, R, t
 
 
 if __name__ == '__main__':
-    colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap'
+    import logging
 
-    c, R, t = compute_transform(colmap_dir)
+    # logging.getLogger().setLevel(logging.INFO)
+    # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    #logging.info('c: {}, R: {}, t: {}'.format(c, R, t))
+    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
+    # work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
+
+    log_file = os.path.join(work_dir, 'log_align_cam.txt')
+    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+
+    from datetime import datetime
+    logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    c, R, t = compute_transform(work_dir)
+
+    logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))

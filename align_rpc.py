@@ -5,7 +5,7 @@ import json
 from lib.rpc_model import RPCModel
 import numpy as np
 import logging
-from lib.ransac import esti_simiarity
+from lib.esti_similarity import esti_similarity, esti_similarity_ransac
 
 
 # read tracks
@@ -102,22 +102,31 @@ def read_data(work_dir):
     target = np.array(target)
     return source, target
 
-def compute_transform(work_dir):
+def compute_transform(work_dir, use_ransac=False):
     source, target = read_data(work_dir)
 
-    c, R, t = esti_simiarity(source, target)
+    if use_ransac:
+        c, R, t = esti_similarity_ransac(source, target)
+    else:
+        c, R, t = esti_similarity(source, target)
 
     return c, R, t
+
 
 if __name__ == '__main__':
     # import sys
     # logging.getLogger().setLevel(logging.INFO)
     # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
-    log_file = os.path.join(work_dir, 'log_align_rpc.txt')
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d2-wpafb/'
+    work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
+
+    log_file = os.path.join(work_dir, 'log_align_rpc_no_ransac.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 
     from datetime import datetime

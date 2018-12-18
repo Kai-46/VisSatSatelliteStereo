@@ -1,6 +1,6 @@
 import os
 import json
-import cv2
+# import cv2
 import numpy as np
 import imageio
 import colmap.database as database
@@ -9,12 +9,12 @@ import shutil
 from colmap.read_model import read_model
 from lib.warp_affine import warp_affine
 
-def make_subdirs(out_dir):
-    subdirs = [ os.path.join(out_dir, 'images'),
-                os.path.join(out_dir, 'init'),
-                os.path.join(out_dir, 'sparse'),
-                os.path.join(out_dir, 'sparse_ba'),
-                os.path.join(out_dir, 'dense'),
+def make_subdirs(colmap_dir):
+    subdirs = [ os.path.join(colmap_dir, 'images'),
+                os.path.join(colmap_dir, 'init'),
+                os.path.join(colmap_dir, 'sparse'),
+                os.path.join(colmap_dir, 'sparse_ba'),
+                os.path.join(colmap_dir, 'dense'),
                 os.path.join(colmap_dir, 'dense/images'),
                 os.path.join(colmap_dir, 'dense/sparse'),
                 os.path.join(colmap_dir, 'dense/stereo'),
@@ -30,8 +30,8 @@ def make_subdirs(out_dir):
     return subdirs
 
 
-def prep_for_sfm(tile_dir, out_dir):
-    subdirs = make_subdirs(out_dir)
+def prep_for_sfm(tile_dir, colmap_dir):
+    subdirs = make_subdirs(colmap_dir)
 
     image_subdir = subdirs[0]
     init_subdir = subdirs[1]

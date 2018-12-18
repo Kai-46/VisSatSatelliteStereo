@@ -11,6 +11,13 @@ from lib.run_cmd import run_cmd
 from lib.timer import Timer
 
 
+def sfm():
+    pass
+
+def mvs():
+    pass
+
+
 def main(config_file):
     timer = Timer('Satellite Stereo')
     timer.start()
@@ -60,7 +67,7 @@ def main(config_file):
     with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
         json.dump(affine_dict, fp, indent=2)
 
-    # prepare colmap workspace
+    # # prepare colmap workspace
     colmap_dir = os.path.join(work_dir, 'colmap')
     if not os.path.exists(colmap_dir):
         os.mkdir(colmap_dir)

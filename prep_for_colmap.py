@@ -180,10 +180,12 @@ def prep_for_mvs(colmap_dir):
     colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_ba'), '.bin')
 
     cameras_txt_lines = []
+    all_img_names = []
+
     with open(os.path.join(colmap_dir, 'dense/sparse/images.txt'), 'w') as fp:
         # write comment
-        comment = '# Image list with two lines of data per image:\
-        #   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\
+        comment = '# Image list with two lines of data per image:\n\
+        #   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n\
         #   POINTS2D[] as (X, Y, POINT3D_ID)\n'
         fp.write(comment)
 
@@ -191,6 +193,8 @@ def prep_for_mvs(colmap_dir):
             image = colmap_images[img_id]
             img_name = image.name
             cam_id = image.camera_id
+
+            all_img_names.append((img_id, img_name))
 
             cam = colmap_cameras[cam_id]
             params = cam.params
@@ -243,13 +247,13 @@ def prep_for_mvs(colmap_dir):
             fp.write(second_line)
 
     with open(os.path.join(colmap_dir, 'dense/sparse/cameras.txt'), 'w') as fp:
-        comment = '# Camera list with one line of data per camera:\
+        comment = '# Camera list with one line of data per camera:\n\
         #   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n'
         fp.write(comment)
         fp.writelines(cameras_txt_lines)
 
     with open(os.path.join(colmap_dir, 'dense/sparse/points3D.txt'), 'w') as fp:
-        comment = '# 3D point list with one line of data per point: \
+        comment = '# 3D point list with one line of data per point: \n\
         #   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)\n'
         fp.write(comment)
         for point3d_id in colmap_points3D:
@@ -264,13 +268,26 @@ def prep_for_mvs(colmap_dir):
             line += '\n'
             fp.write(line)
 
+    # generate two dummy files
+    all_img_names = sorted(all_img_names, key=lambda x: x[0])  # sort by image_id
+    all_img_names = [x[1] for x in all_img_names]
+    with open(os.path.join(colmap_dir, 'dense/stereo/fusion.cfg'), 'w') as fp:
+        for img_name in all_img_names:
+            fp.write(img_name + '\n')
+        fp.write('\n')
+    with open(os.path.join(colmap_dir, 'dense/stereo/patch-match.cfg'), 'w') as fp:
+        for img_name in all_img_names:
+            fp.write(img_name + '\n')
+            fp.write('__auto__, 20\n')
+        fp.write('\n')
+
 
 if __name__ == '__main__':
-    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'
+    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville'
     # prepare colmap workspace
     colmap_dir = os.path.join(work_dir, 'colmap')
     if not os.path.exists(colmap_dir):
         os.mkdir(colmap_dir)
-    prep_for_sfm(work_dir, colmap_dir)
+    # prep_for_sfm(work_dir, colmap_dir)
 
     prep_for_mvs(colmap_dir)

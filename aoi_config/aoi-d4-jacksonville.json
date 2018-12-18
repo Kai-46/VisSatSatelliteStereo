@@ -2,11 +2,18 @@
   "dataset_dir":  "/data2/kz298/core3d_pan/jacksonville",
   "work_dir": "/data2/kz298/core3d_result/aoi-d4-jacksonville",
   "bounding_box": {
-        "zone_number" : 17,
-        "zone_letter" : "N",
-        "x" : 435532.000,
-        "y" : 3355520.000,
-        "w" : 1385.0,
-        "h" : 1413.0
-    }
+      "zone_number" : 17,
+      "zone_letter" : "N",
+      "x" : 435532.000,
+      "y" : 3355520.000,
+      "w" : 1385.0,
+      "h" : 1413.0
+  },
+  "steps_to_run": {
+      "cut_image": false,
+      "derive_approx": false,
+      "colmap_sfm": true,
+      "colmap_mvs": true,
+      "register": true
+  }
 }

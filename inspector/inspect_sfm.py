@@ -107,6 +107,8 @@ class InspectSparseModel(object):
             json.dump(all_points_err, fp, indent=2)
 
         # check distribution of track_len
+        plt.clf()
+        plt.figure(figsize=(14, 5), dpi=80)
         track_len = [len(x) for x in all_tracks]
         max_track_len = max(track_len)
         plt.clf()
@@ -114,8 +116,8 @@ class InspectSparseModel(object):
         plt.xticks(range(1, max_track_len+1))
         plt.ylabel('# of tracks')
         plt.xlabel('track length')
-        plt.title('total # of images: {}\ntotal # of tracks: {}\nmin track length: {}, max track length: {}'
-                  .format(self.img_cnt, len(all_tracks), min(track_len), max_track_len))
+        plt.title('total # of images: {}\ntotal # of tracks: {}\ntrack length,, min: {}, mean: {:.6f}, median: {}, max: {}'
+                  .format(self.img_cnt, len(all_tracks), min(track_len), np.mean(track_len), np.median(track_len), max_track_len))
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'inspect_track_len.jpg'))
@@ -145,9 +147,11 @@ def test():
     # sparse_dir = '/data2/kz298/bak/data_aoi-d3-ucsd_pinhole/sparse_ba'
     # sparse_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/sparse_ba'
 
-    sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/sparse_ba/'
-    out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap/inspect/sparse/'
+    sparse_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/sparse_ba/'
+    out_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/inspect/'
 
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
     # sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/'
     # out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/inspect/sparse/'
     sparse_inspector = InspectSparseModel(sparse_dir, out_dir)

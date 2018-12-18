@@ -56,7 +56,9 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d2-wpafb/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
-    work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
+
+    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
     log_file = os.path.join(work_dir, 'log_align_sparse.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
@@ -64,6 +66,6 @@ if __name__ == '__main__':
     from datetime import datetime
     logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
-    c, R, t = compute_transform(work_dir, use_ransac=True)
+    c, R, t = compute_transform(work_dir, use_ransac=False)
 
     logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))

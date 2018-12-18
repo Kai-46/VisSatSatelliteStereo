@@ -11,167 +11,246 @@ from lib.run_cmd import run_cmd
 from lib.timer import Timer
 
 
-def sfm():
-    pass
+class StereoPipeline(object):
+    def __init__(self, config_file):
+        with open(config_file) as fp:
+            self.config = json.load(fp)
 
-def mvs():
-    pass
+        # make work_dir
+        if not os.path.exists(self.config['work_dir']):
+            os.mkdir(self.config['work_dir'])
+        logs_subdir = os.path.join(self.config['work_dir'], 'logs')
+        if not os.path.exists(logs_subdir):
+            os.mkdir(logs_subdir)
 
+    def run(self):
+        print(self.config)
 
-def main(config_file):
-    timer = Timer('Satellite Stereo')
-    timer.start()
+        if self.config['steps_to_run']['cut_image']:
+            self.run_cut_image()
 
-    with open(config_file) as fp:
-        config = json.load(fp)
+        if self.config['steps_to_run']['derive_approx']:
+            self.run_derive_approx()
 
-    dataset_dir = config['dataset_dir']
-    work_dir = config['work_dir']
-    bbx = config['bounding_box']
+        if self.config['steps_to_run']['colmap_sfm']:
+            self.run_colmap_sfm()
 
-    # create work_dir
-    if not os.path.exists(work_dir):
-        os.mkdir(work_dir)
+        if self.config['steps_to_run']['colmap_mvs']:
+            self.run_colmap_mvs()
 
-    # set log file
-    log_file = os.path.join(work_dir, 'log.txt')
-    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+        if self.config['steps_to_run']['register']:
+            self.run_registration()
 
-    # write config_file
-    logging.info(config_file)
+    def run_cut_image(self):
+        dataset_dir = self.config['dataset_dir']
+        work_dir = self.config['work_dir']
+        bbx = self.config['bounding_box']
 
-    # clean data
-    cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
-    if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
-        shutil.rmtree(cleaned_data_dir, ignore_errors=True)
-    os.mkdir(cleaned_data_dir)
+        # set log file to 'logs/log_cut_image.txt'
+        log_file = os.path.join(work_dir, 'logs/log_cut_image.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
 
-    clean_data(dataset_dir, cleaned_data_dir)
+        # create a local timer
+        local_timer = Timer('Cut Image Module')
+        local_timer.start()
 
-    # cut image and tone map
-    cutter = TileCutter(cleaned_data_dir, work_dir)
-    cutter.cut_aoi(bbx['zone_number'], bbx['zone_letter'],
-                   bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])
+        # clean data
+        cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
+        if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
+            shutil.rmtree(cleaned_data_dir, ignore_errors=True)
+        os.mkdir(cleaned_data_dir)
 
-    # record time
-    now, since_last, since_start = timer.mark('till cut image done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        clean_data(dataset_dir, cleaned_data_dir)
 
-    # derive approximations for later uses
-    appr = Approx(work_dir)
-    perspective_dict = appr.approx_perspective_utm()
-    with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
-        json.dump(perspective_dict, fp, indent=2)
+        # cut image and tone map
+        cutter = TileCutter(cleaned_data_dir, work_dir)
+        cutter.cut_aoi(bbx['zone_number'], bbx['zone_letter'],
+                       bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])
+        # stop local timer
+        local_timer.mark('cut image done')
+        logging.info(local_timer.summary())
 
-    affine_dict = appr.approx_affine_latlon()
-    with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
-        json.dump(affine_dict, fp, indent=2)
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
 
-    # # prepare colmap workspace
-    colmap_dir = os.path.join(work_dir, 'colmap')
-    if not os.path.exists(colmap_dir):
-        os.mkdir(colmap_dir)
-    prep_for_sfm(work_dir, colmap_dir)
+    def run_derive_approx(self):
+        work_dir = self.config['work_dir']
 
-    # record time
-    now, since_last, since_start = timer.mark('till pre-processing done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        # set log file to 'logs/log_derive_approx.txt'
+        log_file = os.path.join(work_dir, 'logs/log_derive_approx.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
 
-    # start colmap commands
-    # feature extraction
-    cmd = 'colmap feature_extractor --database_path {colmap_dir}/database.db \
-                             --image_path {colmap_dir}/images/ \
-                            --ImageReader.camera_model PINHOLE \
-                            --SiftExtraction.max_image_size 5000  \
-                            --SiftExtraction.estimate_affine_shape 1 \
-                            --SiftExtraction.domain_size_pooling 1'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+        # create a local timer
+        local_timer = Timer('Derive Approximation Module')
+        local_timer.start()
 
-    # feature matching
-    cmd = 'colmap exhaustive_matcher --database_path {colmap_dir}/database.db \
-                                    --SiftMatching.guided_matching 1'.format(colmap_dir=colmap_dir)
+        # derive approximations for later uses
+        appr = Approx(work_dir)
+        perspective_dict = appr.approx_perspective_utm()
+        with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
+            json.dump(perspective_dict, fp, indent=2)
 
-    run_cmd(cmd)
+        affine_dict = appr.approx_affine_latlon()
+        with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
+            json.dump(affine_dict, fp, indent=2)
 
-    # create initial poses
-    create_init_files(colmap_dir)
+        # stop local timer
+        local_timer.mark('Derive approximation done')
+        logging.info(local_timer.summary())
 
-    # triangulate points
-    cmd = 'colmap point_triangulator --Mapper.ba_refine_principal_point 1 \
-                                     --database_path {colmap_dir}/database.db \
-                                     --image_path {colmap_dir}/images/ \
-                                     --input_path {colmap_dir}/init \
-                                     --output_path {colmap_dir}/sparse \
-                                     --Mapper.filter_min_tri_angle 1 \
-                                     --Mapper.tri_min_angle 1 \
-                                     --Mapper.max_extra_param 1.7976931348623157e+308 \
-                                     --Mapper.ba_local_max_num_iterations 40 \
-                                     --Mapper.ba_local_max_refinements 3 \
-                                     --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
 
-    # global bundle adjustment
-    cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
-    	                            --BundleAdjustment.max_num_iterations 1000 \
-    	                            --BundleAdjustment.refine_principal_point 1 \
-    	                            --BundleAdjustment.function_tolerance 1e-6 \
-    	                            --BundleAdjustment.gradient_tolerance 1e-10 \
-    	                            --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+    def run_colmap_sfm(self):
+        work_dir = self.config['work_dir']
+        # set log file to 'logs/log_derive_approx.txt'
+        log_file = os.path.join(work_dir, 'logs/log_sfm.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
 
-    # record time
-    now, since_last, since_start = timer.mark('till sfm done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        # create a local timer
+        local_timer = Timer('Colmap SfM Module')
+        local_timer.start()
 
-    # prepare dense reconstruction
-    prep_for_mvs(colmap_dir)
+        # prepare colmap workspace
+        colmap_dir = os.path.join(work_dir, 'colmap')
+        if not os.path.exists(colmap_dir):
+            os.mkdir(colmap_dir)
+        prep_for_sfm(work_dir, colmap_dir)
 
-    # cmd = 'colmap image_undistorter --max_image_size 5000 \
-    #                     --image_path {colmap_dir}/images  \
-    #                     --input_path {colmap_dir}/sparse_ba \
-    #                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
-    # run_cmd(cmd)
+        # feature extraction
+        cmd = 'colmap feature_extractor --database_path {colmap_dir}/database.db \
+                                 --image_path {colmap_dir}/images/ \
+                                --ImageReader.camera_model PINHOLE \
+                                --SiftExtraction.max_image_size 5000  \
+                                --SiftExtraction.estimate_affine_shape 1 \
+                                --SiftExtraction.domain_size_pooling 1'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
 
-    # PMVS
-    cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
-                    --PatchMatchStereo.window_radius 9 \
-                    --PatchMatchStereo.filter_min_triangulation_angle 1 \
-                    --PatchMatchStereo.geom_consistency 1 \
-                    --PatchMatchStereo.filter_min_ncc 0.05'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+        # feature matching
+        cmd = 'colmap exhaustive_matcher --database_path {colmap_dir}/database.db \
+                                        --SiftMatching.guided_matching 1'.format(colmap_dir=colmap_dir)
 
-    # record time
-    now, since_last, since_start = timer.mark('till mvs done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        run_cmd(cmd)
 
-    # stereo fusion
-    cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/dense \
-                         --output_path {colmap_dir}/dense/fused.ply \
-                         --input_type geometric \
-                         --StereoFusion.min_num_pixels 3'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+        # create initial poses
+        create_init_files(colmap_dir)
 
-    # record time
-    now, since_last, since_start = timer.mark('till fusion done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        # triangulate points
+        cmd = 'colmap point_triangulator --Mapper.ba_refine_principal_point 1 \
+                                         --database_path {colmap_dir}/database.db \
+                                         --image_path {colmap_dir}/images/ \
+                                         --input_path {colmap_dir}/init \
+                                         --output_path {colmap_dir}/sparse \
+                                         --Mapper.filter_min_tri_angle 1 \
+                                         --Mapper.tri_min_angle 1 \
+                                         --Mapper.max_extra_param 1.7976931348623157e+308 \
+                                         --Mapper.ba_local_max_num_iterations 40 \
+                                         --Mapper.ba_local_max_refinements 3 \
+                                         --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
 
-    # alignment
-    # decide which solution to take
-    # from align_sparse import compute_transform
-    from align_rpc import compute_transform
-    # from align_cam import compute_transform
-    c, R, t = compute_transform(work_dir)
+        # global bundle adjustment
+        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
+        	                            --BundleAdjustment.max_num_iterations 1000 \
+        	                            --BundleAdjustment.refine_principal_point 1 \
+        	                            --BundleAdjustment.function_tolerance 1e-6 \
+        	                            --BundleAdjustment.gradient_tolerance 1e-10 \
+        	                            --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
 
-    georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
-                      os.path.join(colmap_dir, 'dense/fused_registered.ply'),
-                      os.path.join(work_dir, 'aoi.json'), c, R, t)
+        # stop local timer
+        local_timer.mark('Colmap SfM done')
+        logging.info(local_timer.summary())
 
-    # record time
-    now, since_last, since_start = timer.mark('till registration done')
-    logging.info('\nelapsed: {} min\n'.format(since_last))
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
 
-    # generate time consumption report
-    logging.info(timer.summary())
+    def run_colmap_mvs(self):
+        work_dir = self.config['work_dir']
+        # set log file to 'logs/log_derive_approx.txt'
+        log_file = os.path.join(work_dir, 'logs/log_mvs.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
+
+        # create a local timer
+        local_timer = Timer('Colmap MVS Module')
+        local_timer.start()
+
+        # prepare dense reconstruction
+        colmap_dir = os.path.join(work_dir, 'colmap')
+        prep_for_mvs(colmap_dir)
+
+        # cmd = 'colmap image_undistorter --max_image_size 5000 \
+        #                     --image_path {colmap_dir}/images  \
+        #                     --input_path {colmap_dir}/sparse_ba \
+        #                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
+        # run_cmd(cmd)
+
+        # PMVS
+        cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
+                        --PatchMatchStereo.window_radius 9 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 1 \
+                        --PatchMatchStereo.geom_consistency 1 \
+                        --PatchMatchStereo.filter_min_ncc 0.05'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
+
+        # stereo fusion
+        cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/dense \
+                             --output_path {colmap_dir}/dense/fused.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
+
+        # stop local timer
+        local_timer.mark('Colmap MVS done')
+        logging.info(local_timer.summary())
+
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
+
+    def run_registration(self):
+        work_dir = self.config['work_dir']
+        colmap_dir = os.path.join(work_dir, 'colmap')
+
+        # set log file to 'logs/log_derive_approx.txt'
+        log_file = os.path.join(work_dir, 'logs/log_register.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
+
+        # create a local timer
+        local_timer = Timer('Geo-registration Module')
+        local_timer.start()
+
+        # alignment
+        # decide which solution to take
+        from align_sparse import compute_transform
+        # from align_rpc import compute_transform
+        # from align_cam import compute_transform
+        c, R, t = compute_transform(work_dir)
+
+        georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
+                          os.path.join(colmap_dir, 'dense/fused_registered.ply'),
+                          os.path.join(work_dir, 'aoi.json'), c, R, t)
+
+        # stop local timer
+        local_timer.mark('geo-registration done')
+        logging.info(local_timer.summary())
+
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
 
 
 if __name__ == '__main__':
@@ -192,4 +271,7 @@ if __name__ == '__main__':
     #         logging.root.removeHandler(handler)
     #
     #     main(config_file)
-    main(config_file)
+
+    pipeline = StereoPipeline(config_file)
+    pipeline.run()
+

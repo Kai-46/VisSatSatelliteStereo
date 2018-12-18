@@ -47,20 +47,21 @@ def read_tracks(colmap_dir):
 def read_data(work_dir):
     all_tracks = read_tracks(os.path.join(work_dir, 'colmap'))
 
-    with open(os.path.join(work_dir, 'approx_perspective_utm.json')) as fp:
-        perspective_dict = json.load(fp)
-
-    for i in range(len(all_tracks)):
-        for j in range(len(all_tracks[i]['pixels'])):
-            img_name, col, row = all_tracks[i]['pixels'][j]
-
-            params = perspective_dict[img_name]
-            fy = params[1]
-            s = params[4]
-            norm_skew = s / fy
-            col += norm_skew * row
-
-            all_tracks[i]['pixels'][j] = (img_name, col, row)
+    ## warp pixel coordinate
+    # with open(os.path.join(work_dir, 'approx_perspective_utm.json')) as fp:
+    #     perspective_dict = json.load(fp)
+    #
+    # for i in range(len(all_tracks)):
+    #     for j in range(len(all_tracks[i]['pixels'])):
+    #         img_name, col, row = all_tracks[i]['pixels'][j]
+    #
+    #         params = perspective_dict[img_name]
+    #         fy = params[1]
+    #         s = params[4]
+    #         norm_skew = s / fy
+    #         col += norm_skew * row
+    #
+    #         all_tracks[i]['pixels'][j] = (img_name, col, row)
 
     # now start to create all points
     with open(os.path.join(work_dir, 'approx_affine_latlon.json')) as fp:
@@ -142,10 +143,12 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
-    work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d2-wpafb/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
+
+    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
     log_file = os.path.join(work_dir, 'log_align_rpc_no_ransac.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')

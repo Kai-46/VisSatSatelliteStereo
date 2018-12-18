@@ -8,5 +8,12 @@
         "y" : 4407640.000,
         "w" : 623.0,
         "h" : 575
+  },
+  "steps_to_run": {
+        "cut_image": false,
+        "derive_approx": false,
+        "colmap_sfm": true,
+        "colmap_mvs": true,
+        "register": true
   }
 }

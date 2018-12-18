@@ -6,7 +6,7 @@ from lib.rpc_model import RPCModel
 import numpy as np
 import logging
 from lib.esti_similarity import esti_similarity, esti_similarity_ransac
-
+import matplotlib.pyplot as plt
 
 # read tracks
 # each track is dict
@@ -69,6 +69,8 @@ def read_data(work_dir):
     source = []
     target = []
     tmp_file = os.path.join(work_dir, 'tmpfile.txt')
+
+    reproj_errs = []
     for i in range(len(all_tracks)):
         # if len(all_tracks[i]['pixels']) == 2: # ignore two-view tracks
         #     continue
@@ -92,11 +94,30 @@ def read_data(work_dir):
             affine_models.append(P)
 
         logging.info('triangulating {}/{} points, track length: {}'.format(i+1, len(all_tracks), len(track)))
-        _, final_point_utm = triangulate(track, rpc_models, affine_models, tmp_file)
+        _, final_point_utm, err = triangulate(track, rpc_models, affine_models, tmp_file)
         target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
 
+        reproj_errs.append(err)
     # remove tmpfile.txt
     os.remove(tmp_file)
+
+    # for debug
+    # check reprojection error
+    plt.clf()
+    plt.figure(figsize=(14, 5), dpi=80)
+    plt.hist(reproj_errs, bins=20, density=True, cumulative=True)
+    max_points_err = max(reproj_errs)
+    plt.xticks(np.arange(0, max_points_err + 0.01, 0.1))
+    plt.yticks(np.arange(0, 1.01, 0.1))
+    plt.xlabel('reprojection error (# pixels)')
+    plt.ylabel('cdf')
+    plt.title(
+        'total # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
+        .format(len(reproj_errs), min(reproj_errs), np.mean(reproj_errs),
+                np.median(reproj_errs), max_points_err))
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(work_dir, 'inspect_rpc_reproj_err.jpg'))
 
     source = np.array(source)
     target = np.array(target)
@@ -121,9 +142,9 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
 
-    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
+    work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d2-wpafb/'
-    work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
 
     log_file = os.path.join(work_dir, 'log_align_rpc_no_ransac.txt')

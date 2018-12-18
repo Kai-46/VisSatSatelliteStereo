@@ -7,7 +7,6 @@ class Timer(object):
         self.start_time = None
         self.milestones = []
         self.texts = []
-        self.end_time = None
 
     def start(self):
         self.start_time = datetime.now()
@@ -32,24 +31,34 @@ class Timer(object):
 
         return now, since_last, since_start
 
-    def end(self):
-        self.end_time = datetime.now()
-        self.milestones.append(self.end_time)
-        self.texts.append('end')
-
     def summary(self):
         template = '%Y-%m-%d %H:%M:%S'
-        report = 'Timer started at {}, finished at {}, total elapsed {} minutes\n'.format(
-            self.start_time.strftime(template), self.end_time.strftime(template), (self.end_time - self.start_time).total_seconds() / 60.
+        end_time = self.milestones[-1]
+        report = 'Timer started at {}, summarized at {}, total elapsed {:.6} minutes\n'.format(
+            self.start_time.strftime(template), end_time.strftime(template), (end_time - self.start_time).total_seconds() / 60.
         )
-
-        report += '\tstart: {}\n'.format(self.start_time)
+        report += '\tdescription: {}\n'.format(self.description)
+        report += '\tstart: {}\n'.format(self.start_time.strftime(template))
         cnt = len(self.milestones)
         for i in range(1, cnt):
             since_last = (self.milestones[i] - self.milestones[i-1]).total_seconds() / 60.
             since_start = (self.milestones[i] - self.start_time).total_seconds() / 60.
 
-            report += '\t{}: {}, since_last: {} minutes, since_start: {} minutes\n'.format(
+            report += '\t{}: {}, since_last: {:.6} minutes, since_start: {:.6} minutes\n'.format(
                 self.texts[i], self.milestones[i].strftime(template), since_last, since_start)
 
         return report
+
+
+if __name__ == '__main__':
+    timer = Timer('my timer test')
+    timer.start()
+
+    import time
+    time.sleep(5)
+    timer.mark('just slept 5 seconds')
+
+    time.sleep(8)
+    timer.mark('just slept 8 seconds')
+
+    print(timer.summary())

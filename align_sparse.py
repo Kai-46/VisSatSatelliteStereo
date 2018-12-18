@@ -3,7 +3,7 @@ import sys
 import os
 import numpy as np
 
-from lib.ransac import esti_simiarity
+from lib.esti_similarity import esti_similarity, esti_similarity_ransac
 
 
 def read_data(colmap_dir):
@@ -33,11 +33,14 @@ def read_data(colmap_dir):
     return source, target
 
 
-def compute_transform(work_dir):
+def compute_transform(work_dir, use_ransac=False):
     colmap_dir = os.path.join(work_dir, 'colmap')
     source, target = read_data(colmap_dir)
 
-    c, R, t = esti_simiarity(source, target)
+    if use_ransac:
+        c, R, t = esti_similarity_ransac(source, target)
+    else:
+        c, R, t = esti_similarity(source, target)
 
     return c, R, t
 
@@ -47,8 +50,13 @@ if __name__ == '__main__':
     # logging.getLogger().setLevel(logging.INFO)
     # logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
-    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/'
     # work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/'
+
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d1-wpafb/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d2-wpafb/'
+    #work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
+    work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
 
     log_file = os.path.join(work_dir, 'log_align_sparse.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
@@ -56,8 +64,6 @@ if __name__ == '__main__':
     from datetime import datetime
     logging.info('Starting at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
-    c, R, t = compute_transform(work_dir)
+    c, R, t = compute_transform(work_dir, use_ransac=True)
 
     logging.info('Finishing at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-
-

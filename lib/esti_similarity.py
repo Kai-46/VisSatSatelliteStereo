@@ -2,7 +2,26 @@ import numpy as np
 from lib.procrustes import procrustes
 import logging
 
-def esti_simiarity(source, target, samples_per_trial=3, num_of_trials=5000, thres=1.):
+
+def esti_similarity(source, target):
+    assert (source.shape[0] == target.shape[0])
+
+    samples_cnt = source.shape[0]
+
+    _, source_aligned, trans = procrustes(target, source, reflection=False)
+
+    # compute re-projection error over the whole set
+    err = np.sqrt(np.sum((source - target) ** 2, axis=1))
+    logging.info('\talignment error before, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
+    source_aligned = np.dot(source, trans['scale'] * trans['rotation']) \
+                      + np.tile(trans['translation'], (samples_cnt, 1))
+    err = np.sqrt(np.sum((source_aligned - target) ** 2, axis=1))
+    logging.info('\talignment error after, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
+
+    return trans['scale'], trans['rotation'], trans['translation']
+
+
+def esti_similarity_ransac(source, target, samples_per_trial=3, num_of_trials=5000, thres=1.):
     assert (source.shape[0] == target.shape[0])
 
     samples_cnt = source.shape[0]
@@ -47,12 +66,10 @@ def esti_simiarity(source, target, samples_per_trial=3, num_of_trials=5000, thre
     # compute re-projection error over the whole set
     err = np.sqrt(np.sum((source - target) ** 2, axis=1))
     logging.info('\talignment error before, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
-    source_modified = np.dot(source, transforms[idx]['scale'] * transforms[idx]['rotation']) \
+    source_aligned = np.dot(source, transforms[idx]['scale'] * transforms[idx]['rotation']) \
                       + np.tile(transforms[idx]['translation'], (samples_cnt, 1))
-    err = np.sqrt(np.sum((source_modified - target) ** 2, axis=1))
+    err = np.sqrt(np.sum((source_aligned - target) ** 2, axis=1))
     logging.info('\talignment error after, min: {}, max: {}, mean: {}, median: {}'.format(np.min(err), np.max(err), np.mean(err), np.median(err)))
 
 
     return transforms[idx]['scale'], transforms[idx]['rotation'], transforms[idx]['translation']
-
-

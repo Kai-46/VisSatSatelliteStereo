@@ -113,7 +113,7 @@ def triangulate(track, rpc_models, affine_models, out_file):
     logging.info('init point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
     logging.info('final point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
 
-    return final_point, final_point_utm
+    return final_point, final_point_utm, final_err
 
 
 def test():

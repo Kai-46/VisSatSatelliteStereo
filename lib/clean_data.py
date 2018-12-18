@@ -22,7 +22,7 @@ def clean_data(dataset_dir, out_dir):
     os.mkdir(tmp_dir)
 
     for item in sorted(os.listdir(dataset_dir)):
-        if item[-4:] == '.NTF':
+        if item[-4:] == '.NTF' and os.path.exists(os.path.join(dataset_dir, '{}.tar'.format(item[:-4]))):
             # get order_id, prod_id
             idx = item.find('-P1BS-')
             order_id = item[idx+6:idx+21]

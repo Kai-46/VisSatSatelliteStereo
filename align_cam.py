@@ -2,7 +2,7 @@ import os
 import numpy as np
 import quaternion
 import colmap.read_model as read_model
-from lib.ransac import esti_simiarity
+from lib.esti_similarity import esti_similarity, esti_similarity_ransac
 
 
 def read_data(colmap_dir):
@@ -44,12 +44,15 @@ def read_data(colmap_dir):
 
     return source, target
 
-def compute_transform(work_dir):
+def compute_transform(work_dir, use_ransac=False):
     colmap_dir = os.path.join(work_dir, 'colmap')
 
     source, target = read_data(colmap_dir)
 
-    c, R, t = esti_simiarity(source, target, thres=1.)
+    if use_ransac:
+        c, R, t = esti_similarity_ransac(source, target)
+    else:
+        c, R, t = esti_similarity(source, target)
 
     return c, R, t
 

@@ -3,18 +3,17 @@ import json
 from lib.clean_data import clean_data
 from tile_cutter import TileCutter
 from approx import Approx
-from prep_for_colmap import prep_for_colmap, create_init_files
-from time import time
+from prep_for_colmap import prep_for_sfm, prep_for_mvs, create_init_files
 from lib.georegister_dense import georegister_dense
 import shutil
 import logging
 from lib.run_cmd import run_cmd
-from datetime import datetime
+from lib.timer import Timer
 
 
 def main(config_file):
-    stages = {}
-    since = time()
+    timer = Timer('Satellite Stereo')
+    timer.start()
 
     with open(config_file) as fp:
         config = json.load(fp)
@@ -34,9 +33,6 @@ def main(config_file):
     # write config_file
     logging.info(config_file)
 
-    # start pipeline
-    logging.info('Starting pipeline at {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-
     # clean data
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
     if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
@@ -51,9 +47,8 @@ def main(config_file):
                    bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till cut image done'] = elapsed
+    now, since_last, since_start = timer.mark('till cut image done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
     # derive approximations for later uses
     appr = Approx(work_dir)
@@ -69,12 +64,11 @@ def main(config_file):
     colmap_dir = os.path.join(work_dir, 'colmap')
     if not os.path.exists(colmap_dir):
         os.mkdir(colmap_dir)
-    prep_for_colmap(work_dir, colmap_dir)
+    prep_for_sfm(work_dir, colmap_dir)
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till skew correction done'] = elapsed
+    now, since_last, since_start = timer.mark('till pre-processing done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
     # start colmap commands
     # feature extraction
@@ -119,16 +113,17 @@ def main(config_file):
     run_cmd(cmd)
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till sfm done'] = elapsed
+    now, since_last, since_start = timer.mark('till sfm done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
     # prepare dense reconstruction
-    cmd = 'colmap image_undistorter --max_image_size 5000 \
-                        --image_path {colmap_dir}/images  \
-                        --input_path {colmap_dir}/sparse_ba \
-                        --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+    prep_for_mvs(colmap_dir)
+
+    # cmd = 'colmap image_undistorter --max_image_size 5000 \
+    #                     --image_path {colmap_dir}/images  \
+    #                     --input_path {colmap_dir}/sparse_ba \
+    #                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
+    # run_cmd(cmd)
 
     # PMVS
     cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
@@ -139,9 +134,8 @@ def main(config_file):
     run_cmd(cmd)
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till mvs done'] = elapsed
+    now, since_last, since_start = timer.mark('till mvs done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
     # stereo fusion
     cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/dense \
@@ -151,9 +145,8 @@ def main(config_file):
     run_cmd(cmd)
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till fusion done'] = elapsed
+    now, since_last, since_start = timer.mark('till fusion done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
     # alignment
     # decide which solution to take
@@ -167,29 +160,29 @@ def main(config_file):
                       os.path.join(work_dir, 'aoi.json'), c, R, t)
 
     # record time
-    elapsed = (time() - since) / 60.
-    logging.info('\nelapsed: {} min\n'.format(elapsed))
-    stages['till registration done'] = elapsed
+    now, since_last, since_start = timer.mark('till registration done')
+    logging.info('\nelapsed: {} min\n'.format(since_last))
 
-    logging.info('\ntime consumption summary:')
-    for key in stages:
-        logging.info('\t{} : {} minutes'.format(key, stages[key]))
-
-    logging.info('completed pipeline at {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    # generate time consumption report
+    logging.info(timer.summary())
 
 
 if __name__ == '__main__':
+    import sys
+    config_file = sys.argv[1]
+
     # read config file
     #config_file = 'aoi_config/aoi-d1-wpafb.json'
     #config_file = 'aoi_config/aoi-d4-jacksonville.json'
 
-    config_files = ['aoi_config/aoi-d1-wpafb.json',
-                    'aoi_config/aoi-d2-wpafb.json',
-                    'aoi_config/aoi-d3-ucsd.json',
-                    'aoi_config/aoi-d4-jacksonville.json']
-    for config_file in config_files:
-        # remove all the existing logging handlers
-        for handler in logging.root.handlers:
-            logging.root.removeHandler(handler)
-
-        main(config_file)
+    # config_files = ['aoi_config/aoi-d1-wpafb.json',
+    #                 'aoi_config/aoi-d2-wpafb.json',
+    #                 'aoi_config/aoi-d3-ucsd.json',
+    #                 'aoi_config/aoi-d4-jacksonville.json']
+    # for config_file in config_files:
+    #     # remove all the existing logging handlers
+    #     for handler in logging.root.handlers:
+    #         logging.root.removeHandler(handler)
+    #
+    #     main(config_file)
+    main(config_file)

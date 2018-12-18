@@ -298,14 +298,14 @@ def rotmat2qvec(R):
 
 def main():
     if len(sys.argv) != 3:
-        logging.info("Usage: python read_model.py path/to/model/folder [.txt,.bin]")
+        print("Usage: python read_model.py path/to/model/folder [.txt,.bin]")
         return
 
     cameras, images, points3D = read_model(path=sys.argv[1], ext=sys.argv[2])
 
-    logging.info("num_cameras:", len(cameras))
-    logging.info("num_images:", len(images))
-    logging.info("num_points3D:", len(points3D))
+    print("num_cameras:", len(cameras))
+    print("num_images:", len(images))
+    print("num_points3D:", len(points3D))
 
 
 if __name__ == "__main__":

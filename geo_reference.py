@@ -4,7 +4,7 @@ import os
 import numpy as np
 from lib.plyfile import PlyData, PlyElement
 import json
-from lib.ransac import esti_simiarity
+from lib.esti_similarity import esti_simiarity
 import matplotlib.pyplot as plt
 import logging
 

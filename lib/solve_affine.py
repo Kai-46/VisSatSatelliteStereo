@@ -6,7 +6,7 @@ def solve_affine(xx, yy, zz, col, row, keep_mask=None):
     assert (np.all(diff_size == 0))
 
     if keep_mask is not None:
-        logging.info('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
+        # logging.info('discarding {} % outliers'.format((1. - np.sum(keep_mask) / keep_mask.size) * 100.))
         xx = xx[keep_mask].reshape((-1, 1))
         yy = yy[keep_mask].reshape((-1, 1))
         zz = zz[keep_mask].reshape((-1, 1))
@@ -14,12 +14,12 @@ def solve_affine(xx, yy, zz, col, row, keep_mask=None):
         col = col[keep_mask].reshape((-1, 1))
 
     # construct a least square problem
-    logging.info('\n\n')
-    logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-    logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
-    logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
+    # logging.info('\n\n')
+    # logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
+    # logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
+    # logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
+    # logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
+    # logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
 
     point_cnt = xx.size
     all_ones = np.ones((point_cnt, 1))

@@ -116,7 +116,7 @@ class InspectSparseModel(object):
         plt.xticks(range(1, max_track_len+1))
         plt.ylabel('# of tracks')
         plt.xlabel('track length')
-        plt.title('total # of images: {}\ntotal # of tracks: {}\ntrack length,, min: {}, mean: {:.6f}, median: {}, max: {}'
+        plt.title('total # of images: {}\ntotal # of tracks: {}\ntrack length, min: {}, mean: {:.6f}, median: {}, max: {}'
                   .format(self.img_cnt, len(all_tracks), min(track_len), np.mean(track_len), np.median(track_len), max_track_len))
         plt.grid(True)
         plt.tight_layout()
@@ -146,6 +146,16 @@ def test():
     # sparse_dir = '/data2/kz298/bak/data_aoi-d2-wpafb_pinhole/sparse_ba'
     # sparse_dir = '/data2/kz298/bak/data_aoi-d3-ucsd_pinhole/sparse_ba'
     # sparse_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole/sparse_ba'
+
+
+    # sparse_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/sparse_ba/'
+    # out_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/inspect/'
+
+    #sparse_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/colmap/sparse_ba/'
+    #out_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/colmap/inspect/'
+
+    # sparse_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/sparse_ba/'
+    # out_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/inspect/'
 
     sparse_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/sparse_ba/'
     out_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/inspect/'

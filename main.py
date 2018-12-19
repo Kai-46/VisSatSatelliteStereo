@@ -129,11 +129,14 @@ class StereoPipeline(object):
         # feature extraction
         cmd = 'colmap feature_extractor --database_path {colmap_dir}/database.db \
                                  --image_path {colmap_dir}/images/ \
-                                --ImageReader.camera_model PINHOLE \
+                                --ImageReader.camera_model PERSPECTIVE \
                                 --SiftExtraction.max_image_size 5000  \
                                 --SiftExtraction.estimate_affine_shape 1 \
                                 --SiftExtraction.domain_size_pooling 1'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
+
+        # seems that we need to copy camera intrinsics into database
+        # this is important??  Maybe not
 
         # feature matching
         cmd = 'colmap exhaustive_matcher --database_path {colmap_dir}/database.db \
@@ -150,11 +153,12 @@ class StereoPipeline(object):
                                          --image_path {colmap_dir}/images/ \
                                          --input_path {colmap_dir}/init \
                                          --output_path {colmap_dir}/sparse \
-                                         --Mapper.filter_min_tri_angle 1 \
-                                         --Mapper.tri_min_angle 1 \
-                                         --Mapper.max_extra_param 1.7976931348623157e+308 \
+                                         --Mapper.filter_min_tri_angle 1.5 \
+                                         --Mapper.tri_min_angle 1.5 \
+                                         --Mapper.filter_max_reproj_error 4 \
+                                         --Mapper.max_extra_param 1e100 \
+                                         --Mapper.ba_local_num_images 50 \
                                          --Mapper.ba_local_max_num_iterations 40 \
-                                         --Mapper.ba_local_max_refinements 3 \
                                          --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
@@ -274,4 +278,3 @@ if __name__ == '__main__':
 
     pipeline = StereoPipeline(config_file)
     pipeline.run()
-

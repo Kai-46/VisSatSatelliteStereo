@@ -11,9 +11,9 @@
   },
   "steps_to_run": {
         "cut_image": false,
-        "derive_approx": false,
-        "colmap_sfm": true,
-        "colmap_mvs": true,
-        "register": true
+        "derive_approx": true,
+        "colmap_sfm": false,
+        "colmap_mvs": false,
+        "register": false
   }
 }

@@ -8,6 +8,8 @@ from lib.solve_perspective import solve_perspective
 import utm
 import numpy as np
 import quaternion
+from lib.check_error import check_perspective_error
+import logging
 
 
 class Approx(object):
@@ -42,6 +44,9 @@ class Approx(object):
     #     self.approx_perspective_utm()
 
     def approx_affine_latlon(self):
+        logging.info('deriving an affine camera approximation...')
+        logging.info('scene coordinate frame is in latitude, longitude')
+
         affine_dict = {}
         for i in range(self.cnt):
             region_dict = self.region_dicts[i]
@@ -81,7 +86,12 @@ class Approx(object):
         return affine_dict
 
     def approx_perspective_utm(self):
+        logging.info('deriving a perspective camera approximation...')
+        logging.info('scene coordinate frame is in UTM')
+
         perspective_dict = {}
+
+        errors_txt = '\nimg_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
 
         aoi_ul_east = self.aoi_dict['x']
         aoi_ul_north = self.aoi_dict['y']
@@ -134,6 +144,11 @@ class Approx(object):
             img_name = self.img_names[i]
             perspective_dict[img_name] = params
 
+            # check approximation error
+            tmp = check_perspective_error(xx, yy, zz, col, row, K, R, t, keep_mask)
+            errors_txt += '{}: {}, {}, {}, {}, {}, {}\n'.format(img_name, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5])
+
+        logging.info(errors_txt)
         # with open(os.path.join(self.tile_dir, 'perspective_utm.json'), 'w') as fp:
         #     json.dump(perspective_dict, fp)
 

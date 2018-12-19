@@ -135,11 +135,15 @@ double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector
     final[1] = lon;
     final[2] = alt;
     
-    double final_error = 0.0;
-    problem.Evaluate(Problem::EvaluateOptions(), &final_error, NULL, NULL, NULL);
-    // note that ceres add 1/2 before the cost function
-    final_error = sqrt(final_error * 2 / pixels.size());
-
+//    cout << "final_cost: " << summary.final_cost << "\n";
+//    double final_error = 0.0;
+//    problem.Evaluate(Problem::EvaluateOptions(), &final_error, NULL, NULL, NULL);
+//    cout << "my final_cost: " << final_error << "\n";
+//    // note that ceres add 1/2 before the cost function
+//    final_error = sqrt(final_error * 2 / pixels.size());
+    
+   // double init_error = sqrt(summary.initial_cost * 2 / pixels.size());
+    double final_error = sqrt(summary.final_cost * 2 / pixels.size());
     // cout << "Inside ceres: init_error: " << init_error << " pixels, " << "final_error: " << final_error << " pixels\n";
     return final_error;
 }
@@ -248,8 +252,8 @@ int main(int argc, char** argv) {
     string in_file = string(argv[1]);
     string out_file = string(argv[2]);
     
-    // string in_file = "/Users/kai/satellite_stereo/example_triangulate/task.txt";
-    // string out_file = "/Users/kai/satellite_stereo/example_triangulate/task_result.txt";
+//     string in_file = "/Users/kai/Downloads/example_triangulate/task.txt";
+//     string out_file = "/Users/kai/Downloads/example_triangulate/task_result.txt";
     // c++ double has 17 decimal digit precision
     cout << setprecision(dbl::max_digits10);
     execute_task(in_file, out_file);

@@ -203,7 +203,7 @@ class StereoPipeline(object):
 
         # PMVS
         cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
-                        --PatchMatchStereo.window_radius 9 \
+                        --PatchMatchStereo.window_radius 7 \
                         --PatchMatchStereo.filter_min_triangulation_angle 1 \
                         --PatchMatchStereo.geom_consistency 1 \
                         --PatchMatchStereo.filter_min_ncc 0.05'.format(colmap_dir=colmap_dir)

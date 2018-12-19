@@ -16,7 +16,7 @@ def read_data(colmap_dir):
     common = points_key & points_ba_key
     common = list(common)
 
-    cnt = len(common)
+    # cnt = len(common)
 
     # take a subset of all the 3D points
     # sample_cnt = np.inf
@@ -25,6 +25,9 @@ def read_data(colmap_dir):
     #     common = [common[x] for x in indices[:sample_cnt]]
     # else:
     #     sample_cnt = cnt
+
+    # select small reproj. err ones
+    common = [key for key in common if points[key].error < 1. and points_ba[key].error < 1.]
 
     # points_ba_arr is the source, with points_arr being the target
     target = np.array([points[key].xyz for key in common])
@@ -63,7 +66,7 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/'
     work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
-    use_ransac = True
+    use_ransac = False
     log_file = os.path.join(work_dir, 'logs/log_align_sparse_ransac_{}.txt'.format(use_ransac))
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 

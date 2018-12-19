@@ -41,6 +41,9 @@ class StereoPipeline(object):
         if self.config['steps_to_run']['register']:
             self.run_registration()
 
+        if self.config['steps_to_run']['evaluate']:
+            self.run_evaluation()
+
     def run_cut_image(self):
         dataset_dir = self.config['dataset_dir']
         work_dir = self.config['work_dir']
@@ -159,16 +162,13 @@ class StereoPipeline(object):
                                          --Mapper.max_extra_param 1e100 \
                                          --Mapper.ba_local_num_images 50 \
                                          --Mapper.ba_local_max_num_iterations 40 \
-                                         --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
+                                         --Mapper.ba_global_max_num_iterations 40'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
-        # global bundle adjustment
-        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
-        	                            --BundleAdjustment.max_num_iterations 1000 \
-        	                            --BundleAdjustment.refine_principal_point 1 \
-        	                            --BundleAdjustment.function_tolerance 1e-6 \
-        	                            --BundleAdjustment.gradient_tolerance 1e-10 \
-        	                            --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
+        # convert to txt format
+        cmd = 'colmap model_converter --input_path {colmap_dir}/sparse  \
+                                      --output_path {colmap_dir}/sparse \
+                                      --output_type TXT'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # stop local timer
@@ -197,7 +197,7 @@ class StereoPipeline(object):
 
         # cmd = 'colmap image_undistorter --max_image_size 5000 \
         #                     --image_path {colmap_dir}/images  \
-        #                     --input_path {colmap_dir}/sparse_ba \
+        #                     --input_path {colmap_dir}/sparse \
         #                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
         # run_cmd(cmd)
 
@@ -239,15 +239,12 @@ class StereoPipeline(object):
         local_timer.start()
 
         # alignment
-        # decide which solution to take
-        from align_sparse import compute_transform
-        # from align_rpc import compute_transform
-        # from align_cam import compute_transform
-        c, R, t = compute_transform(work_dir)
+        from align_rpc import compute_transform
+        M, t = compute_transform(work_dir)
 
         georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
                           os.path.join(colmap_dir, 'dense/fused_registered.ply'),
-                          os.path.join(work_dir, 'aoi.json'), c, R, t)
+                          os.path.join(work_dir, 'aoi.json'), M, t)
 
         # stop local timer
         local_timer.mark('geo-registration done')
@@ -256,6 +253,41 @@ class StereoPipeline(object):
         # remove logging handler for later use
         logging.root.removeHandler(log_hanlder)
 
+    def run_evaluation(self):
+        work_dir = self.config['work_dir']
+        colmap_dir = os.path.join(work_dir, 'colmap')
+
+        # set log file to 'logs/log_derive_approx.txt'
+        log_file = os.path.join(work_dir, 'logs/log_evaluate.txt')
+        log_hanlder = logging.FileHandler(log_file, 'w')
+        log_hanlder.setLevel(logging.INFO)
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(log_hanlder)
+
+        # create a local timer
+        local_timer = Timer('Evaluation Module')
+        local_timer.start()
+
+        evaluate_dir = os.path.join(work_dir, 'evaluation')
+        if not os.path.exists(evaluate_dir):
+            os.mkdir(evaluate_dir)
+
+        # flatten the point cloud
+        cmd = 'echo {colmap_dir}/dense/fused_registered.ply | \
+            /home/cornell/kz298/s2p/bin/plyflatten 0.5 {evaluate_dir}/dsm.tif'.format(colmap_dir=colmap_dir, evaluate_dir=evaluate_dir)
+        run_cmd(cmd)
+
+        # evaluate
+        cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
+                -c {evaluate_config}'.format(evaluate_config=self.config['evaluate_config'])
+        run_cmd(cmd)
+
+        # stop local timer
+        local_timer.mark('geo-registration done')
+        logging.info(local_timer.summary())
+
+        # remove logging handler for later use
+        logging.root.removeHandler(log_hanlder)
 
 if __name__ == '__main__':
     import sys

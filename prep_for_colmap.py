@@ -13,7 +13,6 @@ def make_subdirs(colmap_dir):
     subdirs = [ os.path.join(colmap_dir, 'images'),
                 os.path.join(colmap_dir, 'init'),
                 os.path.join(colmap_dir, 'sparse'),
-                os.path.join(colmap_dir, 'sparse_ba'),
                 os.path.join(colmap_dir, 'dense'),
                 os.path.join(colmap_dir, 'dense/images'),
                 os.path.join(colmap_dir, 'dense/sparse'),
@@ -177,7 +176,7 @@ def create_init_files(colmap_dir):
 
 def prep_for_mvs(colmap_dir):
     # read sparse reconstruction result
-    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_ba'), '.bin')
+    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.bin')
 
     cameras_txt_lines = []
     all_img_names = []

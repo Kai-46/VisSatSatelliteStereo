@@ -4,9 +4,8 @@ import json
 import logging
 
 
-def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
-    # map the dense point cloud into absolute coordinate frame
-    # dense = PlyData.read(os.path.join(proj_dir, 'dense/fused.ply'))
+# register the dense model via a linear mapping
+def georegister_dense(in_ply, out_ply, aoi_json, M, t):
     dense = PlyData.read(in_ply)
 
     points = np.hstack((dense['vertex']['x'].reshape((-1, 1)),
@@ -19,8 +18,8 @@ def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
                         dense['vertex']['green'].reshape((-1, 1)),
                         dense['vertex']['blue'].reshape((-1, 1))))
 
-    points_reg = np.dot(points, c * R) + np.tile(t, (points.shape[0], 1))
-    normals_reg = np.dot(normals, c * R) + np.tile(t, (normals.shape[0], 1))
+    points_reg = np.dot(points, M) + np.tile(t, (points.shape[0], 1))
+    normals_reg = np.dot(normals, M) + np.tile(t, (normals.shape[0], 1))
 
     # z = points_reg[:, 2]
     # below_thres = np.percentile(z, 0)
@@ -64,5 +63,4 @@ def georegister_dense(in_ply, out_ply, aoi_json, c, R, t):
                                                                  ('red', 'uint8'), ('green', 'uint8'), ('blue', 'uint8')])
     el = PlyElement.describe(vertex, 'vertex')
 
-    #PlyData([el], byte_order='<', comments=comments).write(os.path.join(proj_dir, 'dense/fused_geo_referenced.ply'))
     PlyData([el], byte_order='<', comments=comments).write(out_ply)

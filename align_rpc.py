@@ -6,12 +6,14 @@ from lib.rpc_model import RPCModel
 import numpy as np
 import logging
 from lib.esti_similarity import esti_similarity, esti_similarity_ransac
-import matplotlib.pyplot as plt
+from lib.esti_linear import esti_linear
+from lib.esti_linear import esti_linear
+from inspector.plot_reproj_err import plot_reproj_err
 
 # read tracks
 # each track is dict
 def read_tracks(colmap_dir):
-    sparse_dir = os.path.join(colmap_dir, 'sparse_ba')
+    sparse_dir = os.path.join(colmap_dir, 'sparse')
 
     colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, '.bin')
 
@@ -19,6 +21,11 @@ def read_tracks(colmap_dir):
 
     for point3D_id in colmap_points3D:
         point3D = colmap_points3D[point3D_id]
+
+        # only use small error tracks
+        if point3D.error >= 1:
+            continue
+
         image_ids = point3D.image_ids
         point2D_idxs = point3D.point2D_idxs
 
@@ -44,28 +51,19 @@ def read_tracks(colmap_dir):
 
     return all_tracks
 
+
 def read_data(work_dir):
     all_tracks = read_tracks(os.path.join(work_dir, 'colmap'))
-
-    ## warp pixel coordinate
-    # with open(os.path.join(work_dir, 'approx_perspective_utm.json')) as fp:
-    #     perspective_dict = json.load(fp)
-    #
-    # for i in range(len(all_tracks)):
-    #     for j in range(len(all_tracks[i]['pixels'])):
-    #         img_name, col, row = all_tracks[i]['pixels'][j]
-    #
-    #         params = perspective_dict[img_name]
-    #         fy = params[1]
-    #         s = params[4]
-    #         norm_skew = s / fy
-    #         col += norm_skew * row
-    #
-    #         all_tracks[i]['pixels'][j] = (img_name, col, row)
 
     # now start to create all points
     with open(os.path.join(work_dir, 'approx_affine_latlon.json')) as fp:
         affine_dict = json.load(fp)
+
+    # load the common scene coordinate frame for perspective approx.
+    with open(os.path.join(work_dir, 'aoi.json')) as fp:
+        aoi_dict = json.load(fp)
+    aoi_ul_east = aoi_dict['x']
+    aoi_ul_north = aoi_dict['y']
 
     source = []
     target = []
@@ -90,7 +88,7 @@ def read_data(work_dir):
                 meta_dict = json.load(fp)
             rpc_models.append(RPCModel(meta_dict))
             # try modify the offset params
-            rpc_models[-1].rowOff
+            #rpc_models[-1].rowOff
 
             P = np.array(affine_dict[img_name]).reshape((2, 4))
 
@@ -98,43 +96,47 @@ def read_data(work_dir):
 
         logging.info('triangulating {}/{} points, track length: {}'.format(i+1, len(all_tracks), len(track)))
         _, final_point_utm, err = triangulate(track, rpc_models, affine_models, tmp_file)
-        target.append([final_point_utm[0], final_point_utm[1], final_point_utm[2]])
+
+        # note that UTM coordinate is a left-handed coordinate system
+        # change to the common scene coordinate frame
+        # use a smaller number and change to the right-handed coordinate frame
+        xx = aoi_ul_north - final_point_utm[1]
+        yy = final_point_utm[0] - aoi_ul_east
+
+        target.append([xx, yy, final_point_utm[2]])
 
         reproj_errs.append(err)
+
     # remove tmpfile.txt
     os.remove(tmp_file)
 
     # for debug
     # check reprojection error
-    plt.clf()
-    plt.figure(figsize=(14, 5), dpi=80)
-    plt.hist(reproj_errs, bins=20, density=True, cumulative=True)
-    max_points_err = max(reproj_errs)
-    plt.xticks(np.arange(0, max_points_err + 0.01, 0.1))
-    plt.yticks(np.arange(0, 1.01, 0.1))
-    plt.xlabel('reprojection error (# pixels)')
-    plt.ylabel('cdf')
-    plt.title(
-        'total # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
-        .format(len(reproj_errs), min(reproj_errs), np.mean(reproj_errs),
-                np.median(reproj_errs), max_points_err))
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(os.path.join(work_dir, 'inspect_rpc_reproj_err.jpg'))
+    plot_reproj_err(reproj_errs, os.path.join(work_dir, 'inspect_rpc_reproj_err.jpg'))
+    reproj_errs = [track['err'] for track in all_tracks]
+    plot_reproj_err(reproj_errs, os.path.join(work_dir, 'inspect_perspective_reproj_err.jpg'))
 
     source = np.array(source)
     target = np.array(target)
     return source, target
 
+# def compute_transform(work_dir, use_ransac=False):
+#     source, target = read_data(work_dir)
+#
+#     if use_ransac:
+#         c, R, t = esti_similarity_ransac(source, target)
+#     else:
+#         c, R, t = esti_similarity(source, target)
+#
+#     return c, R, t
+
+
 def compute_transform(work_dir, use_ransac=False):
     source, target = read_data(work_dir)
 
-    if use_ransac:
-        c, R, t = esti_similarity_ransac(source, target)
-    else:
-        c, R, t = esti_similarity(source, target)
+    M, t = esti_linear(source, target)
 
-    return c, R, t
+    return M, t
 
 
 if __name__ == '__main__':

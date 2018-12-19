@@ -11,9 +11,11 @@
   },
   "steps_to_run": {
         "cut_image": false,
-        "derive_approx": true,
-        "colmap_sfm": false,
-        "colmap_mvs": false,
-        "register": false
-  }
+        "derive_approx": false,
+        "colmap_sfm": true,
+        "colmap_mvs": true,
+        "register": true,
+        "evaluate": true
+  },
+  "evaluate_config": "/data2/kz298/core3d_evaluate/aoi-d2-wpafb.config"
 }

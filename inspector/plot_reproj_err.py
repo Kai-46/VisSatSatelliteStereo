@@ -1,9 +1,10 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 def plot_reproj_err(reproj_errs, fpath):
-    plt.clf()
     plt.figure(figsize=(14, 5), dpi=80)
     plt.hist(reproj_errs, bins=20, density=True, cumulative=True)
     max_points_err = max(reproj_errs)
@@ -18,3 +19,4 @@ def plot_reproj_err(reproj_errs, fpath):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig(fpath)
+    plt.close('all')

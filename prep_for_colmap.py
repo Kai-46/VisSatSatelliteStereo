@@ -8,6 +8,8 @@ import logging
 import shutil
 from colmap.read_model import read_model
 from lib.warp_affine import warp_affine
+import glob
+
 
 def make_subdirs(colmap_dir):
     subdirs = [ os.path.join(colmap_dir, 'images'),
@@ -175,6 +177,12 @@ def create_init_files(colmap_dir):
 
 
 def prep_for_mvs(colmap_dir):
+    # remove all existing mvs results; otherwise colmap mvs would not run
+    for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/depth_maps/*.bin')):
+        os.remove(x)
+    for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/normal_maps/*.bin')):
+        os.remove(x)
+
     # read sparse reconstruction result
     colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.bin')
 
@@ -217,6 +225,10 @@ def prep_for_mvs(colmap_dir):
             img_src = imageio.imread(os.path.join(colmap_dir, 'images/{}'.format(img_name)))
             img_dst, off_set, size = warp_affine(img_src, affine_matrix)
             imageio.imwrite(os.path.join(colmap_dir, 'dense/images/{}'.format(img_name)), img_dst)
+
+            # add off_set to camera parameters
+            cx -= off_set[0]
+            cy -= off_set[1]
 
             # construct a pinhole camera
             line = '{cam_id} PINHOLE {width} {height} {fx} {fy} {cx} {cy}\n'.format(

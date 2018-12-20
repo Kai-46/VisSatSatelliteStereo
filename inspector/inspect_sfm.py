@@ -39,7 +39,7 @@ class InspectSparseModel(object):
         with open(os.path.join(self.out_dir, 'inspect_img_id2name.jpg'), 'w') as fp:
             json.dump(img_id2name, fp)
 
-        plt.clf()
+        plt.figure()
         plt.bar(range(0, self.img_cnt), key_point_cnt)
         plt.xticks(ticks=range(0, self.img_cnt), labels=img_names, rotation=90)
         plt.ylabel('# of sift features')
@@ -48,9 +48,10 @@ class InspectSparseModel(object):
         plt.tight_layout()
 
         plt.savefig(os.path.join(self.out_dir, 'inspect_key_points.jpg'))
+        plt.close()
         #plt.show()
 
-        plt.clf()
+        plt.figure()
         plt.plot(range(0, self.img_cnt), img_widths, 'b-o', label='width')
         #plt.legend('width')
         plt.plot(range(0, self.img_cnt), img_heights, 'r-+', label='height')
@@ -63,6 +64,7 @@ class InspectSparseModel(object):
         plt.title('total # of images: {}'.format(self.img_cnt))
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'inspect_image_size.jpg'))
+        plt.close()
 
     def inspect_feature_tracks(self):
         all_tracks = []

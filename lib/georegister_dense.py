@@ -38,9 +38,9 @@ def georegister_dense(in_ply, out_ply, aoi_json, M, t):
     #     roi = json.load(fp)
     
     with open(aoi_json) as fp:
-        roi = json.load(fp)
-    comment_1 = 'projection: UTM {}{}'.format(roi['zone_number'], roi['zone_letter'])
-    comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(roi['x'], roi['y'], roi['w'], roi['h'])
+        aoi_dict = json.load(fp)
+    comment_1 = 'projection: UTM {}{}'.format(aoi_dict['zone_number'], aoi_dict['zone_letter'])
+    comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(aoi_dict['x'], aoi_dict['y'], aoi_dict['w'], aoi_dict['h'])
     logging.info(comment_1)
     logging.info(comment_2)
 
@@ -49,13 +49,17 @@ def georegister_dense(in_ply, out_ply, aoi_json, M, t):
     # write to plydata object
     # in perspective camera approximation, the world coordinate frame is (south, east, above)
     # the UTM coordinate frame is (east, north, above)
-    x = points_reg[:, 1:2] + roi['x']
-    y = roi['y'] - points_reg[:, 0:1]
+    x = points_reg[:, 1:2] + aoi_dict['x']
+    y = aoi_dict['y'] - points_reg[:, 0:1]
     z = points_reg[:, 2:3]
 
     nx = normals_reg[:, 1:2]
     ny = normals_reg[:, 0:1]
     nz = normals_reg[:, 2:3]
+
+    # remove points that are not in the bounding box
+    #keep_mask = np.logical_and()
+
 
     points = np.hstack((x, y, z, nx, ny, nz, colors))
     vertex = np.array([tuple(point) for point in points], dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
@@ -64,3 +68,14 @@ def georegister_dense(in_ply, out_ply, aoi_json, M, t):
     el = PlyElement.describe(vertex, 'vertex')
 
     PlyData([el], byte_order='<', comments=comments).write(out_ply)
+
+    bbx = {}
+    bbx['zone_number'] = aoi_dict['zone_number']
+    bbx['zone_letter'] = aoi_dict['zone_letter']
+    bbx['east_min'] = np.min(x)
+    bbx['east_max'] = np.max(x)
+    bbx['north_min'] = np.min(y)
+    bbx['north_max'] = np.max(y)
+    bbx['height_min'] = np.min(z)
+    bbx['height_max'] = np.max(z)
+    return bbx

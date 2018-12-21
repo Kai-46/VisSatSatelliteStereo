@@ -12,30 +12,36 @@ import glob
 
 
 def make_subdirs(colmap_dir):
+    # subdirs = [ os.path.join(colmap_dir, 'images'),
+    #             os.path.join(colmap_dir, 'init'),
+    #             os.path.join(colmap_dir, 'sparse'),
+    #             os.path.join(colmap_dir, 'dense'),
+    #             os.path.join(colmap_dir, 'dense/images'),
+    #             os.path.join(colmap_dir, 'dense/sparse'),
+    #             os.path.join(colmap_dir, 'dense/stereo'),
+    #             os.path.join(colmap_dir, 'dense/stereo/depth_maps'),
+    #             os.path.join(colmap_dir, 'dense/stereo/normal_maps'),
+    #             os.path.join(colmap_dir, 'dense/stereo/consistency_graphs')
+    # ]
+
     subdirs = [ os.path.join(colmap_dir, 'images'),
                 os.path.join(colmap_dir, 'init'),
                 os.path.join(colmap_dir, 'sparse'),
-                os.path.join(colmap_dir, 'dense'),
-                os.path.join(colmap_dir, 'dense/images'),
-                os.path.join(colmap_dir, 'dense/sparse'),
-                os.path.join(colmap_dir, 'dense/stereo'),
-                os.path.join(colmap_dir, 'dense/stereo/depth_maps'),
-                os.path.join(colmap_dir, 'dense/stereo/normal_maps'),
-                os.path.join(colmap_dir, 'dense/stereo/consistency_graphs')
+                os.path.join(colmap_dir, 'sparse_no_skew'),
+                os.path.join(colmap_dir, 'images_no_skew'),
+                os.path.join(colmap_dir, 'dense')
     ]
 
     for item in subdirs:
         if not os.path.exists(item):
             os.mkdir(item)
 
-    return subdirs
-
 
 def prep_for_sfm(tile_dir, colmap_dir):
-    subdirs = make_subdirs(colmap_dir)
+    make_subdirs(colmap_dir)
 
-    image_subdir = subdirs[0]
-    init_subdir = subdirs[1]
+    image_subdir = os.path.join(colmap_dir, 'images')
+    init_subdir = os.path.join(colmap_dir, 'init')
 
     # copy images
     if os.path.exists(image_subdir):
@@ -177,6 +183,8 @@ def create_init_files(colmap_dir):
 
 
 def prep_for_mvs(colmap_dir):
+    make_subdirs(colmap_dir)
+
     # remove all existing mvs results; otherwise colmap mvs would not run
     for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/depth_maps/*.bin')):
         os.remove(x)
@@ -187,9 +195,9 @@ def prep_for_mvs(colmap_dir):
     colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.bin')
 
     cameras_txt_lines = []
-    all_img_names = []
+    #all_img_names = []
 
-    with open(os.path.join(colmap_dir, 'dense/sparse/images.txt'), 'w') as fp:
+    with open(os.path.join(colmap_dir, 'sparse_no_skew/images.txt'), 'w') as fp:
         # write comment
         comment = '# Image list with two lines of data per image:\n\
         #   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n\
@@ -201,7 +209,7 @@ def prep_for_mvs(colmap_dir):
             img_name = image.name
             cam_id = image.camera_id
 
-            all_img_names.append((img_id, img_name))
+            #all_img_names.append((img_id, img_name))
 
             cam = colmap_cameras[cam_id]
             params = cam.params
@@ -224,11 +232,11 @@ def prep_for_mvs(colmap_dir):
                                       [0, 1, 0]])
             img_src = imageio.imread(os.path.join(colmap_dir, 'images/{}'.format(img_name)))
             img_dst, off_set, size = warp_affine(img_src, affine_matrix)
-            imageio.imwrite(os.path.join(colmap_dir, 'dense/images/{}'.format(img_name)), img_dst)
+            imageio.imwrite(os.path.join(colmap_dir, 'images_no_skew/{}'.format(img_name)), img_dst)
 
             # add off_set to camera parameters
-            cx -= off_set[0]
-            cy -= off_set[1]
+            cx += off_set[0]
+            cy += off_set[1]
 
             # construct a pinhole camera
             line = '{cam_id} PINHOLE {width} {height} {fx} {fy} {cx} {cy}\n'.format(
@@ -236,6 +244,7 @@ def prep_for_mvs(colmap_dir):
             )
             cameras_txt_lines.append(line)
 
+            # write to images.txt
             first_line = '{img_id} {qw} {qx} {qy} {qz} {tx} {ty} {tz} {cam_id} {img_name}\n'.format(
                 img_id=img_id, qw=image.qvec[0], qx=image.qvec[1], qy=image.qvec[2], qz=image.qvec[3],
                 tx=image.tvec[0], ty=image.tvec[1], tz=image.tvec[2], cam_id=cam_id, img_name=img_name
@@ -250,6 +259,7 @@ def prep_for_mvs(colmap_dir):
 
                 # apply affine transformation
                 tmp = np.dot(affine_matrix, np.array([col, row, 1]).reshape(-1, 1))
+                # add offset here too
                 col = tmp[0, 0] + off_set[0]
                 row = tmp[1, 0] + off_set[1]
 
@@ -257,13 +267,13 @@ def prep_for_mvs(colmap_dir):
             second_line = second_line[1:] + '\n'
             fp.write(second_line)
 
-    with open(os.path.join(colmap_dir, 'dense/sparse/cameras.txt'), 'w') as fp:
+    with open(os.path.join(colmap_dir, 'sparse_no_skew/cameras.txt'), 'w') as fp:
         comment = '# Camera list with one line of data per camera:\n\
         #   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n'
         fp.write(comment)
         fp.writelines(cameras_txt_lines)
 
-    with open(os.path.join(colmap_dir, 'dense/sparse/points3D.txt'), 'w') as fp:
+    with open(os.path.join(colmap_dir, 'sparse_no_skew/points3D.txt'), 'w') as fp:
         comment = '# 3D point list with one line of data per point: \n\
         #   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)\n'
         fp.write(comment)
@@ -280,17 +290,17 @@ def prep_for_mvs(colmap_dir):
             fp.write(line)
 
     # generate two dummy files
-    all_img_names = sorted(all_img_names, key=lambda x: x[0])  # sort by image_id
-    all_img_names = [x[1] for x in all_img_names]
-    with open(os.path.join(colmap_dir, 'dense/stereo/fusion.cfg'), 'w') as fp:
-        for img_name in all_img_names:
-            fp.write(img_name + '\n')
-        fp.write('\n')
-    with open(os.path.join(colmap_dir, 'dense/stereo/patch-match.cfg'), 'w') as fp:
-        for img_name in all_img_names:
-            fp.write(img_name + '\n')
-            fp.write('__auto__, 20\n')
-        fp.write('\n')
+    # all_img_names = sorted(all_img_names, key=lambda x: x[0])  # sort by image_id
+    # all_img_names = [x[1] for x in all_img_names]
+    # with open(os.path.join(colmap_dir, 'dense/stereo/fusion.cfg'), 'w') as fp:
+    #     for img_name in all_img_names:
+    #         fp.write(img_name + '\n')
+    #     fp.write('\n')
+    # with open(os.path.join(colmap_dir, 'dense/stereo/patch-match.cfg'), 'w') as fp:
+    #     for img_name in all_img_names:
+    #         fp.write(img_name + '\n')
+    #         fp.write('__auto__, 20\n')
+    #     fp.write('\n')
 
 
 if __name__ == '__main__':

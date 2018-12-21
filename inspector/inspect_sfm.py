@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import json
 import numpy as np
+import quaternion
 
 
 class InspectSparseModel(object):
@@ -65,6 +66,39 @@ class InspectSparseModel(object):
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'inspect_image_size.jpg'))
         plt.close()
+
+    # this method is documented in colmap src/mvs/model.cc
+    def inspect_depth_range(self):
+        depth_range = {}
+        for img_id in self.images:
+            img_name = self.images[img_id].name
+            depth_range[img_name] = []
+
+        for point3D_id in self.points3D:
+            point3D = self.points3D[point3D_id]
+            x = point3D.xyz.reshape((3, 1))
+            for img_id in point3D.image_ids:
+                img_name = self.images[img_id].name
+                qvec = self.images[img_id].qvec
+                tvec = self.images[img_id].tvec.reshape((3, 1))
+                R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+                x = np.dot(R,x) + tvec
+                depth = x[2, 0]
+                if depth > 0:
+                    depth_range[img_name].append(depth)
+
+        for img_name in depth_range:
+            tmp = sorted(depth_range[img_name])
+            cnt = len(tmp)
+            min_depth = tmp[int(0.01 * cnt)] * (1 - 0.25)
+            max_depth = tmp[int(0.99 * cnt)] * (1 + 0.25)
+            depth_range[img_name] = (min_depth, max_depth)
+
+        with open(os.path.join(self.out_dir, 'inspect_depth_range.json'), 'w') as fp:
+            json.dump(depth_range, fp)
+
+
+
 
     def inspect_feature_tracks(self):
         all_tracks = []
@@ -159,16 +193,16 @@ def test():
     # sparse_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/sparse_ba/'
     # out_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/inspect/'
 
-    sparse_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/sparse_ba/'
-    out_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/inspect/'
+    sparse_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/sparse/'
+    out_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/inspect/'
 
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
     # sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/'
     # out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/inspect/sparse/'
     sparse_inspector = InspectSparseModel(sparse_dir, out_dir)
-    sparse_inspector.inspect()
-
+    #sparse_inspector.inspect()
+    sparse_inspector.inspect_depth_range()
 
 if __name__ == '__main__':
     test()

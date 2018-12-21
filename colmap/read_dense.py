@@ -30,7 +30,7 @@
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 
 def read_array(path):
@@ -51,7 +51,8 @@ def read_array(path):
     return np.transpose(array, (1, 0, 2)).squeeze()
 
 
-def main():
+def test():
+    import matplotlib.pyplot as plt
     import os
     # Read depth and normal maps corresponding to the same image.
     #proj_dir = '/data2/kz298/bak/data_aoi-d4-jacksonville_pinhole'
@@ -79,4 +80,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

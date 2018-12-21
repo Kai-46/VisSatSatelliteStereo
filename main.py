@@ -9,6 +9,7 @@ import shutil
 import logging
 from lib.run_cmd import run_cmd
 from lib.timer import Timer
+import numpy as np
 
 
 class StereoPipeline(object):
@@ -156,13 +157,22 @@ class StereoPipeline(object):
                                          --image_path {colmap_dir}/images/ \
                                          --input_path {colmap_dir}/init \
                                          --output_path {colmap_dir}/sparse \
-                                         --Mapper.filter_min_tri_angle 1.5 \
-                                         --Mapper.tri_min_angle 1.5 \
+                                         --Mapper.filter_min_tri_angle 1 \
+                                         --Mapper.tri_min_angle 1 \
                                          --Mapper.filter_max_reproj_error 4 \
                                          --Mapper.max_extra_param 1e100 \
-                                         --Mapper.ba_local_num_images 50 \
-                                         --Mapper.ba_local_max_num_iterations 40 \
-                                         --Mapper.ba_global_max_num_iterations 40'.format(colmap_dir=colmap_dir)
+                                         --Mapper.ba_local_num_images 6 \
+                                         --Mapper.ba_local_max_num_iterations 100 \
+                                         --Mapper.ba_global_images_ratio 1.0000001\
+                                         --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
+
+        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse \
+	                                    --BundleAdjustment.max_num_iterations 2000 \
+	                                    --BundleAdjustment.refine_principal_point 1 \
+	                                    --BundleAdjustment.function_tolerance 1e-7 \
+	                                    --BundleAdjustment.gradient_tolerance 1e-10 \
+	                                    --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # convert to txt format
@@ -195,11 +205,12 @@ class StereoPipeline(object):
         colmap_dir = os.path.join(work_dir, 'colmap')
         prep_for_mvs(colmap_dir)
 
-        # cmd = 'colmap image_undistorter --max_image_size 5000 \
-        #                     --image_path {colmap_dir}/images  \
-        #                     --input_path {colmap_dir}/sparse \
-        #                     --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
-        # run_cmd(cmd)
+        # prepare dense workspace
+        cmd = 'colmap image_undistorter --max_image_size 5000 \
+                            --image_path {colmap_dir}/images_no_skew  \
+                            --input_path {colmap_dir}/sparse_no_skew \
+                            --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
 
         # PMVS
         cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
@@ -242,9 +253,12 @@ class StereoPipeline(object):
         from align_rpc import compute_transform
         M, t = compute_transform(work_dir)
 
-        georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
+        bbx = georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
                           os.path.join(colmap_dir, 'dense/fused_registered.ply'),
                           os.path.join(work_dir, 'aoi.json'), M, t)
+
+        with open(os.path.join(colmap_dir, 'dense/fused_registered_bbx.json'), 'w') as fp:
+            json.dump(bbx, fp)
 
         # stop local timer
         local_timer.mark('geo-registration done')
@@ -273,9 +287,22 @@ class StereoPipeline(object):
             os.mkdir(evaluate_dir)
 
         # flatten the point cloud
-        cmd = 'echo {colmap_dir}/dense/fused_registered.ply | \
-            /home/cornell/kz298/s2p/bin/plyflatten 0.5 {evaluate_dir}/dsm.tif'.format(colmap_dir=colmap_dir, evaluate_dir=evaluate_dir)
-        run_cmd(cmd)
+        # there's some problem here
+        with open(os.path.join(work_dir, 'aoi.json')) as fp:
+            aoi_dict = json.load(fp)
+
+        # offset is the lower left
+        ul_east = aoi_dict['x']
+        ul_north = aoi_dict['y']
+        resolution = 0.5
+        width = int(1 + np.floor(aoi_dict['w'] / resolution))
+        height = int(1 + np.floor(aoi_dict['h'] / resolution))
+
+        input = '{colmap_dir}/dense/fused_registered.ply'.format(colmap_dir=colmap_dir)
+        cmd = '/home/cornell/kz298/s2p/bin/plyflatten 0.5 {evaluate_dir}/dsm.tif \
+                            -srcwin "{xoff} {yoff} {xsize} {ysize}"'.format(evaluate_dir=evaluate_dir,
+                            xoff=ul_east, yoff=ul_north, xsize=width, ysize=height)
+        run_cmd(cmd, input)
 
         # evaluate
         cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \

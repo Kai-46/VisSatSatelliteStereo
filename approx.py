@@ -10,6 +10,8 @@ import numpy as np
 import quaternion
 from lib.check_error import check_perspective_error
 import logging
+from lib.robust_bbx import robust_bbx
+from lib.check_bbx import check_bbx
 
 
 class Approx(object):
@@ -128,10 +130,15 @@ class Approx(object):
             xx = aoi_ul_north - xx
             yy = yy - aoi_ul_east
 
+            # robust bbx
+            bbx = robust_bbx(col, row)
+            img_bbx = (0, 0, self.rpc_models[i].width, self.rpc_models[i].height)
+            bbx, _, _ = check_bbx(img_bbx, bbx)
+
             # create keep_mask
-            keep_mask = np.logical_and(col >=  0, row >= 0)
-            keep_mask = np.logical_and(keep_mask, col < self.rpc_models[i].width)
-            keep_mask = np.logical_and(keep_mask, row < self.rpc_models[i].height)
+            keep_mask = np.logical_and(col >=  bbx[0], row >= bbx[1])
+            keep_mask = np.logical_and(keep_mask, col < bbx[0] + bbx[2])
+            keep_mask = np.logical_and(keep_mask, row < bbx[1] + bbx[3])
 
             K, R, t = solve_perspective(xx, yy, zz, col, row, keep_mask)
 

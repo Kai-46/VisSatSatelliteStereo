@@ -13,6 +13,7 @@ import json
 import numpy as np
 import copy
 import logging
+from lib.robust_bbx import robust_bbx
 
 
 class TileCutter(object):
@@ -131,10 +132,13 @@ class TileCutter(object):
 
             # compute the bounding box
             col, row = self.rpc_models[i].projection(xx_lat, yy_lon, zz)
-            ul_col = int(np.round(np.min(col)))
-            ul_row = int(np.round(np.min(row)))
-            width = int(np.round(np.max(col))) - ul_col + 1
-            height = int(np.round(np.max(row))) - ul_row + 1
+
+            # ul_col = int(np.round(np.min(col)))
+            # ul_row = int(np.round(np.min(row)))
+            # width = int(np.round(np.max(col))) - ul_col + 1
+            # height = int(np.round(np.max(row))) - ul_row + 1
+
+            ul_col, ul_row, width, height = robust_bbx(col, row)
 
             # check whether the bounding box lies in the image
             ntf_width = self.meta_dicts[i]['width']

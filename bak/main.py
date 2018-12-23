@@ -102,8 +102,8 @@ def main(config_file):
                                      --image_path {colmap_dir}/images/ \
                                      --input_path {colmap_dir}/init \
                                      --output_path {colmap_dir}/sparse \
-                                     --Mapper.filter_min_tri_angle 1 \
-                                     --Mapper.tri_min_angle 1 \
+                                     --Mapper.filter_min_tri_angle 2 \
+                                     --Mapper.tri_min_angle 2 \
                                      --Mapper.max_extra_param 1.7976931348623157e+308 \
                                      --Mapper.ba_local_max_num_iterations 40 \
                                      --Mapper.ba_local_max_refinements 3 \

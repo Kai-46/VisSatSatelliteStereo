@@ -10,6 +10,7 @@ import logging
 from lib.run_cmd import run_cmd
 from lib.timer import Timer
 import numpy as np
+from inspector.inspect_sfm import InspectSparseModel
 
 
 class StereoPipeline(object):
@@ -158,7 +159,7 @@ class StereoPipeline(object):
                                          --input_path {colmap_dir}/init \
                                          --output_path {colmap_dir}/sparse \
                                          --Mapper.filter_min_tri_angle 1 \
-                                         --Mapper.tri_min_angle 1 \
+                                         --Mapper.tri_min_angle 1.5 \
                                          --Mapper.filter_max_reproj_error 4 \
                                          --Mapper.max_extra_param 1e100 \
                                          --Mapper.ba_local_num_images 6 \
@@ -167,19 +168,37 @@ class StereoPipeline(object):
                                          --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
-        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse \
-	                                    --BundleAdjustment.max_num_iterations 2000 \
-	                                    --BundleAdjustment.refine_principal_point 1 \
-	                                    --BundleAdjustment.function_tolerance 1e-7 \
-	                                    --BundleAdjustment.gradient_tolerance 1e-10 \
-	                                    --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
+        # add inspector
+        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse'), os.path.join(colmap_dir, 'sparse/inspect'))
+        ins.inspect_depth_range()
+        ins.inspect_feature_tracks()
+        ins.inspect_image_key_points()
+
+        # add normalization
+        cmd = 'colmap normalize --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_norm'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
-        # convert to txt format
-        cmd = 'colmap model_converter --input_path {colmap_dir}/sparse  \
-                                      --output_path {colmap_dir}/sparse \
-                                      --output_type TXT'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
+        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_norm'), os.path.join(colmap_dir, 'sparse_norm/inspect'))
+        ins.inspect_depth_range()
+        ins.inspect_feature_tracks()
+        ins.inspect_image_key_points()
+
+        # cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
+	    #                                 --BundleAdjustment.max_num_iterations 5000 \
+	    #                                 --BundleAdjustment.refine_principal_point 1 \
+	    #                                 --BundleAdjustment.function_tolerance 1e-7 \
+	    #                                 --BundleAdjustment.gradient_tolerance 1e-10 \
+	    #                                 --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
+        # run_cmd(cmd)
+
+        # add inspector
+        # ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_ba'), os.path.join(colmap_dir, 'sparse_ba/inspect'))
+        # ins.inspect_depth_range()
+        # ins.inspect_feature_tracks()
+        # ins.inspect_image_key_points()
+
+        # normalize sparse reconstruction
+
 
         # stop local timer
         local_timer.mark('Colmap SfM done')
@@ -207,8 +226,8 @@ class StereoPipeline(object):
 
         # prepare dense workspace
         cmd = 'colmap image_undistorter --max_image_size 5000 \
-                            --image_path {colmap_dir}/images_no_skew  \
-                            --input_path {colmap_dir}/sparse_no_skew \
+                            --image_path {colmap_dir}/images_for_mvs  \
+                            --input_path {colmap_dir}/sparse_for_mvs \
                             --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 

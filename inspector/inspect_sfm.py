@@ -1,5 +1,7 @@
 from colmap.read_model import read_model
 import os
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import json
 import numpy as np
@@ -7,9 +9,12 @@ import quaternion
 
 
 class InspectSparseModel(object):
-    def __init__(self, sparse_dir, out_dir, ext='.bin'):
+    def __init__(self, sparse_dir, out_dir, ext='.txt'):
         self.sparse_dir = os.path.abspath(sparse_dir)
         self.out_dir = os.path.abspath(out_dir)
+
+        if not os.path.exists(self.out_dir):
+            os.mkdir(self.out_dir)
 
         self.cameras, self.images, self.points3D = read_model(self.sparse_dir, ext)
 
@@ -88,16 +93,17 @@ class InspectSparseModel(object):
                     depth_range[img_name].append(depth)
 
         for img_name in depth_range:
-            tmp = sorted(depth_range[img_name])
-            cnt = len(tmp)
-            min_depth = tmp[int(0.01 * cnt)] * (1 - 0.25)
-            max_depth = tmp[int(0.99 * cnt)] * (1 + 0.25)
-            depth_range[img_name] = (min_depth, max_depth)
+            if depth_range[img_name]:
+                tmp = sorted(depth_range[img_name])
+                cnt = len(tmp)
+                min_depth = tmp[int(0.01 * cnt)] * (1 - 0.25)
+                max_depth = tmp[int(0.99 * cnt)] * (1 + 0.25)
+                depth_range[img_name] = (min_depth, max_depth)
+            else:
+                depth_range[img_name] = (0, 0)
 
         with open(os.path.join(self.out_dir, 'inspect_depth_range.json'), 'w') as fp:
             json.dump(depth_range, fp)
-
-
 
 
     def inspect_feature_tracks(self):
@@ -143,11 +149,9 @@ class InspectSparseModel(object):
             json.dump(all_points_err, fp, indent=2)
 
         # check distribution of track_len
-        plt.clf()
         plt.figure(figsize=(14, 5), dpi=80)
         track_len = [len(x) for x in all_tracks]
         max_track_len = max(track_len)
-        plt.clf()
         plt.hist(track_len, bins=np.arange(0.5, max_track_len + 1.5, 1))
         plt.xticks(range(1, max_track_len+1))
         plt.ylabel('# of tracks')
@@ -157,13 +161,12 @@ class InspectSparseModel(object):
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'inspect_track_len.jpg'))
-
+        plt.close()
         #plt.show()
 
         # check reprojection error
-        plt.clf()
         plt.figure(figsize=(14, 5), dpi=80)
-        plt.hist(all_points_err, bins=20, density=True, cumulative=True)
+        plt.hist(all_points_err, bins=40, density=True, cumulative=False)
         max_points_err = max(all_points_err)
         plt.xticks(np.arange(0, max_points_err+0.01, 0.1))
         plt.yticks(np.arange(0, 1.01, 0.1))
@@ -174,6 +177,7 @@ class InspectSparseModel(object):
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.jpg'))
+        plt.close()
         #plt.show()
 
 
@@ -193,15 +197,18 @@ def test():
     # sparse_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/sparse_ba/'
     # out_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/inspect/'
 
-    sparse_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/sparse/'
-    out_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/inspect/'
+    # sparse_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/sparse/'
+    # out_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap/inspect/'
+
+    sparse_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/sparse/'
+    out_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap/inspect/'
 
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
     # sparse_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/sparse_ba/'
     # out_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville-overlap/colmap/inspect/sparse/'
     sparse_inspector = InspectSparseModel(sparse_dir, out_dir)
-    #sparse_inspector.inspect()
+    sparse_inspector.inspect()
     sparse_inspector.inspect_depth_range()
 
 if __name__ == '__main__':

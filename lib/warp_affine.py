@@ -28,7 +28,10 @@ def warp_affine(img_src, affine_matrix):
     img_dst = cv2.warpAffine(img_src, affine_matrix, (w, h))
 
     off_set = (-col_min, -row_min)
-    return img_dst, off_set, (w, h)
+
+    assert (h == img_dst.shape[0] and w == img_dst.shape[1])
+
+    return img_dst, off_set
 
 
 if __name__ == '__main__':

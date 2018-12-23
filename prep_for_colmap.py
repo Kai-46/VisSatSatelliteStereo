@@ -27,8 +27,11 @@ def make_subdirs(colmap_dir):
     subdirs = [ os.path.join(colmap_dir, 'images'),
                 os.path.join(colmap_dir, 'init'),
                 os.path.join(colmap_dir, 'sparse'),
-                os.path.join(colmap_dir, 'sparse_no_skew'),
-                os.path.join(colmap_dir, 'images_no_skew'),
+                os.path.join(colmap_dir, 'sparse_norm'),
+                os.path.join(colmap_dir, 'sparse_ba'),
+                os.path.join(colmap_dir, 'sparse_ba_norm'),
+                os.path.join(colmap_dir, 'sparse_for_mvs'),
+                os.path.join(colmap_dir, 'images_for_mvs'),
                 os.path.join(colmap_dir, 'dense')
     ]
 
@@ -39,6 +42,11 @@ def make_subdirs(colmap_dir):
 
 def prep_for_sfm(tile_dir, colmap_dir):
     make_subdirs(colmap_dir)
+
+    # delete the database, otherwise colmap will skip the feature extraction step
+    db_path = os.path.join(colmap_dir, 'database.db')
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
     image_subdir = os.path.join(colmap_dir, 'images')
     init_subdir = os.path.join(colmap_dir, 'init')
@@ -192,12 +200,18 @@ def prep_for_mvs(colmap_dir):
         os.remove(x)
 
     # read sparse reconstruction result
-    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.bin')
+    # test normalization
+    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_norm'), '.txt')
+    #colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.txt')
+
+    # sparse_for_mvs_dir
+    sparse_for_mvs_dir = os.path.join(colmap_dir, 'sparse_for_mvs')
+    images_for_mvs_dir = os.path.join(colmap_dir, 'images_for_mvs')
 
     cameras_txt_lines = []
     #all_img_names = []
 
-    with open(os.path.join(colmap_dir, 'sparse_no_skew/images.txt'), 'w') as fp:
+    with open(os.path.join(sparse_for_mvs_dir, 'images.txt'), 'w') as fp:
         # write comment
         comment = '# Image list with two lines of data per image:\n\
         #   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n\
@@ -225,14 +239,14 @@ def prep_for_mvs(colmap_dir):
             cx = cx - s * cy / fy
             # s = 0.
 
-            logging.info('removing normalized skew: {} in image: {}'.format(norm_skew, img_name))
-
             # warp image
             affine_matrix = np.array([[1, -norm_skew, 0],
                                       [0, 1, 0]])
             img_src = imageio.imread(os.path.join(colmap_dir, 'images/{}'.format(img_name)))
-            img_dst, off_set, size = warp_affine(img_src, affine_matrix)
-            imageio.imwrite(os.path.join(colmap_dir, 'images_no_skew/{}'.format(img_name)), img_dst)
+            img_dst, off_set = warp_affine(img_src, affine_matrix)
+            imageio.imwrite(os.path.join(images_for_mvs_dir, '{}'.format(img_name)), img_dst)
+
+            logging.info('removed normalized skew: {} in image: {}, new image size: {}, {}'.format(norm_skew, img_name, img_dst.shape[1], img_dst.shape[0]))
 
             # add off_set to camera parameters
             cx += off_set[0]
@@ -240,7 +254,7 @@ def prep_for_mvs(colmap_dir):
 
             # construct a pinhole camera
             line = '{cam_id} PINHOLE {width} {height} {fx} {fy} {cx} {cy}\n'.format(
-                cam_id=cam_id, width=size[0], height=size[1], fx=fx, fy=fy, cx=cx, cy=cy
+                cam_id=cam_id, width=img_dst.shape[1], height=img_dst.shape[0], fx=fx, fy=fy, cx=cx, cy=cy
             )
             cameras_txt_lines.append(line)
 
@@ -267,13 +281,13 @@ def prep_for_mvs(colmap_dir):
             second_line = second_line[1:] + '\n'
             fp.write(second_line)
 
-    with open(os.path.join(colmap_dir, 'sparse_no_skew/cameras.txt'), 'w') as fp:
+    with open(os.path.join(sparse_for_mvs_dir, 'cameras.txt'), 'w') as fp:
         comment = '# Camera list with one line of data per camera:\n\
         #   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n'
         fp.write(comment)
         fp.writelines(cameras_txt_lines)
 
-    with open(os.path.join(colmap_dir, 'sparse_no_skew/points3D.txt'), 'w') as fp:
+    with open(os.path.join(sparse_for_mvs_dir, 'points3D.txt'), 'w') as fp:
         comment = '# 3D point list with one line of data per point: \n\
         #   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)\n'
         fp.write(comment)

@@ -13,9 +13,9 @@ from inspector.plot_reproj_err import plot_reproj_err
 # read tracks
 # each track is dict
 def read_tracks(colmap_dir):
-    sparse_dir = os.path.join(colmap_dir, 'sparse')
+    sparse_dir = os.path.join(colmap_dir, 'sparse_norm')
 
-    colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, '.bin')
+    colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, '.txt')
 
     all_tracks = []
 
@@ -158,14 +158,14 @@ if __name__ == '__main__':
     work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
     use_ransac = False
-    log_file = os.path.join(work_dir, 'logs/log_align_rpc_ransac_{}.txt'.format(use_ransac))
+    log_file = os.path.join(work_dir, 'logs/log_align-sparse_norm-to-rpc.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 
     from datetime import datetime
     since = datetime.now()
     logging.info('Starting at {} ...'.format(since.strftime('%Y-%m-%d %H:%M:%S')))
 
-    c, R, t = compute_transform(work_dir, use_ransac=use_ransac)
+    M, t= compute_transform(work_dir, use_ransac=use_ransac)
 
     ending = datetime.now()
     duration = (ending - since).total_seconds() / 60. # in minutes

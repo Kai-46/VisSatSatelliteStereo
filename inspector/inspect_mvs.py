@@ -6,6 +6,8 @@ import numpy as np
 from colmap.read_dense import read_array
 import os
 import shutil
+import tarfile
+
 
 def inspect_mvs(colmap_dir):
     depth_dir = os.path.join(colmap_dir, 'dense/stereo/depth_maps')
@@ -54,9 +56,15 @@ def inspect_mvs(colmap_dir):
             plt.savefig(os.path.join(inspect_dir, '{}.geometric.depth.jpg'.format(img_name)))
             plt.close()
 
+    # create a tar for the inspect_dir
+    with tarfile.open(os.path.join(colmap_dir, 'dense/inspect.tar'), 'w') as tar:
+        tar.add(inspect_dir, arcname=os.path.basename(inspect_dir))
+
 
 if __name__ == '__main__':
-    colmap_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap'
+    #colmap_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap'
+    #colmap_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/colmap'
+    #colmap_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap'
+    colmap_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap'
 
-    #colmap_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville/colmap'
     inspect_mvs(colmap_dir)

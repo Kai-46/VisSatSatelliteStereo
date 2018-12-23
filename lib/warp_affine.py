@@ -5,29 +5,42 @@ import numpy as np
 # image index is col, row
 # keep all pixels in the source image
 # return img_dst, off_set
-def warp_affine(img_src, affine_matrix):
+def warp_affine(img_src, affine_matrix, no_blank_margin=True):
     height, width = img_src.shape
 
     # compute bounding box
     bbx = np.dot(affine_matrix, np.array([[0, width, width, 0],
                                           [0, 0, height, height],
                                           [1, 1, 1, 1]]))
-    col_min = np.min(bbx[0, :])
-    col_max = np.max(bbx[0, :])
-    row_min = np.min(bbx[1, :])
-    row_max = np.max(bbx[1, :])
+
+    if no_blank_margin:
+        col = np.sort(bbx[0, :])
+        row = np.sort(bbx[1, :])
+
+        col_min = int(col[1])
+        row_min = int(row[1])
+        w = int(col[2] - col[1] + 1)
+        h = int(row[2] - row[1] + 1)
 
 
-    w = int(np.round(col_max - col_min + 1))
-    h = int(np.round(row_max - row_min + 1))
+    else:
+        col_min = np.min(bbx[0, :])
+        col_max = np.max(bbx[0, :])
+        row_min = np.min(bbx[1, :])
+        row_max = np.max(bbx[1, :])
+
+
+        w = int(np.round(col_max - col_min + 1))
+        h = int(np.round(row_max - row_min + 1))
 
     # add offset to the affine_matrix
     affine_matrix[0, 2] -= col_min
     affine_matrix[1, 2] -= row_min
 
-    img_dst = cv2.warpAffine(img_src, affine_matrix, (w, h))
-
     off_set = (-col_min, -row_min)
+
+    # warp image
+    img_dst = cv2.warpAffine(img_src, affine_matrix, (w, h))
 
     assert (h == img_dst.shape[0] and w == img_dst.shape[1])
 
@@ -41,6 +54,6 @@ if __name__ == '__main__':
 
     affine_matrix = np.array([[1, -0.5, 0],
                               [0, 1, 0]])
-    img_dst, off_set, size = warp_affine(img_src, affine_matrix)
+    img_dst, off_set = warp_affine(img_src, affine_matrix)
 
     imageio.imwrite('/data2/kz298/test.jpg', img_dst.astype(np.uint8))

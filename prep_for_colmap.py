@@ -12,24 +12,11 @@ import glob
 
 
 def make_subdirs(colmap_dir):
-    # subdirs = [ os.path.join(colmap_dir, 'images'),
-    #             os.path.join(colmap_dir, 'init'),
-    #             os.path.join(colmap_dir, 'sparse'),
-    #             os.path.join(colmap_dir, 'dense'),
-    #             os.path.join(colmap_dir, 'dense/images'),
-    #             os.path.join(colmap_dir, 'dense/sparse'),
-    #             os.path.join(colmap_dir, 'dense/stereo'),
-    #             os.path.join(colmap_dir, 'dense/stereo/depth_maps'),
-    #             os.path.join(colmap_dir, 'dense/stereo/normal_maps'),
-    #             os.path.join(colmap_dir, 'dense/stereo/consistency_graphs')
-    # ]
-
     subdirs = [ os.path.join(colmap_dir, 'images'),
                 os.path.join(colmap_dir, 'init'),
                 os.path.join(colmap_dir, 'sparse'),
                 os.path.join(colmap_dir, 'sparse_norm'),
-                os.path.join(colmap_dir, 'sparse_ba'),
-                os.path.join(colmap_dir, 'sparse_ba_norm'),
+                os.path.join(colmap_dir, 'sparse_norm_ba'),
                 os.path.join(colmap_dir, 'sparse_for_mvs'),
                 os.path.join(colmap_dir, 'images_for_mvs'),
                 os.path.join(colmap_dir, 'dense')
@@ -44,9 +31,9 @@ def prep_for_sfm(tile_dir, colmap_dir):
     make_subdirs(colmap_dir)
 
     # delete the database, otherwise colmap will skip the feature extraction step
-    db_path = os.path.join(colmap_dir, 'database.db')
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    # db_path = os.path.join(colmap_dir, 'database.db')
+    # if os.path.exists(db_path):
+    #     os.remove(db_path)
 
     image_subdir = os.path.join(colmap_dir, 'images')
     init_subdir = os.path.join(colmap_dir, 'init')
@@ -200,9 +187,8 @@ def prep_for_mvs(colmap_dir):
         os.remove(x)
 
     # read sparse reconstruction result
-    # test normalization
-    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_norm'), '.txt')
-    #colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse'), '.txt')
+    colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_norm_ba'), '.txt')
+    #colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_norm'), '.txt')
 
     # sparse_for_mvs_dir
     sparse_for_mvs_dir = os.path.join(colmap_dir, 'sparse_for_mvs')

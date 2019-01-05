@@ -134,7 +134,7 @@ class InspectSparseModel(object):
             all_tracks.append(cur_track)
 
         print('number of feature tracks: {}'.format(len(all_tracks)))
-        print('first feature track: {}'.format(all_tracks[0]))
+        # print('first feature track: {}'.format(all_tracks[0]))
 
         with open(os.path.join(self.out_dir, 'inspect_points_id.json'), 'w') as fp:
             json.dump(all_points_id, fp, indent=2)
@@ -166,12 +166,12 @@ class InspectSparseModel(object):
 
         # check reprojection error
         plt.figure(figsize=(14, 5), dpi=80)
-        plt.hist(all_points_err, bins=40, density=True, cumulative=False)
+        plt.hist(all_points_err, bins=50, density=True, cumulative=False)
         max_points_err = max(all_points_err)
-        plt.xticks(np.arange(0, max_points_err+0.01, 0.1))
+        plt.xticks(np.arange(0, max_points_err+0.01, 0.2))
         plt.yticks(np.arange(0, 1.01, 0.1))
         plt.xlabel('reprojection error (# pixels)')
-        plt.ylabel('cdf')
+        plt.ylabel('pdf')
         plt.title('total # of images: {}\ntotal # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
                   .format(self.img_cnt, len(all_points_err), min(all_points_err), np.mean(all_points_err), np.median(all_points_err), max_points_err))
         plt.grid(True)

@@ -6,9 +6,10 @@ import numpy as np
 from lib.esti_similarity import esti_similarity, esti_similarity_ransac
 from lib.esti_linear import esti_linear
 
+
 def read_data(colmap_dir):
     points = read_model.read_points3D_text(os.path.join(colmap_dir, 'sparse/points3D.txt'))
-    points_ba = read_model.read_points3D_text(os.path.join(colmap_dir, 'sparse_norm/points3D.txt'))
+    points_ba = read_model.read_points3D_text(os.path.join(colmap_dir, 'sparse_norm_ba/points3D.txt'))
 
     points_key = set(points.keys())
     points_ba_key = set(points_ba.keys())
@@ -32,6 +33,8 @@ def read_data(colmap_dir):
     # points_ba_arr is the source, with points_arr being the target
     target = np.array([points[key].xyz for key in common])
     source = np.array([points_ba[key].xyz for key in common])
+
+    logging.info('\ntotal # of useful points: {}\n'.format(len(source)))
 
     return source, target
 
@@ -65,13 +68,13 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d3-ucsd/'
     #work_dir = '/data2/kz298/core3d_result_bak/aoi-d4-jacksonville/'
 
-    # work_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/'
+    #work_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/'
     #work_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/'
-    work_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/'
-    #work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/'
+    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
     use_ransac = False
-    log_file = os.path.join(work_dir, 'logs/log_align_sparse_ba_norm_test_sparse_ba.txt')
+    log_file = os.path.join(work_dir, 'logs/log_align-sparse_norm_ba-to-sparse.txt')
     logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
 
     from datetime import datetime

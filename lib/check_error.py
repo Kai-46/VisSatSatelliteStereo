@@ -62,7 +62,7 @@ def check_perspective_error(xx, yy, zz, col, row, r, q, t, keep_mask):
     # compute scale
     scale = (cam_xx * esti_cam_xx + cam_yy * esti_cam_yy + cam_zz * esti_cam_zz) / (
             esti_cam_xx * esti_cam_xx + esti_cam_yy * esti_cam_yy + esti_cam_zz * esti_cam_zz)
-    assert (np.all(scale > 0))
+    # assert (np.all(scale > 0))
     esti_cam_xx = esti_cam_xx * scale
     esti_cam_yy = esti_cam_yy * scale
     esti_cam_zz = esti_cam_zz * scale

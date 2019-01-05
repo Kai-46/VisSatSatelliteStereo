@@ -20,11 +20,11 @@ def esti_linear(source, target):
     t = result[9:12].reshape((3, 1))
 
     # check whether M is close to a rotation matrix
-    # u, s, vh = np.linalg.svd(M)
-    # # print(M)
-    # # print('singular values of M: {}'.format(s))
-    # cond = s[0] / s[2]
-    # print('condition number of M: {}, smallest singular value: {}'.format(cond, s[2]))
+    u, s, vh = np.linalg.svd(M)
+    # print(M)
+    # print('singular values of M: {}'.format(s))
+    cond = s[0] / s[2]
+    logging.info('condition number of M: {}, smallest singular value: {}'.format(cond, s[2]))
     # assert(s[2] > 0 and cond < 1.5)
 
     # check the MSE after applying the linear map

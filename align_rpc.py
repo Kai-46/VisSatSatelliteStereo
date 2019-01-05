@@ -7,13 +7,12 @@ import numpy as np
 import logging
 from lib.esti_similarity import esti_similarity, esti_similarity_ransac
 from lib.esti_linear import esti_linear
-from lib.esti_linear import esti_linear
 from inspector.plot_reproj_err import plot_reproj_err
 
 # read tracks
 # each track is dict
 def read_tracks(colmap_dir):
-    sparse_dir = os.path.join(colmap_dir, 'sparse_norm')
+    sparse_dir = os.path.join(colmap_dir, 'sparse_norm_ba')
 
     colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, '.txt')
 
@@ -55,6 +54,10 @@ def read_tracks(colmap_dir):
 def read_data(work_dir):
     all_tracks = read_tracks(os.path.join(work_dir, 'colmap'))
 
+    # select a subset of all_tracks
+    # if len(all_tracks) > 5000:
+    #     all_tracks = all_tracks[:5000]
+
     # now start to create all points
     with open(os.path.join(work_dir, 'approx_affine_latlon.json')) as fp:
         affine_dict = json.load(fp)
@@ -69,7 +72,7 @@ def read_data(work_dir):
     target = []
     tmp_file = os.path.join(work_dir, 'tmpfile.txt')
 
-    reproj_errs = []
+    rpc_reproj_errs = []
     for i in range(len(all_tracks)):
         # if len(all_tracks[i]['pixels']) == 2: # ignore two-view tracks
         #     continue
@@ -105,21 +108,36 @@ def read_data(work_dir):
 
         target.append([xx, yy, final_point_utm[2]])
 
-        reproj_errs.append(err)
+        rpc_reproj_errs.append(err)
 
     # remove tmpfile.txt
     os.remove(tmp_file)
 
     # for debug
     # check reprojection error
-    plot_reproj_err(reproj_errs, os.path.join(work_dir, 'inspect_rpc_reproj_err.jpg'))
-    reproj_errs = [track['err'] for track in all_tracks]
-    plot_reproj_err(reproj_errs, os.path.join(work_dir, 'inspect_perspective_reproj_err.jpg'))
+    plot_reproj_err(rpc_reproj_errs, os.path.join(work_dir, 'inspect_rpc_reproj_err.jpg'))
+
+    perspective_reproj_errs = [track['err'] for track in all_tracks]
+    plot_reproj_err(perspective_reproj_errs, os.path.join(work_dir, 'inspect_perspective_reproj_err.jpg'))
+
+    # remove target that has a bigger error
+    # source_new = []
+    # target_new = []
+    # for i in range(len(rpc_reproj_errs)):
+    #     if rpc_reproj_errs[i] < 1.:
+    #         source_new.append(source[i])
+    #         target_new.append(target[i])
+    #
+    # logging.info('\ntotal # of useful points: {}\n'.format(len(source_new)))
+
+    # source = np.array(source_new)
+    # target = np.array(target_new)
 
     source = np.array(source)
     target = np.array(target)
-    return source, target
 
+    return source, target
+#
 # def compute_transform(work_dir, use_ransac=False):
 #     source, target = read_data(work_dir)
 #
@@ -139,6 +157,31 @@ def compute_transform(work_dir, use_ransac=False):
     return M, t
 
 
+def test_align(work_dir):
+    use_ransac = False
+
+    # set log file
+    log_file = os.path.join(work_dir, 'logs/log_align-sparse_norm_ba-to-rpc-linear.txt')
+    # logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+    log_hanlder = logging.FileHandler(log_file, 'w')
+    log_hanlder.setLevel(logging.INFO)
+    logging.root.setLevel(logging.INFO)
+    logging.root.addHandler(log_hanlder)
+
+    from datetime import datetime
+    since = datetime.now()
+    logging.info('Starting at {} ...'.format(since.strftime('%Y-%m-%d %H:%M:%S')))
+
+    M, t= compute_transform(work_dir, use_ransac=use_ransac)
+
+    ending = datetime.now()
+    duration = (ending - since).total_seconds() / 60. # in minutes
+    logging.info('Finishing at {}, duration: {}'.format(ending.strftime('%Y-%m-%d %H:%M:%S'), duration))
+
+    # remove logging handler for later use
+    logging.root.removeHandler(log_hanlder)
+
+
 if __name__ == '__main__':
     # import sys
     # logging.getLogger().setLevel(logging.INFO)
@@ -155,18 +198,12 @@ if __name__ == '__main__':
     #work_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/'
     #work_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/'
     #work_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/'
-    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
+    #work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/'
 
-    use_ransac = False
-    log_file = os.path.join(work_dir, 'logs/log_align-sparse_norm-to-rpc.txt')
-    logging.basicConfig(filename=log_file, level=logging.INFO, filemode='w')
+    work_dirs = ['/data2/kz298/core3d_result/aoi-d1-wpafb/',
+                 '/data2/kz298/core3d_result/aoi-d2-wpafb/',
+                 '/data2/kz298/core3d_result/aoi-d3-ucsd/',
+                 '/data2/kz298/core3d_result/aoi-d4-jacksonville/']
 
-    from datetime import datetime
-    since = datetime.now()
-    logging.info('Starting at {} ...'.format(since.strftime('%Y-%m-%d %H:%M:%S')))
-
-    M, t= compute_transform(work_dir, use_ransac=use_ransac)
-
-    ending = datetime.now()
-    duration = (ending - since).total_seconds() / 60. # in minutes
-    logging.info('Finishing at {}, duration: {}'.format(ending.strftime('%Y-%m-%d %H:%M:%S'), duration))
+    for work_dir in work_dirs:
+        test_align(work_dir)

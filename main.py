@@ -97,6 +97,11 @@ class StereoPipeline(object):
 
         # derive approximations for later uses
         appr = Approx(work_dir)
+
+        pinhole_dict = appr.approx_pinhole_utm()
+        with open(os.path.join(work_dir, 'approx_pinhole_utm.json'), 'w') as fp:
+            json.dump(pinhole_dict, fp, indent=2)
+
         perspective_dict = appr.approx_perspective_utm()
         with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
             json.dump(perspective_dict, fp, indent=2)
@@ -174,31 +179,30 @@ class StereoPipeline(object):
         ins.inspect_feature_tracks()
         ins.inspect_image_key_points()
 
-        # add normalization
+        # normalize sparse reconstruction
         cmd = 'colmap normalize --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_norm'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
+        # add inspector
         ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_norm'), os.path.join(colmap_dir, 'sparse_norm/inspect'))
         ins.inspect_depth_range()
         ins.inspect_feature_tracks()
         ins.inspect_image_key_points()
 
-        # cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_ba \
-	    #                                 --BundleAdjustment.max_num_iterations 5000 \
-	    #                                 --BundleAdjustment.refine_principal_point 1 \
-	    #                                 --BundleAdjustment.function_tolerance 1e-7 \
-	    #                                 --BundleAdjustment.gradient_tolerance 1e-10 \
-	    #                                 --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
-        # run_cmd(cmd)
+        # global bunble adjustment
+        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse_norm --output_path {colmap_dir}/sparse_norm_ba \
+	                                    --BundleAdjustment.max_num_iterations 5000 \
+	                                    --BundleAdjustment.refine_principal_point 1 \
+	                                    --BundleAdjustment.function_tolerance 1e-6 \
+	                                    --BundleAdjustment.gradient_tolerance 1e-8 \
+	                                    --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
+        run_cmd(cmd)
 
         # add inspector
-        # ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_ba'), os.path.join(colmap_dir, 'sparse_ba/inspect'))
-        # ins.inspect_depth_range()
-        # ins.inspect_feature_tracks()
-        # ins.inspect_image_key_points()
-
-        # normalize sparse reconstruction
-
+        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_norm_ba'), os.path.join(colmap_dir, 'sparse_norm_ba/inspect'))
+        ins.inspect_depth_range()
+        ins.inspect_feature_tracks()
+        ins.inspect_image_key_points()
 
         # stop local timer
         local_timer.mark('Colmap SfM done')

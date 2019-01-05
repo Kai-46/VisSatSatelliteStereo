@@ -4,7 +4,7 @@ import os
 import numpy as np
 from lib.plyfile import PlyData, PlyElement
 import json
-from lib.esti_similarity import esti_simiarity
+from lib.esti_similarity import esti_similarity
 import matplotlib.pyplot as plt
 import logging
 
@@ -72,7 +72,7 @@ def inspect_align(source, target, source_aligned, out_dir):
 def align(proj_dir):
     points_ba_arr, points_arr = read_data(proj_dir)
 
-    c, R, t = esti_simiarity(points_ba_arr, points_arr)
+    c, R, t = esti_similarity(points_ba_arr, points_arr)
 
     # inspect the alignment
     points_ba_reg = np.dot(points_ba_arr, c * R) + np.tile(t, (points_ba_arr.shape[0], 1))

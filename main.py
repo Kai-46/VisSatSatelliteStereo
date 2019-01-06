@@ -98,9 +98,9 @@ class StereoPipeline(object):
         # derive approximations for later uses
         appr = Approx(work_dir)
 
-        pinhole_dict = appr.approx_pinhole_utm()
-        with open(os.path.join(work_dir, 'approx_pinhole_utm.json'), 'w') as fp:
-            json.dump(pinhole_dict, fp, indent=2)
+        # pinhole_dict = appr.approx_pinhole_utm()
+        # with open(os.path.join(work_dir, 'approx_pinhole_utm.json'), 'w') as fp:
+        #     json.dump(pinhole_dict, fp, indent=2)
 
         perspective_dict = appr.approx_perspective_utm()
         with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:

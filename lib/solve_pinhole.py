@@ -21,6 +21,7 @@ def solve_pinhole(xx, yy, zz, col, row, img_size, keep_mask=None):
     cnt = image_points.shape[0]
     image_points = np.ascontiguousarray(image_points[:, :2]).reshape((cnt, 1, 2))
 
+
     width, height = img_size
     cx = width / 2.
     cy = height / 2.
@@ -43,6 +44,17 @@ def solve_pinhole(xx, yy, zz, col, row, img_size, keep_mask=None):
     K = np.array([[f, 0, cx],
                   [0, f, cy],
                   [0, 0, 1]])
+
+    # save to file
+    correspondences = np.hstack((xx, yy, zz, col, row))
+    np.savetxt('/data2/ex1_correspondences.txt', correspondences, delimiter=' ')
+    with open('/data2/ex1_image_size.txt', 'w') as fp:
+        fp.write('width, height: {}, {}'.format(width, height))
+
+    with open('/data2/ex1_opencv.txt', 'w') as fp:
+        fp.write('K:\n{}\n\n'.format(K))
+        fp.write('R:\n{}\n\n'.format(R))
+        fp.write('t:\n{}\n'.format(t))
 
     return K, R, t
 

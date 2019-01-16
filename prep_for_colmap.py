@@ -31,9 +31,9 @@ def prep_for_sfm(tile_dir, colmap_dir):
     make_subdirs(colmap_dir)
 
     # delete the database, otherwise colmap will skip the feature extraction step
-    # db_path = os.path.join(colmap_dir, 'database.db')
-    # if os.path.exists(db_path):
-    #     os.remove(db_path)
+    db_path = os.path.join(colmap_dir, 'database.db')
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
     image_subdir = os.path.join(colmap_dir, 'images')
     init_subdir = os.path.join(colmap_dir, 'init')

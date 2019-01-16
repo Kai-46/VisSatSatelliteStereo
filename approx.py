@@ -42,6 +42,8 @@ class Approx(object):
 
         self.min_height, self.max_height = height_range(self.rpc_models)
 
+        logging.info('\nheight min, max: {}, {}\n'.format(self.min_height, self.max_height))
+
     # def approx(self):
     #     self.approx_affine_latlon()
     #     self.approx_perspective_utm()

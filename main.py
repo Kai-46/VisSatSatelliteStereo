@@ -240,7 +240,8 @@ class StereoPipeline(object):
                         --PatchMatchStereo.window_radius 9 \
                         --PatchMatchStereo.filter_min_triangulation_angle 1 \
                         --PatchMatchStereo.geom_consistency 1 \
-                        --PatchMatchStereo.filter_min_ncc 0.05'.format(colmap_dir=colmap_dir)
+                        --PatchMatchStereo.filter_min_ncc 0.05 \
+                        --PatchMatchStereo.gpu_index=0,1,2'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # stereo fusion

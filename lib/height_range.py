@@ -5,7 +5,7 @@ def height_range(rpc_models):
     for i in range(len(rpc_models)):
         assert (rpc_models[i].altScale > 0)
 
-        tmp = rpc_models[i].altOff - 0. * rpc_models[i].altScale
+        tmp = rpc_models[i].altOff - 0.* rpc_models[i].altScale
         z_min_list.append(tmp)
 
         tmp = rpc_models[i].altOff + 0.7 * rpc_models[i].altScale

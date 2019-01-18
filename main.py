@@ -11,6 +11,7 @@ from lib.run_cmd import run_cmd
 from lib.timer import Timer
 import numpy as np
 from inspector.inspect_sfm import InspectSparseModel
+from inspector.inspect_mvs import inspect_mvs
 
 
 class StereoPipeline(object):
@@ -251,6 +252,9 @@ class StereoPipeline(object):
                              --StereoFusion.min_num_pixels 3'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
+        # add inspector
+        inspect_mvs(colmap_dir)
+
         # stop local timer
         local_timer.mark('Colmap MVS done')
         logging.info(local_timer.summary())
@@ -318,19 +322,38 @@ class StereoPipeline(object):
         # offset is the lower left
         ul_east = aoi_dict['x']
         ul_north = aoi_dict['y']
-        resolution = 0.5
+        resolution = 0.3
         width = int(1 + np.floor(aoi_dict['w'] / resolution))
         height = int(1 + np.floor(aoi_dict['h'] / resolution))
 
-        input = '{colmap_dir}/dense/fused_registered.ply'.format(colmap_dir=colmap_dir)
-        cmd = '/home/cornell/kz298/s2p/bin/plyflatten 0.5 {evaluate_dir}/dsm.tif \
-                            -srcwin "{xoff} {yoff} {xsize} {ysize}"'.format(evaluate_dir=evaluate_dir,
-                            xoff=ul_east, yoff=ul_north, xsize=width, ysize=height)
-        run_cmd(cmd, input)
+        #
+        eval_point_cloud = '{evaluate_dir}/eval_point_cloud.ply'.format(evaluate_dir=evaluate_dir)
+        eval_dsm = '{evaluate_dir}/eval_dsm.tif'.format(evaluate_dir=evaluate_dir)
 
-        # evaluate
-        cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
-                -c {evaluate_config}'.format(evaluate_config=self.config['evaluate_config'])
+        # copy point cloud to evaluation folder
+        shutil.copy2('{colmap_dir}/dense/fused_registered.ply'.format(colmap_dir=colmap_dir),
+                     eval_point_cloud)
+
+        # flatten point cloud
+        cmd = '/home/cornell/kz298/s2p/bin/plyflatten {resolution} {eval_dsm} \
+                            -srcwin "{xoff} {yoff} {xsize} {ysize}"'.format(resolution=resolution, eval_dsm=eval_dsm,
+                            xoff=ul_east, yoff=ul_north, xsize=width, ysize=height)
+        run_cmd(cmd, eval_point_cloud)
+
+        # evaluate for core3d
+        # cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
+        #         -c {evaluate_config}'.format(evaluate_config=self.config['evaluate_config'])
+        # run_cmd(cmd)
+
+        # evaluate for mvs3dm
+        ground_truth = self.config['ground_truth']
+
+        eval_ground_truth = '{evaluate_dir}/eval_ground_truth.tif'.format(evaluate_dir=evaluate_dir)
+        shutil.copy2(ground_truth, eval_ground_truth)
+
+        cmd = '/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
+              --cthreshold 1 \
+              -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
         run_cmd(cmd)
 
         # stop local timer

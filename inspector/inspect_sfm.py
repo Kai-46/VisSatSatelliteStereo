@@ -6,6 +6,48 @@ import matplotlib.pyplot as plt
 import json
 import numpy as np
 import quaternion
+import shutil
+from inspector.plot_reproj_err import plot_reproj_err
+from colmap.extract_sfm import extract_sfm
+
+
+def check_reproj_error(camera_params, all_tracks):
+    # construct projection matrix for each camera
+    proj_matrices = {}
+    for img_name in camera_params.keys():
+        img_size, intrinsic, qvec, tvec = camera_params[img_name]
+        K = np.array([[intrinsic[0], intrinsic[4], intrinsic[2]],
+                      [ 0., intrinsic[1], intrinsic[3]],
+                      [ 0., 0., 1.]])
+        R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+        t = np.reshape(tvec, (3, 1))
+
+        proj_matrices[img_name] = np.dot(K, np.hstack((R, t)))
+
+    my_errs = []
+    colmap_errs = []
+    for track in all_tracks:
+        xyz = np.array([track['xyz'][0], track['xyz'][1], track['xyz'][2], 1.]).reshape((4, 1))
+        err = 0.
+        for pixel in track['pixels']:
+            img_name, col, row = pixel
+            tmp = np.dot(proj_matrices[img_name], xyz)
+            esti_col = tmp[0] / tmp[2]
+            esti_row = tmp[1] / tmp[2]
+
+            sq_err = (col - esti_col) ** 2 + (row - esti_row) ** 2
+            err += np.sqrt(sq_err)
+        err /= len(track['pixels'])
+        # check whether it agrees with what colmap computes
+        # if np.abs(err - track['err']) > 1e-1:
+        #     print(track)
+        #     print('err: {}'.format(err))
+        #     exit(-1)
+
+        my_errs.append(err)
+        colmap_errs.append(track['err'])
+
+    return np.array(my_errs), np.array(colmap_errs)
 
 
 class InspectSparseModel(object):
@@ -13,8 +55,9 @@ class InspectSparseModel(object):
         self.sparse_dir = os.path.abspath(sparse_dir)
         self.out_dir = os.path.abspath(out_dir)
 
-        if not os.path.exists(self.out_dir):
-            os.mkdir(self.out_dir)
+        if os.path.exists(self.out_dir):
+            shutil.rmtree(self.out_dir, ignore_errors=True)
+        os.mkdir(self.out_dir)
 
         self.cameras, self.images, self.points3D = read_model(self.sparse_dir, ext)
 
@@ -165,20 +208,27 @@ class InspectSparseModel(object):
         #plt.show()
 
         # check reprojection error
-        plt.figure(figsize=(14, 5), dpi=80)
-        plt.hist(all_points_err, bins=50, density=True, cumulative=False)
-        max_points_err = max(all_points_err)
-        plt.xticks(np.arange(0, max_points_err+0.01, 0.2))
-        plt.yticks(np.arange(0, 1.01, 0.1))
-        plt.xlabel('reprojection error (# pixels)')
-        plt.ylabel('pdf')
-        plt.title('total # of images: {}\ntotal # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
-                  .format(self.img_cnt, len(all_points_err), min(all_points_err), np.mean(all_points_err), np.median(all_points_err), max_points_err))
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.jpg'))
-        plt.close()
+        # plt.figure(figsize=(14, 5), dpi=80)
+        # plt.hist(all_points_err, bins=50, density=True, cumulative=False)
+        # max_points_err = max(all_points_err)
+        # plt.xticks(np.arange(0, max_points_err+0.01, 0.2))
+        # plt.yticks(np.arange(0, 1.01, 0.1))
+        # plt.xlabel('reprojection error (# pixels)')
+        # plt.ylabel('pdf')
+        # plt.title('total # of images: {}\ntotal # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
+        #           .format(self.img_cnt, len(all_points_err), min(all_points_err), np.mean(all_points_err), np.median(all_points_err), max_points_err))
+        # plt.grid(True)
+        # plt.tight_layout()
+        # plt.savefig(os.path.join(self.out_dir, 'inspect_reproj_err.jpg'))
+        # plt.close()
         #plt.show()
+
+    def inspect_reproj_err(self):
+        camera_params, all_tracks = extract_sfm(self.sparse_dir)
+
+        my_errs, colmap_errs = check_reproj_error(camera_params, all_tracks)
+        plot_reproj_err(my_errs, os.path.join(self.out_dir, 'inspect_reproj_err_my.jpg'))
+        plot_reproj_err(colmap_errs, os.path.join(self.out_dir, 'inspect_reproj_err_colmap.jpg'))
 
 
 def test():
@@ -212,4 +262,12 @@ def test():
     sparse_inspector.inspect_depth_range()
 
 if __name__ == '__main__':
-    test()
+    mvs3dm_dir = '/data2/kz298/mvs3dm_result/'
+    colmap_dirs = [os.path.join(mvs3dm_dir, item, 'colmap') for item in os.listdir(mvs3dm_dir)]
+
+    for colmap_dir in colmap_dirs:
+        print(colmap_dir)
+        sparse_dir = os.path.join(colmap_dir, 'sparse_norm_ba')
+        out_dir = os.path.join(sparse_dir, 'inspect')
+        sfm_inspector = InspectSparseModel(sparse_dir, out_dir)
+        sfm_inspector.inspect_reproj_err()

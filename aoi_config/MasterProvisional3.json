@@ -1,0 +1,21 @@
+{
+  "dataset_dir": "/data2/kz298/dataset/mvs3dm/WV3/PAN",
+  "work_dir": "/data2/kz298/mvs3dm_result/MasterProvisional3",
+  "bounding_box": {
+    "zone_number": 21,
+    "zone_letter": "H",
+    "x": 353987.3159580445,
+    "y": 6188987.15576379,
+    "w": 381.3924301483203,
+    "h": 294.6166772842407
+  },
+  "steps_to_run": {
+    "cut_image": true,
+    "derive_approx": true,
+    "colmap_sfm": true,
+    "colmap_mvs": true,
+    "register": true,
+    "evaluate": true
+  },
+  "ground_truth": "/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterProvisional3.tif"
+}

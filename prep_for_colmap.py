@@ -40,7 +40,7 @@ def prep_for_sfm(tile_dir, colmap_dir):
 
     # copy images
     if os.path.exists(image_subdir):
-        shutil.rmtree(image_subdir)
+        shutil.rmtree(image_subdir, ignore_errors=True)
     shutil.copytree(os.path.join(tile_dir, 'images'), image_subdir)
 
     with open(os.path.join(tile_dir, 'approx_perspective_utm.json')) as fp:
@@ -181,10 +181,15 @@ def prep_for_mvs(colmap_dir):
     make_subdirs(colmap_dir)
 
     # remove all existing mvs results; otherwise colmap mvs would not run
-    for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/depth_maps/*.bin')):
-        os.remove(x)
-    for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/normal_maps/*.bin')):
-        os.remove(x)
+    # dense_dir = os.path.join(colmap_dir, 'dense')
+    # if os.path.exists(dense_dir):
+    #     shutil.rmtree(dense_dir, ignore_errors=True)
+    # os.mkdir(dense_dir)
+
+    # for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/depth_maps/*.bin')):
+    #     os.remove(x)
+    # for x in glob.glob(os.path.join(colmap_dir, 'dense/stereo/normal_maps/*.bin')):
+    #     os.remove(x)
 
     # read sparse reconstruction result
     colmap_cameras, colmap_images, colmap_points3D = read_model(os.path.join(colmap_dir, 'sparse_norm_ba'), '.txt')
@@ -193,6 +198,10 @@ def prep_for_mvs(colmap_dir):
     # sparse_for_mvs_dir
     sparse_for_mvs_dir = os.path.join(colmap_dir, 'sparse_for_mvs')
     images_for_mvs_dir = os.path.join(colmap_dir, 'images_for_mvs')
+
+    if os.path.exists(images_for_mvs_dir):
+        shutil.rmtree(images_for_mvs_dir, ignore_errors=True)
+    os.mkdir(images_for_mvs_dir)
 
     cameras_txt_lines = []
     #all_img_names = []
@@ -232,7 +241,9 @@ def prep_for_mvs(colmap_dir):
             img_dst, off_set = warp_affine(img_src, affine_matrix)
             imageio.imwrite(os.path.join(images_for_mvs_dir, '{}'.format(img_name)), img_dst)
 
-            logging.info('removed normalized skew: {} in image: {}, new image size: {}, {}'.format(norm_skew, img_name, img_dst.shape[1], img_dst.shape[0]))
+            new_height, new_width = img_dst.shape
+
+            logging.info('removed normalized skew: {} in image: {}, new image size: {}, {}'.format(norm_skew, img_name, new_width, new_height))
 
             # add off_set to camera parameters
             cx += off_set[0]
@@ -251,6 +262,8 @@ def prep_for_mvs(colmap_dir):
             )
             fp.write(first_line)
 
+            deleted_key_points = []
+
             second_line = ''
             # modify image key points
             for i in range(image.xys.shape[0]):
@@ -258,10 +271,13 @@ def prep_for_mvs(colmap_dir):
                 row = image.xys[i, 1]
 
                 # apply affine transformation
-                tmp = np.dot(affine_matrix, np.array([col, row, 1]).reshape(-1, 1))
+                tmp = np.dot(affine_matrix, np.array([col, row, 1.]).reshape(3, 1))
                 # add offset here too
                 col = tmp[0, 0] + off_set[0]
                 row = tmp[1, 0] + off_set[1]
+
+                # to do: delete cropped keypoints
+                # assert(col >= 0. and row >= 0.)
 
                 second_line += ' {col} {row} {point3d_id}'.format(col=col, row=row, point3d_id=image.point3D_ids[i])
             second_line = second_line[1:] + '\n'
@@ -304,11 +320,17 @@ def prep_for_mvs(colmap_dir):
 
 
 if __name__ == '__main__':
-    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville'
-    # prepare colmap workspace
-    colmap_dir = os.path.join(work_dir, 'colmap')
-    if not os.path.exists(colmap_dir):
-        os.mkdir(colmap_dir)
-    # prep_for_sfm(work_dir, colmap_dir)
+    # work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville'
+    # # prepare colmap workspace
+    # colmap_dir = os.path.join(work_dir, 'colmap')
+    # if not os.path.exists(colmap_dir):
+    #     os.mkdir(colmap_dir)
+    # # prep_for_sfm(work_dir, colmap_dir)
+    #
+    # prep_for_mvs(colmap_dir)
 
+    # colmap_dir = '/data2/kz298/mvs3dm_result/MasterSequesteredPark/colmap'
+    # create_init_files(colmap_dir)
+
+    colmap_dir = '/data2/kz298/mvs3dm_result/Explorer/colmap'
     prep_for_mvs(colmap_dir)

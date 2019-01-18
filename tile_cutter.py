@@ -14,6 +14,8 @@ import numpy as np
 import copy
 import logging
 from lib.robust_bbx import robust_bbx
+import shutil
+
 
 
 class TileCutter(object):
@@ -45,15 +47,22 @@ class TileCutter(object):
         logging.info('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
 
         # prepare directory structure
+
+
         self.image_subdir = os.path.join(self.out_dir, 'images')
-        if not os.path.exists(self.image_subdir):
-            os.mkdir(self.image_subdir)
+        if os.path.exists(self.image_subdir):
+            shutil.rmtree(self.image_subdir, ignore_errors=True)
+        os.mkdir(self.image_subdir)
+
         self.metas_subdir = os.path.join(self.out_dir, 'metas')
-        if not os.path.exists(self.metas_subdir):
-            os.mkdir(self.metas_subdir)
+        if os.path.exists(self.metas_subdir):
+            shutil.rmtree(self.metas_subdir, ignore_errors=True)
+        os.mkdir(self.metas_subdir)
+
         self.regions_subdir = os.path.join(self.out_dir, 'regions')
-        if not os.path.exists(self.regions_subdir):
-            os.mkdir(self.regions_subdir)
+        if os.path.exists(self.regions_subdir):
+            shutil.rmtree(self.regions_subdir, ignore_errors=True)
+        os.mkdir(self.regions_subdir)
 
         self.useful_cnt = 0
 

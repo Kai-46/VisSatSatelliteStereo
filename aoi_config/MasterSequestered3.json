@@ -1,0 +1,21 @@
+{
+  "dataset_dir": "/data2/kz298/dataset/mvs3dm/WV3/PAN",
+  "work_dir": "/data2/kz298/mvs3dm_result/MasterSequestered3",
+  "bounding_box": {
+    "zone_number": 21,
+    "zone_letter": "H",
+    "x": 354855.85714095004,
+    "y": 6189881.865805604,
+    "w": 354.7421074380982,
+    "h": 360.320286674425
+  },
+  "steps_to_run": {
+    "cut_image": true,
+    "derive_approx": true,
+    "colmap_sfm": true,
+    "colmap_mvs": true,
+    "register": true,
+    "evaluate": true
+  },
+  "ground_truth": "/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterSequestered3.tif"
+}

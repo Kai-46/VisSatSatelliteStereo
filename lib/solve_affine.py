@@ -30,7 +30,7 @@ def solve_affine(xx, yy, zz, col, row, keep_mask=None):
 
     A = np.vstack((A1, A2))
     b = np.vstack((col, row))
-    res = np.linalg.lstsq(A, b)
+    res = np.linalg.lstsq(A, b, rcond=None)
 
     logging.info('residual error (pixels): {}'.format(np.sqrt(res[1][0] / point_cnt)))
 

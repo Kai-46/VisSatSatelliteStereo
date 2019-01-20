@@ -6,10 +6,6 @@ import numpy as np
 # reproj_errs should be a numpy array
 def plot_reproj_err(reproj_errs, fpath):
     plt.figure(figsize=(14, 5), dpi=80)
-    # print('what the heck?...')
-    # print(reproj_errs.size)
-    # #plt.hist(reproj_errs, bins=50)
-    # print('omg!')
     plt.hist(reproj_errs, bins=50, density=True, cumulative=False)
     max_points_err = np.max(reproj_errs)
     plt.xticks(np.arange(0, max_points_err + 0.01, 0.1))

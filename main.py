@@ -3,15 +3,17 @@ import json
 from lib.clean_data import clean_data
 from tile_cutter import TileCutter
 from approx import Approx
-from prep_for_colmap import prep_for_sfm, prep_for_mvs, create_init_files
+import colmap_sfm_helper
+import colmap_sfm
 from lib.georegister_dense import georegister_dense
 import shutil
 import logging
 from lib.run_cmd import run_cmd
 from lib.timer import Timer
 import numpy as np
-from inspector.inspect_sfm import InspectSparseModel
-from inspector.inspect_mvs import inspect_mvs
+from inspector.inspect_sfm import inspect_sfm
+from lib.logger import GlobalLogger
+
 
 
 class StereoPipeline(object):
@@ -25,6 +27,8 @@ class StereoPipeline(object):
         logs_subdir = os.path.join(self.config['work_dir'], 'logs')
         if not os.path.exists(logs_subdir):
             os.mkdir(logs_subdir)
+
+        self.logger = GlobalLogger()
 
     def run(self):
         print(self.config)
@@ -54,10 +58,7 @@ class StereoPipeline(object):
 
         # set log file to 'logs/log_cut_image.txt'
         log_file = os.path.join(work_dir, 'logs/log_cut_image.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
+        self.logger.set_log_file(log_file)
 
         # create a local timer
         local_timer = Timer('Cut Image Module')
@@ -79,18 +80,12 @@ class StereoPipeline(object):
         local_timer.mark('cut image done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
-
     def run_derive_approx(self):
         work_dir = self.config['work_dir']
 
         # set log file to 'logs/log_derive_approx.txt'
         log_file = os.path.join(work_dir, 'logs/log_derive_approx.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
+        self.logger.set_log_file(log_file)
 
         # create a local timer
         local_timer = Timer('Derive Approximation Module')
@@ -115,152 +110,82 @@ class StereoPipeline(object):
         local_timer.mark('Derive approximation done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
-
     def run_colmap_sfm(self):
         work_dir = self.config['work_dir']
-        # set log file to 'logs/log_derive_approx.txt'
-        log_file = os.path.join(work_dir, 'logs/log_sfm.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
+        colmap_dir = os.path.join(work_dir, 'colmap')
+
+        # first time SfM
+        log_file = os.path.join(work_dir, 'logs/log_sfm_perspective.txt')
+        self.logger.set_log_file(log_file)
 
         # create a local timer
-        local_timer = Timer('Colmap SfM Module')
+        local_timer = Timer('Colmap SfM Module, perspective camera')
         local_timer.start()
 
-        # prepare colmap workspace
-        colmap_dir = os.path.join(work_dir, 'colmap')
-        if not os.path.exists(colmap_dir):
-            os.mkdir(colmap_dir)
-        prep_for_sfm(work_dir, colmap_dir)
-
-        # feature extraction
-        cmd = 'colmap feature_extractor --database_path {colmap_dir}/database.db \
-                                 --image_path {colmap_dir}/images/ \
-                                --ImageReader.camera_model PERSPECTIVE \
-                                --SiftExtraction.max_image_size 5000  \
-                                --SiftExtraction.estimate_affine_shape 1 \
-                                --SiftExtraction.domain_size_pooling 1'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
-
-        # seems that we need to copy camera intrinsics into database
-        # this is important??  Maybe not
-
-        # feature matching
-        cmd = 'colmap exhaustive_matcher --database_path {colmap_dir}/database.db \
-                                        --SiftMatching.guided_matching 1'.format(colmap_dir=colmap_dir)
-
-        run_cmd(cmd)
-
-        # create initial poses
-        create_init_files(colmap_dir)
-
-        # triangulate points
-        cmd = 'colmap point_triangulator --Mapper.ba_refine_principal_point 1 \
-                                         --database_path {colmap_dir}/database.db \
-                                         --image_path {colmap_dir}/images/ \
-                                         --input_path {colmap_dir}/init \
-                                         --output_path {colmap_dir}/sparse \
-                                         --Mapper.filter_min_tri_angle 1 \
-                                         --Mapper.tri_min_angle 1.5 \
-                                         --Mapper.filter_max_reproj_error 4 \
-                                         --Mapper.max_extra_param 1e100 \
-                                         --Mapper.ba_local_num_images 6 \
-                                         --Mapper.ba_local_max_num_iterations 100 \
-                                         --Mapper.ba_global_images_ratio 1.0000001\
-                                         --Mapper.ba_global_max_num_iterations 100'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
-
-        # add inspector
-        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse'), os.path.join(colmap_dir, 'sparse/inspect'))
-        ins.inspect_depth_range()
-        ins.inspect_feature_tracks()
-        ins.inspect_image_key_points()
-
-        # normalize sparse reconstruction
-        cmd = 'colmap normalize --input_path {colmap_dir}/sparse --output_path {colmap_dir}/sparse_norm'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
-
-        # add inspector
-        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_norm'), os.path.join(colmap_dir, 'sparse_norm/inspect'))
-        ins.inspect_depth_range()
-        ins.inspect_feature_tracks()
-        ins.inspect_image_key_points()
-
-        # global bunble adjustment
-        cmd = 'colmap bundle_adjuster --input_path {colmap_dir}/sparse_norm --output_path {colmap_dir}/sparse_norm_ba \
-	                                    --BundleAdjustment.max_num_iterations 5000 \
-	                                    --BundleAdjustment.refine_principal_point 1 \
-	                                    --BundleAdjustment.function_tolerance 1e-6 \
-	                                    --BundleAdjustment.gradient_tolerance 1e-8 \
-	                                    --BundleAdjustment.parameter_tolerance 1e-8'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
-
-        # add inspector
-        ins = InspectSparseModel(os.path.join(colmap_dir, 'sparse_norm_ba'), os.path.join(colmap_dir, 'sparse_norm_ba/inspect'))
-        ins.inspect_depth_range()
-        ins.inspect_feature_tracks()
-        ins.inspect_image_key_points()
+        colmap_sfm_helper.prep_for_sfm_perspective(work_dir, colmap_dir)
+        colmap_sfm.run_sfm(os.path.join(colmap_dir, 'sfm_perspective'), 'PERSPECTIVE')
 
         # stop local timer
         local_timer.mark('Colmap SfM done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
+        # second time SfM
+        log_file = os.path.join(work_dir, 'logs/log_sfm_pinhole.txt')
+        self.logger.set_log_file(log_file)
+        # create a local timer
+        local_timer = Timer('Colmap SfM Module, pinhole camera')
+        local_timer.start()
+
+        colmap_sfm_helper.prep_for_sfm_pinhole(colmap_dir)
+        colmap_sfm.run_sfm(os.path.join(colmap_dir, 'sfm_pinhole'), 'PINHOLE')
+
+        # stop local timer
+        local_timer.mark('Colmap SfM done')
+        logging.info(local_timer.summary())
+
+        # add inspector here
+        inspect_sfm(colmap_dir)
 
     def run_colmap_mvs(self):
         work_dir = self.config['work_dir']
-        # set log file to 'logs/log_derive_approx.txt'
-        log_file = os.path.join(work_dir, 'logs/log_mvs.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
 
+        # set log file
+        log_file = os.path.join(work_dir, 'logs/log_mvs.txt')
+        self.logger.set_log_file(log_file)
         # create a local timer
         local_timer = Timer('Colmap MVS Module')
         local_timer.start()
 
         # prepare dense reconstruction
         colmap_dir = os.path.join(work_dir, 'colmap')
-        prep_for_mvs(colmap_dir)
 
         # prepare dense workspace
         cmd = 'colmap image_undistorter --max_image_size 5000 \
-                            --image_path {colmap_dir}/images_for_mvs  \
-                            --input_path {colmap_dir}/sparse_for_mvs \
-                            --output_path {colmap_dir}/dense'.format(colmap_dir=colmap_dir)
+                            --image_path {colmap_dir}/sfm_pinhole/images  \
+                            --input_path {colmap_dir}/sfm_pinhole/sparse_ba \
+                            --output_path {colmap_dir}/mvs'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # PMVS
-        cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/dense \
+        cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
                         --PatchMatchStereo.window_radius 9 \
-                        --PatchMatchStereo.filter_min_triangulation_angle 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 24.999 \
                         --PatchMatchStereo.geom_consistency 1 \
                         --PatchMatchStereo.filter_min_ncc 0.05 \
-                        --PatchMatchStereo.gpu_index=0,1,2'.format(colmap_dir=colmap_dir)
+                        --PatchMatchStereo.gpu_index=1,2'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # stereo fusion
-        cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/dense \
-                             --output_path {colmap_dir}/dense/fused.ply \
+        cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/mvs \
+                             --output_path {colmap_dir}/mvs/fused.ply \
                              --input_type geometric \
                              --StereoFusion.min_num_pixels 3'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
-
-        # add inspector
-        inspect_mvs(colmap_dir)
 
         # stop local timer
         local_timer.mark('Colmap MVS done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
 
     def run_registration(self):
         work_dir = self.config['work_dir']
@@ -268,10 +193,7 @@ class StereoPipeline(object):
 
         # set log file to 'logs/log_derive_approx.txt'
         log_file = os.path.join(work_dir, 'logs/log_register.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
+        self.logger.set_log_file(log_file)
 
         # create a local timer
         local_timer = Timer('Geo-registration Module')
@@ -281,30 +203,24 @@ class StereoPipeline(object):
         from align_rpc import compute_transform
         M, t = compute_transform(work_dir)
 
-        bbx = georegister_dense(os.path.join(colmap_dir, 'dense/fused.ply'),
-                          os.path.join(colmap_dir, 'dense/fused_registered.ply'),
-                          os.path.join(work_dir, 'aoi.json'), M, t)
+        bbx = georegister_dense(os.path.join(colmap_dir, 'mvs/fused.ply'),
+                          os.path.join(work_dir, 'register/registered_dense_points.ply'),
+                          os.path.join(work_dir, 'aoi.json'), M, t, filter=True)
 
-        with open(os.path.join(colmap_dir, 'dense/fused_registered_bbx.json'), 'w') as fp:
+        with open(os.path.join(work_dir, 'register/registered_dense_points_bbx.json'), 'w') as fp:
             json.dump(bbx, fp)
 
         # stop local timer
         local_timer.mark('geo-registration done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
 
     def run_evaluation(self):
         work_dir = self.config['work_dir']
-        colmap_dir = os.path.join(work_dir, 'colmap')
 
         # set log file to 'logs/log_derive_approx.txt'
         log_file = os.path.join(work_dir, 'logs/log_evaluate.txt')
-        log_hanlder = logging.FileHandler(log_file, 'w')
-        log_hanlder.setLevel(logging.INFO)
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(log_hanlder)
+        self.logger.set_log_file(log_file)
 
         # create a local timer
         local_timer = Timer('Evaluation Module')
@@ -322,7 +238,7 @@ class StereoPipeline(object):
         # offset is the lower left
         ul_east = aoi_dict['x']
         ul_north = aoi_dict['y']
-        resolution = 0.3
+        resolution = 0.5
         width = int(1 + np.floor(aoi_dict['w'] / resolution))
         height = int(1 + np.floor(aoi_dict['h'] / resolution))
 
@@ -331,14 +247,14 @@ class StereoPipeline(object):
         eval_dsm = '{evaluate_dir}/eval_dsm.tif'.format(evaluate_dir=evaluate_dir)
 
         # copy point cloud to evaluation folder
-        shutil.copy2('{colmap_dir}/dense/fused_registered.ply'.format(colmap_dir=colmap_dir),
+        shutil.copy2(os.path.join(work_dir, 'register/registered_dense_points.ply'),
                      eval_point_cloud)
 
         # flatten point cloud
         cmd = '/home/cornell/kz298/s2p/bin/plyflatten {resolution} {eval_dsm} \
                             -srcwin "{xoff} {yoff} {xsize} {ysize}"'.format(resolution=resolution, eval_dsm=eval_dsm,
                             xoff=ul_east, yoff=ul_north, xsize=width, ysize=height)
-        run_cmd(cmd, eval_point_cloud)
+        run_cmd(cmd, input=eval_point_cloud)
 
         # evaluate for core3d
         # cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
@@ -360,27 +276,10 @@ class StereoPipeline(object):
         local_timer.mark('geo-registration done')
         logging.info(local_timer.summary())
 
-        # remove logging handler for later use
-        logging.root.removeHandler(log_hanlder)
 
 if __name__ == '__main__':
     import sys
     config_file = sys.argv[1]
-
-    # read config file
-    #config_file = 'aoi_config/aoi-d1-wpafb.json'
-    #config_file = 'aoi_config/aoi-d4-jacksonville.json'
-
-    # config_files = ['aoi_config/aoi-d1-wpafb.json',
-    #                 'aoi_config/aoi-d2-wpafb.json',
-    #                 'aoi_config/aoi-d3-ucsd.json',
-    #                 'aoi_config/aoi-d4-jacksonville.json']
-    # for config_file in config_files:
-    #     # remove all the existing logging handlers
-    #     for handler in logging.root.handlers:
-    #         logging.root.removeHandler(handler)
-    #
-    #     main(config_file)
 
     pipeline = StereoPipeline(config_file)
     pipeline.run()

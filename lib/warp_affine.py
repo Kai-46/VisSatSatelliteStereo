@@ -21,8 +21,6 @@ def warp_affine(img_src, affine_matrix, no_blank_margin=True):
         row_min = int(row[1])
         w = int(col[2] - col[1] + 1)
         h = int(row[2] - row[1] + 1)
-
-
     else:
         col_min = np.min(bbx[0, :])
         col_max = np.max(bbx[0, :])
@@ -44,7 +42,7 @@ def warp_affine(img_src, affine_matrix, no_blank_margin=True):
 
     assert (h == img_dst.shape[0] and w == img_dst.shape[1])
 
-    return img_dst, off_set
+    return img_dst, off_set, affine_matrix
 
 
 if __name__ == '__main__':

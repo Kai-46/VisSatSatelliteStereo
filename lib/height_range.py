@@ -15,7 +15,7 @@ def height_range(rpc_models):
     z_max = min(z_max_list)
 
     # manually set for mvs3dm dataset
-    z_min = -100
-    z_max = 200
+    z_min = 10
+    z_max = 80
 
     return z_min, z_max

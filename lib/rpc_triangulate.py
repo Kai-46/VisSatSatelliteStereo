@@ -40,7 +40,7 @@ def solve_init(track, rpc_models, affine_models):
         A[cnt + i, :] = affine_models[i][1, 0:3]
         b[cnt + i, 0] = track[i][1] - affine_models[i][1, 3]
 
-    res = np.linalg.lstsq(A, b)
+    res = np.linalg.lstsq(A, b, rcond=None)
     init = res[0].reshape((3, ))
 
     return init
@@ -84,7 +84,7 @@ def triangulate(track, rpc_models, affine_models, out_file):
 
     # triangulate
     tmp_file = '{}.result.txt'.format(out_file)
-    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(out_file, tmp_file))
+    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(out_file, tmp_file), disable_log=True)
 
     # read result
     with open(out_file) as fp:

@@ -1,81 +1,51 @@
 import numpy as np
-from lib.plyfile import PlyData, PlyElement
+from lib.ply_np_converter import np2ply, ply2np
 import json
-import logging
 
 
 # register the dense model via a linear mapping
-def georegister_dense(in_ply, out_ply, aoi_json, M, t):
-    dense = PlyData.read(in_ply)
+def georegister_dense(in_ply, out_ply, aoi_json, M, t, filter=False):
+    dense = ply2np(in_ply)
 
-    points = np.hstack((dense['vertex']['x'].reshape((-1, 1)),
-                        dense['vertex']['y'].reshape((-1, 1)),
-                        dense['vertex']['z'].reshape((-1, 1))))
-    normals = np.hstack((dense['vertex']['nx'].reshape((-1, 1)),
-                         dense['vertex']['ny'].reshape((-1, 1)),
-                         dense['vertex']['nz'].reshape((-1, 1))))
-    colors = np.hstack((dense['vertex']['red'].reshape((-1, 1)),
-                        dense['vertex']['green'].reshape((-1, 1)),
-                        dense['vertex']['blue'].reshape((-1, 1))))
+    points = dense[:, 0:3]
+    normals = dense[:, 3:6]
+    colors = dense[:, 6:9]
 
-    points_reg = np.dot(points, M) + np.tile(t, (points.shape[0], 1))
-    normals_reg = np.dot(normals, M) + np.tile(t, (normals.shape[0], 1))
+    # register
+    points = np.dot(points, M) + np.tile(t, (points.shape[0], 1))
+    normals = np.dot(normals, M) + np.tile(t, (normals.shape[0], 1))
 
-    # z = points_reg[:, 2]
-    # below_thres = np.percentile(z, 0)
-    # above_thres = np.percentile(z, 100)
-    # logging.info('below_thres: {}, above_thres: {}'.format(below_thres, above_thres))
-    #
-    # mask = np.logical_and(z>=below_thres, z<=above_thres)
-    # #mask = np.tile(mask.reshape((-1, 1)), (1, 3))
-    #
-    # points_reg = points_reg[mask, :]
-    # normals_reg = normals_reg[mask, :]
-    # colors = colors[mask, :]
+    dense = np.hstack((points, normals, colors))
 
-    # read json file
-    # with open(os.path.join(proj_dir, 'roi.json')) as fp:
-    #     roi = json.load(fp)
-    
     with open(aoi_json) as fp:
         aoi_dict = json.load(fp)
-    comment_1 = 'projection: UTM {}{}'.format(aoi_dict['zone_number'], aoi_dict['zone_letter'])
-    comment_2 = 'x, y, w, h : {}, {}, {}, {}'.format(aoi_dict['x'], aoi_dict['y'], aoi_dict['w'], aoi_dict['h'])
-    logging.info(comment_1)
-    logging.info(comment_2)
+    if filter:
+        margin = 3 # meters
+        east_min = aoi_dict['x'] - margin
+        east_max = aoi_dict['x'] + aoi_dict['w'] + margin
+        north_min = aoi_dict['y'] - aoi_dict['h'] - margin
+        north_max = aoi_dict['y'] + margin
 
+        mask = points[:, 0] > east_min
+        mask = np.logical_and(mask, points[:, 0] < east_max)
+        mask = np.logical_and(mask, points[:, 1] > north_min)
+        mask = np.logical_and(mask, points[:, 1] < north_max)
+
+        dense = dense[mask, :]
+
+    comment_1 = 'projection: UTM {}{}'.format(aoi_dict['zone_number'], aoi_dict['zone_letter'])
+    comment_2 = 'aoi bbx, x, y, w, h : {}, {}, {}, {}'.format(aoi_dict['x'], aoi_dict['y'], aoi_dict['w'], aoi_dict['h'])
     comments = [comment_1, comment_2]
 
-    # write to plydata object
-    # in perspective camera approximation, the world coordinate frame is (south, east, above)
-    # the UTM coordinate frame is (east, north, above)
-    x = points_reg[:, 1:2] + aoi_dict['x']
-    y = aoi_dict['y'] - points_reg[:, 0:1]
-    z = points_reg[:, 2:3]
-
-    nx = normals_reg[:, 1:2]
-    ny = normals_reg[:, 0:1]
-    nz = normals_reg[:, 2:3]
-
-    # remove points that are not in the bounding box
-    #keep_mask = np.logical_and()
-
-
-    points = np.hstack((x, y, z, nx, ny, nz, colors))
-    vertex = np.array([tuple(point) for point in points], dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
-                                                                 ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
-                                                                 ('red', 'uint8'), ('green', 'uint8'), ('blue', 'uint8')])
-    el = PlyElement.describe(vertex, 'vertex')
-
-    PlyData([el], byte_order='<', comments=comments).write(out_ply)
+    np2ply(dense, out_ply, comments)
 
     bbx = {}
     bbx['zone_number'] = aoi_dict['zone_number']
     bbx['zone_letter'] = aoi_dict['zone_letter']
-    bbx['east_min'] = np.min(x)
-    bbx['east_max'] = np.max(x)
-    bbx['north_min'] = np.min(y)
-    bbx['north_max'] = np.max(y)
-    bbx['height_min'] = np.min(z)
-    bbx['height_max'] = np.max(z)
+    bbx['east_min'] = np.min(points[:, 0])
+    bbx['east_max'] = np.max(points[:, 0])
+    bbx['north_min'] = np.min(points[:, 1])
+    bbx['north_max'] = np.max(points[:, 1])
+    bbx['height_min'] = np.min(points[:, 2])
+    bbx['height_max'] = np.max(points[:, 2])
     return bbx

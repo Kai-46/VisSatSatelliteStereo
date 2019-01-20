@@ -98,7 +98,9 @@ private:
 };
 
 
-double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector <double>& final) {
+void triangulate(vector<Observation*>& pixels, vector<double>& initial, vector <double>& final, vector <double>& reproj_error) {
+    assert (initial.size() == 3 && final.size() == 3 && reproj_error.size() == 2);
+
     double lat = initial[0];
     double lon = initial[1];
     double alt = initial[2];
@@ -125,15 +127,20 @@ double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector
 //    init_error = sqrt(init_error * 2 / pixels.size());
 
     Solve(options, &problem, &summary);
+
+    double init_error = sqrt(summary.initial_cost * 2 / pixels.size());
+    double final_error = sqrt(summary.final_cost * 2 / pixels.size());
+
+    // for debug
     cout << summary.BriefReport() << "\n";
-    
-    cout << "\nInitial Point: (" << initial[0] << "," << initial[1] << "," << initial[2] << ")\n";
-    cout << "Final Point:  (" << lat << "," << lon << "," << alt << ")\n";
-    
-    assert (final.size() == 3);
+    cout << "\ninitial Point: (" << initial[0] << "," << initial[1] << "," << initial[2] << "), reproj_error: " << init_error << " pixels\n";
+    cout << "final Point:  (" << lat << "," << lon << "," << alt << "), reproj_error: " << final_error << " pixels\n";
+
     final[0] = lat;
     final[1] = lon;
     final[2] = alt;
+    reproj_error[0] = init_error;
+    reproj_error[1] = final_error;
     
 //    cout << "final_cost: " << summary.final_cost << "\n";
 //    double final_error = 0.0;
@@ -141,11 +148,9 @@ double triangulate(vector<Observation*>& pixels, vector<double>& initial, vector
 //    cout << "my final_cost: " << final_error << "\n";
 //    // note that ceres add 1/2 before the cost function
 //    final_error = sqrt(final_error * 2 / pixels.size());
-    
-   // double init_error = sqrt(summary.initial_cost * 2 / pixels.size());
-    double final_error = sqrt(summary.final_cost * 2 / pixels.size());
+
+    // for debug
     // cout << "Inside ceres: init_error: " << init_error << " pixels, " << "final_error: " << final_error << " pixels\n";
-    return final_error;
 }
 
 
@@ -198,8 +203,8 @@ void execute_task(string in_file, string out_file) {
     istringstream iss(line);
     iss >> initial[0] >> initial[1] >> initial[2];
     
-    getline(infile, line); // re-projection error
-    double init_error = stod(line);
+//    getline(infile, line); // re-projection error
+//    double init_error = stod(line);
     
     vector<string> content;
     while (getline(infile, line)) {
@@ -212,11 +217,9 @@ void execute_task(string in_file, string out_file) {
     infile.close();
     
     vector<double> final(3);
-    
-    double final_error = triangulate(pixels, initial, final);
-    
-    cout << "\ninitial re-projection error (pixels): " << init_error << "\n";
-    cout << "final re-projection error (pixels): " << final_error << "\n\n";
+    vector<double> reproj_error(2);
+    triangulate(pixels, initial, final, reproj_error);
+
     
     ofstream outfile;
     outfile.open(out_file);
@@ -227,7 +230,6 @@ void execute_task(string in_file, string out_file) {
     // c++ double has 17 decimal digit precision
     outfile << setprecision(dbl::max_digits10);
     outfile << final[0] << " " << final[1] << " " << final[2] << "\n";
-    outfile << final_error << "\n";
     
     for (int i = 0; i < content.size(); ++i) {
         outfile << content[i] << "\n";

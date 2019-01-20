@@ -5,7 +5,8 @@ import shlex
 
 # redirect stdout, stderr to file
 def run_cmd(cmd, disable_log=False, input=None):
-    logging.info('Running subprocess: {}'.format(cmd))
+    if not disable_log:
+        logging.info('Running subprocess: {}'.format(cmd))
 
     try:
         process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
@@ -34,5 +35,6 @@ def run_cmd(cmd, disable_log=False, input=None):
         logging.error('Subprocess failed')
         exit(-1)
     else:
-        # no exception was raised
-        logging.info('Subprocess finished')
+        if not disable_log:
+            # no exception was raised
+            logging.info('Subprocess finished')

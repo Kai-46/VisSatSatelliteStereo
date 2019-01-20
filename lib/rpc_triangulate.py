@@ -14,12 +14,13 @@ def compute_reproj_err(rpc_models, track, point):
 
     lat, lon, alt = point
 
+    cnt = len(track)
     for i in range(len(track)):
         col, row = track[i]
         proj_col, proj_row = rpc_models[i].projection(lat, lon, alt)
 
-        err += (col - proj_col) ** 2 + (row - proj_row) ** 2
-    err = np.sqrt(err / len(track))
+        err += np.sqrt((col - proj_col) ** 2 + (row - proj_row) ** 2)
+    err = err / cnt
 
     # logging.info('reproj. err.: {}'.format(err))
     return err
@@ -52,8 +53,8 @@ def write_to_taskfile(track, rpc_models, init, out_file):
     lines = []
     lines.append('{} {} {}\n'.format(init[0], init[1], init[2]))
 
-    err = compute_reproj_err(rpc_models, track, init)
-    lines.append('{}\n'.format(err))
+    # err = compute_reproj_err(rpc_models, track, init)
+    # lines.append('{}\n'.format(err))
 
     for i in range(len(track)):
         line = '{} {}'.format(track[i][0], track[i][1])
@@ -90,17 +91,18 @@ def triangulate(track, rpc_models, affine_models, out_file):
     with open(out_file) as fp:
         lines = fp.readlines()
         init_point = [float(x) for x in lines[0].strip().split(' ')]
-        init_err = float(lines[1].strip())
+        # init_err = float(lines[1].strip())
     with open(tmp_file) as fp:
         lines = fp.readlines()
         final_point = [float(x) for x in lines[0].strip().split(' ')]
-        final_err = float(lines[1].strip())
+        # final_err = float(lines[1].strip())
 
     # remove tmpfile
     os.remove(tmp_file)
 
     # double check the final_err
-    # tmp = compute_reproj_err(rpc_models, track, final_point)
+    init_err = compute_reproj_err(rpc_models, track, init)
+    final_err = compute_reproj_err(rpc_models, track, final_point)
     # #print('here ceres final_err: {}, python: {}'.format(final_err, tmp))
     # assert (np.abs(tmp - final_err) < 0.001)
 

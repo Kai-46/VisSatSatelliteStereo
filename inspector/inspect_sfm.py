@@ -19,17 +19,17 @@ def inspect_sfm(colmap_dir):
         os.mkdir(inspect_dir)
 
     sparse_dir = os.path.join(colmap_dir, 'sfm_perspective/sparse')
-    out_dir = os.path.join(inspect_dir)
+    out_dir = os.path.join(inspect_dir, 'sfm_perspective/sparse')
     sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PERSPECTIVE')
-    sfm_inspector.inspect_depth_range()
+    sfm_inspector.inspect_all()
 
     sparse_dir = os.path.join(colmap_dir, 'sfm_perspective/sparse_ba')
-    out_dir = os.path.join(inspect_dir, 'sfm_perspective')
+    out_dir = os.path.join(inspect_dir, 'sfm_perspective/sparse_ba')
     sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PERSPECTIVE')
     sfm_inspector.inspect_all()
 
     sparse_dir = os.path.join(colmap_dir, 'sfm_pinhole/sparse_ba')
-    out_dir = os.path.join(inspect_dir, 'sfm_pinhole')
+    out_dir = os.path.join(inspect_dir, 'sfm_pinhole/sparse_ba')
     sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PINHOLE')
     sfm_inspector.inspect_all()
 
@@ -153,7 +153,7 @@ class SparseInspector(object):
     def inspect_tracks(self):
         # save camera params and all_tracks
         # save track to file
-        with open(os.path.join(self.out_dir, 'sfm_feature_tracks'), 'w') as fp:
+        with open(os.path.join(self.out_dir, 'sfm_feature_tracks.txt'), 'w') as fp:
             fp.write('# format: x, y, z, reproj. err., track_length, img_name, col, row, ...\n')
             for track in self.all_tracks:
                 line = '{} {} {} {} {}'.format(track['xyz'][0], track['xyz'][1], track['xyz'][2],
@@ -164,7 +164,12 @@ class SparseInspector(object):
                 line += '\n'
                 fp.write(line)
 
-        with open(os.path.join(self.out_dir, 'camera_parameters.txt'), 'w') as fp:
+        # track_file for rpc triangulation
+        tracks = [track['pixels'] for track in self.all_tracks]
+        with open(os.path.join(self.out_dir, 'sfm_tracks_for_rpc.json'), 'w') as fp:
+            json.dump(tracks, fp)
+
+        with open(os.path.join(self.out_dir, 'sfm_camera_parameters.txt'), 'w') as fp:
             if self.camera_model == 'PINHOLE':
                 fp.write('# format: img_name, img_width, img_height, fx, fy, cx, cy, qw, qx, qy, qz, tx, ty, tz\n')
 
@@ -204,9 +209,12 @@ class SparseInspector(object):
         plt.close()
 
     def inspect_scene_points(self):
-        points = np.array([tuple(self.points3D[id].xyz) for id in self.points3D])
+        points = np.array([track['xyz'] + (track['err'],) for track in self.all_tracks])
 
-        np2ply(points, os.path.join(self.out_dir, 'sfm_scene_points.ply'))
+        np.savetxt(os.path.join(self.out_dir, 'sfm_coordinates.txt'), points,
+                   header='# format: x, y, z, reproj_err')
+
+        np2ply(points[:, 0:3], os.path.join(self.out_dir, 'sfm_points.ply'))
 
     def inspect_angles(self):
         cam_center_positions = []
@@ -245,8 +253,8 @@ class SparseInspector(object):
             down = np.dot(np.linalg.inv(K), np.array([width / 2., height, 1.]).reshape(3, 1))
             img_updown_angles.append(vector_angle(up, down))
 
-            print('left-right: {}'.format(img_leftright_angles[-1]))
-            print('up-down: {}'.format(img_updown_angles[-1]))
+            # print('left-right: {}'.format(img_leftright_angles[-1]))
+            # print('up-down: {}'.format(img_updown_angles[-1]))
 
             img_angle_variations.append(max([img_leftright_angles[-1], img_updown_angles[-1]]))
 
@@ -314,41 +322,15 @@ class SparseInspector(object):
 
 
 if __name__ == '__main__':
-    # mvs3dm_dir = '/data2/kz298/mvs3dm_result/'
-    # colmap_dirs = [os.path.join(mvs3dm_dir, item, 'colmap') for item in os.listdir(mvs3dm_dir)]
-
-    colmap_dirs = ['/data2/kz298/mvs3dm_result/Explorer/colmap']
-
+    work_dirs = ['/data2/kz298/mvs3dm_result/Explorer',
+                '/data2/kz298/mvs3dm_result/MasterProvisional1',
+                '/data2/kz298/mvs3dm_result/MasterProvisional2',
+                '/data2/kz298/mvs3dm_result/MasterProvisional3',
+                '/data2/kz298/mvs3dm_result/MasterSequestered1',
+                '/data2/kz298/mvs3dm_result/MasterSequestered2',
+                '/data2/kz298/mvs3dm_result/MasterSequestered3',
+                '/data2/kz298/mvs3dm_result/MasterSequesteredPark']
+    colmap_dirs = [os.path.join(work_dir, 'colmap') for work_dir in work_dirs]
 
     for colmap_dir in colmap_dirs:
-        print(colmap_dir)
-
         inspect_sfm(colmap_dir)
-
-        # inspect_dir = os.path.join(colmap_dir, 'inspect')
-        # if not os.path.exists(inspect_dir):
-        #     os.mkdir(inspect_dir)
-        #
-        # sparse_dir = os.path.join(colmap_dir, 'sfm_perspective/sparse_ba')
-        # if not os.path.exists(sparse_dir):
-        #     continue
-        # out_dir = os.path.join(inspect_dir, 'sfm_perspective')
-        #
-        # sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PERSPECTIVE')
-        # sfm_inspector.inspect_reproj_err()
-        # sfm_inspector.inspect_image_key_points()
-        # sfm_inspector.inspect_depth_range()
-        # sfm_inspector.inspect_scene_points()
-        # sfm_inspector.inspect_angles()
-        # sfm_inspector.inspect_tracks()
-        #
-        # sparse_dir = os.path.join(colmap_dir, 'sfm_pinhole/sparse_ba')
-        # out_dir = os.path.join(inspect_dir, 'sfm_pinhole')
-        #
-        # sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PINHOLE')
-        # sfm_inspector.inspect_reproj_err()
-        # sfm_inspector.inspect_image_key_points()
-        # sfm_inspector.inspect_depth_range()
-        # sfm_inspector.inspect_scene_points()
-        # sfm_inspector.inspect_angles()
-        # sfm_inspector.inspect_tracks()

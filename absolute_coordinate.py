@@ -11,65 +11,65 @@ from lib.ply_np_converter import np2ply
 from inspector.plot_reproj_err import plot_reproj_err
 
 
-def read_sfm_pinhole(work_dir):
-    sparse_dir = os.path.join(work_dir, 'colmap/sfm_pinhole/sparse_ba')
-    _, colmap_images, colmap_points3D = read_model(sparse_dir, '.txt')
-    all_tracks = read_tracks(colmap_images, colmap_points3D)
-
-    # read affine transformations
-    inv_affine_warpings = {}
-    with open(os.path.join(work_dir, 'colmap/sfm_pinhole/affine_warpings.txt')) as fp:
-        for line in fp.readlines():
-            tmp = line.strip().split()
-            img_name = tmp[0]
-            matrix = np.array([float(x) for x in tmp[1:7]]).reshape((2, 3))
-            matrix = np.vstack((matrix, np.array([0, 0, 1]).reshape(1, 3)))
-            matrix = np.linalg.inv(matrix)[0:2, :]
-            inv_affine_warpings[img_name] = matrix
-
-    cnt = len(all_tracks)
-    normalized = np.zeros((cnt, 4))
-    pinhole_track_lines = ['# format: track_length, img_name, col, row, ...\n', ]
-    perspective_track_lines = ['# format: track_length, img_name, col, row, ...\n', ]
-    for i in range(cnt):
-        track = all_tracks[i]
-        xyz = track['xyz']
-        normalized[i, 0] = xyz[0]
-        normalized[i, 1] = xyz[1]
-        normalized[i, 2] = xyz[2]
-        normalized[i, 3] = track['err']
-
-        pixels = track['pixels']
-        pixel_cnt = len(pixels)
-        pinhole_line = '{} '.format(pixel_cnt)
-        perspective_line = '{} '.format(pixel_cnt)
-        for j in range(pixel_cnt):
-            img_name, col, row = pixels[j]
-            pinhole_line += ' {} {} {}'.format(img_name, col, row)
-
-            # inv affine warp
-            tmp = np.dot(inv_affine_warpings[img_name], np.array([col, row, 1.]).reshape((3, 1)))
-            col = tmp[0, 0]
-            row = tmp[1, 0]
-            perspective_line += ' {} {} {}'.format(img_name, col, row)
-
-            # modify all_tracks
-            all_tracks[i]['pixels'][j] = (img_name, col, row)
-        pinhole_track_lines.append(pinhole_line + '\n')
-        perspective_track_lines.append(perspective_line + '\n')
-
-    np.savetxt(os.path.join(work_dir, 'register/normalized_coordinates.txt'), normalized,
-               header='# format: x, y, z, reproj_err')
-    with open(os.path.join(work_dir, 'register/tracks_in_sfm_pinhole.txt'), 'w') as fp:
-        fp.writelines(pinhole_track_lines)
-
-    with open(os.path.join(work_dir, 'register/tracks_in_sfm_perspective.txt'), 'w') as fp:
-        fp.writelines(perspective_track_lines)
-
-    # tracks
-    all_tracks = [track['pixels'] for track in all_tracks]
-
-    return all_tracks
+# def read_sfm_pinhole(work_dir):
+#     sparse_dir = os.path.join(work_dir, 'colmap/sfm_pinhole/sparse_ba')
+#     _, colmap_images, colmap_points3D = read_model(sparse_dir, '.txt')
+#     all_tracks = read_tracks(colmap_images, colmap_points3D)
+#
+#     # read affine transformations
+#     inv_affine_warpings = {}
+#     with open(os.path.join(work_dir, 'colmap/sfm_pinhole/affine_warpings.txt')) as fp:
+#         for line in fp.readlines():
+#             tmp = line.strip().split()
+#             img_name = tmp[0]
+#             matrix = np.array([float(x) for x in tmp[1:7]]).reshape((2, 3))
+#             matrix = np.vstack((matrix, np.array([0, 0, 1]).reshape(1, 3)))
+#             matrix = np.linalg.inv(matrix)[0:2, :]
+#             inv_affine_warpings[img_name] = matrix
+#
+#     cnt = len(all_tracks)
+#     normalized = np.zeros((cnt, 4))
+#     pinhole_track_lines = ['# format: track_length, img_name, col, row, ...\n', ]
+#     perspective_track_lines = ['# format: track_length, img_name, col, row, ...\n', ]
+#     for i in range(cnt):
+#         track = all_tracks[i]
+#         xyz = track['xyz']
+#         normalized[i, 0] = xyz[0]
+#         normalized[i, 1] = xyz[1]
+#         normalized[i, 2] = xyz[2]
+#         normalized[i, 3] = track['err']
+#
+#         pixels = track['pixels']
+#         pixel_cnt = len(pixels)
+#         pinhole_line = '{} '.format(pixel_cnt)
+#         perspective_line = '{} '.format(pixel_cnt)
+#         for j in range(pixel_cnt):
+#             img_name, col, row = pixels[j]
+#             pinhole_line += ' {} {} {}'.format(img_name, col, row)
+#
+#             # inv affine warp
+#             tmp = np.dot(inv_affine_warpings[img_name], np.array([col, row, 1.]).reshape((3, 1)))
+#             col = tmp[0, 0]
+#             row = tmp[1, 0]
+#             perspective_line += ' {} {} {}'.format(img_name, col, row)
+#
+#             # modify all_tracks
+#             all_tracks[i]['pixels'][j] = (img_name, col, row)
+#         pinhole_track_lines.append(pinhole_line + '\n')
+#         perspective_track_lines.append(perspective_line + '\n')
+#
+#     np.savetxt(os.path.join(work_dir, 'register/normalized_coordinates.txt'), normalized,
+#                header='# format: x, y, z, reproj_err')
+#     with open(os.path.join(work_dir, 'register/tracks_in_sfm_pinhole.txt'), 'w') as fp:
+#         fp.writelines(pinhole_track_lines)
+#
+#     with open(os.path.join(work_dir, 'register/tracks_in_sfm_perspective.txt'), 'w') as fp:
+#         fp.writelines(perspective_track_lines)
+#
+#     # tracks
+#     all_tracks = [track['pixels'] for track in all_tracks]
+#
+#     return all_tracks
 
 
 def run_triangulation(result_file, work_dir, track_file, tmp_file):
@@ -118,56 +118,58 @@ def run_triangulation(result_file, work_dir, track_file, tmp_file):
     logging.info('process {} done, triangulated {} points'.format(pid, cnt))
 
 
-def triangualte_all_points(work_dir):
-    register_subdir = os.path.join(work_dir, 'register')
-    if not os.path.exists(register_subdir):
-        os.mkdir(register_subdir)
-    tmp_subdir = os.path.join(work_dir, 'tmp')
-    if not os.path.exists(tmp_subdir):
-        os.mkdir(tmp_subdir)
+def triangualte_all_points(work_dir, track_file, out_dir):
+    tmp_dir = os.path.join(work_dir, 'tmp')
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
 
-    all_tracks = read_sfm_pinhole(work_dir)
+    with open(track_file) as fp:
+        all_tracks = json.load(fp)
 
-    process_cnt = 10
-    processes = []
+    pid = os.getpid()
+
     # split all_tracks into multiple chunks
+    process_cnt = 10
+    process_list = []
+
     chunk_size = int(len(all_tracks) / process_cnt)
     chunks = [[j*chunk_size, (j+1)*chunk_size] for j in range(process_cnt)]
     chunks[-1][1] = len(all_tracks)
+    track_file_list = []
+    result_file_list = []
     for i in range(process_cnt):
-        track_file = os.path.join(work_dir, 'tmp/tracks_{}.txt'.format(i))
+        track_file = os.path.join(tmp_dir, '{}_tracks_{}.txt'.format(pid, i))
+        track_file_list.append(track_file)
         with open(track_file, 'w') as fp:
             idx1 = chunks[i][0]
             idx2 = chunks[i][1]
             json.dump(all_tracks[idx1:idx2], fp)
-        tmp_file = os.path.join(work_dir, 'tmp/tmpfile_{}.txt'.format(i))
-        result_file = os.path.join(work_dir, 'tmp/absolute_{}.npy'.format(i))
+        tmp_file = os.path.join(tmp_dir, '{}_tmpfile_{}.txt'.format(pid, i))
+        result_file = os.path.join(tmp_dir, '{}_absolute_{}.npy'.format(pid, i))
+        result_file_list.append(result_file)
 
-        t = multiprocessing.Process(target=run_triangulation, args=(result_file, work_dir, track_file, tmp_file))
-        processes.append(t)
-        t.start()
+        p = multiprocessing.Process(target=run_triangulation, args=(result_file, work_dir, track_file, tmp_file))
+        process_list.append(p)
+        p.start()
 
-    for one_process in processes:
-        one_process.join()
+    for p in process_list:
+        p.join()
 
     # read result_files
     absolute = []
-    for i in range(process_cnt):
-        absolute.append(np.load(os.path.join(work_dir, 'tmp/absolute_{}.npy'.format(i))))
+    for result_file in result_file_list:
+        absolute.append(np.load(result_file))
     absolute = np.vstack(tuple(absolute))
 
-    np.savetxt(os.path.join(work_dir, 'register/absolute_coordinates.txt'), absolute,
+    np.savetxt(os.path.join(out_dir, 'rpc_absolute_coordinates.txt'), absolute,
                header='# format: easting, northing, height, zone_number, zone_letter (1 for N and -1 for S), reproj_err')
-
-    logging.info('RPC triangulation done, triangulated {} points in total'.format(len(all_tracks)))
 
     # add inspector
     zone_number = absolute[0, 3]
     zone_letter = 'N' if absolute[0, 4] > 0 else 'S'
     comments = ['projection: UTM {}{}'.format(zone_number, zone_letter),]
-
-    np2ply(absolute[:, 0:3], os.path.join(work_dir, 'register/registered_sparse_points.ply'), comments)
-    plot_reproj_err(absolute[:, -1], os.path.join(work_dir, 'register/inspect_rpc_reproj_err.jpg'))
+    np2ply(absolute[:, 0:3], os.path.join(out_dir, 'rpc_absolute_points.ply'), comments)
+    plot_reproj_err(absolute[:, -1], os.path.join(out_dir, 'rpc_reproj_err.jpg'))
 
 
 if __name__ == '__main__':
@@ -184,10 +186,13 @@ if __name__ == '__main__':
                 '/data2/kz298/mvs3dm_result/MasterSequestered2',
                 '/data2/kz298/mvs3dm_result/MasterSequestered3',
                 '/data2/kz298/mvs3dm_result/MasterSequesteredPark']
-    # colmap_dirs = [os.path.join(work_dir, 'colmap') for work_dir in work_dirs]
 
-    import sys
-    logging.getLogger().setLevel(logging.INFO)
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    from lib.logger import GlobalLogger
+    logger = GlobalLogger()
+    logger.turn_on_terminal()
 
-    triangualte_all_points(work_dirs[0])
+    for work_dir in work_dirs:
+        colmap_dir = os.path.join(work_dir, 'colmap')
+        for dir in [os.path.join(colmap_dir, 'inspect/sfm_perspective/sparse'),]:
+            print(dir)
+            triangualte_all_points(work_dir, os.path.join(dir, 'sfm_tracks_for_rpc.json'), dir)

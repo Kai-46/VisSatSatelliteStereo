@@ -85,17 +85,15 @@ class DenseInspector(object):
 
 
 if __name__ == '__main__':
-    #colmap_dir = '/data2/kz298/core3d_result/aoi-d1-wpafb/colmap'
-    #colmap_dir = '/data2/kz298/core3d_result/aoi-d2-wpafb/colmap'
-    #colmap_dir = '/data2/kz298/core3d_result/aoi-d3-ucsd/colmap'
-    #colmap_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap'
-
-    # colmap_dir = '/data2/kz298/mvs3dm_result/Failed_Explorer/colmap'
-
-    # colmap_dir = '/data2/kz298/mvs3dm_result/Succeed_Explorer/colmap'
-
-    mvs3dm_dir = '/data2/kz298/mvs3dm_result/'
-    colmap_dirs = [os.path.join(mvs3dm_dir, item, 'colmap') for item in os.listdir(mvs3dm_dir)]
+    work_dirs = ['/data2/kz298/mvs3dm_result/Explorer',
+                '/data2/kz298/mvs3dm_result/MasterProvisional1',
+                '/data2/kz298/mvs3dm_result/MasterProvisional2',
+                '/data2/kz298/mvs3dm_result/MasterProvisional3',
+                '/data2/kz298/mvs3dm_result/MasterSequestered1',
+                '/data2/kz298/mvs3dm_result/MasterSequestered2',
+                '/data2/kz298/mvs3dm_result/MasterSequestered3',
+                '/data2/kz298/mvs3dm_result/MasterSequesteredPark']
+    colmap_dirs = [os.path.join(work_dir, 'colmap') for work_dir in work_dirs]
 
     for colmap_dir in colmap_dirs:
         print(colmap_dir)

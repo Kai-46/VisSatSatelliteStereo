@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def procrustes(X, Y, scaling=True, reflection='best'):
     """
     A port of MATLAB's `procrustes` function to Numpy.
@@ -106,11 +107,60 @@ def procrustes(X, Y, scaling=True, reflection='best'):
         T = T[:my,:]
     c = muX - b*np.dot(muY, T)
 
-    #transformation values 
+    #transformation values
+    c = c.reshape((1, 3))
     tform = {'rotation':T, 'scale':b, 'translation':c}
 
-
-    # check distance
-    # new_err = np.sum(np.sum((Z - X) ** 2, axis=1))
-
     return d, Z, tform
+
+
+# test the correctness of this algorithm
+def rvs(dim=3):
+     random_state = np.random
+     H = np.eye(dim)
+     D = np.ones((dim,))
+     for n in range(1, dim):
+         x = random_state.normal(size=(dim-n+1,))
+         D[n-1] = np.sign(x[0])
+         x[0] -= D[n-1]*np.sqrt((x*x).sum())
+         # Householder transformation
+         Hx = (np.eye(dim-n+1) - 2.*np.outer(x, x)/(x*x).sum())
+         mat = np.eye(dim)
+         mat[n-1:, n-1:] = Hx
+         H = np.dot(H, mat)
+         # Fix the last sign such that the determinant is 1
+     D[-1] = (-1)**(1-(dim % 2))*D.prod()
+     # Equivalent to np.dot(np.diag(D), H) but faster, apparently
+     H = (D*H.T).T
+     return H
+
+
+if __name__ == '__main__':
+    R = rvs(3)
+    c = (10 * np.random.randn())**2
+    t = 5 * np.random.randn(1, 3)
+
+    cnt = 500
+    input = np.random.randn(cnt, 3)
+    target = np.dot(input, c*R) + np.tile(t, (cnt, 1))
+    _, input_aligned, transform = procrustes(target, input, reflection=False)
+
+    print('ground-truth: ')
+    print('scale: {}'.format(c))
+    print('rotation: \n{}'.format(R))
+    print('translation: {}'.format(t))
+
+    print('\nestimated: ')
+    print('scale: {}'.format(transform['scale']))
+    print('rotation: \n{}'.format(transform['rotation']))
+    print('translation: {}'.format(transform['translation']))
+
+    # check the reproj error
+    err = np.sqrt(np.sum((input - target) ** 2, axis=1))
+    print('\nbefore alignment, mean, median err: {}, {}'.format(np.mean(err), np.median(err)))
+    err = np.sqrt(np.sum((input_aligned - target) ** 2, axis=1))
+    print('after alignment, mean, median err: {}, {}'.format(np.mean(err), np.median(err)))
+
+    input_aligned = np.dot(input, transform['scale'] * transform['rotation']) + np.tile(transform['translation'], (cnt, 1))
+    err = np.sqrt(np.sum((input_aligned - target) ** 2, axis=1))
+    print('after alignment, mean, median err: {}, {}'.format(np.mean(err), np.median(err)))

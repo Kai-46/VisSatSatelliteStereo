@@ -112,8 +112,8 @@ def triangulate(track, rpc_models, affine_models, out_file):
     tmp = utm.from_latlon(final_point[0], final_point[1])
     final_point_utm = [tmp[0], tmp[1], final_point[2], tmp[2], tmp[3]]
 
-    logging.info('init point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
-    logging.info('final point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
+    # logging.info('init point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(init_point, init_point_utm, init_err))
+    # logging.info('final point: lat,lon,alt={}, utm_east,utm_north,alt,zone_number,zone_letter={}, reproj. err.: {}'.format(final_point, final_point_utm, final_err))
 
     return final_point, final_point_utm, final_err
 

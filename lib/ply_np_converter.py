@@ -24,9 +24,11 @@ def np2ply(data, out_ply, comments=None):
         PlyData([el], byte_order='<', comments=comments).write(out_ply)
 
 
-def ply2np(in_ply):
-    vertex = PlyData.read(in_ply)['vertex'].data
+def ply2np(in_ply, return_comments=False):
+    ply = PlyData.read(in_ply)
+    comments = ply.comments
 
+    vertex = ply['vertex'].data
     names = vertex.dtype.names
 
     data = []
@@ -44,7 +46,10 @@ def ply2np(in_ply):
                               vertex['blue'].reshape((-1, 1)))))
 
     data = np.hstack(tuple(data))
-    return data
+    if return_comments:
+        return data, comments
+    else:
+        return data
 
 
 if __name__ == '__main__':

@@ -1,0 +1,393 @@
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1.5\
+                             --StereoFusion.max_depth_error 1e-8\
+                             --StereoFusion.max_traversal_depth 500
+
+{
+	"entries" :
+	{
+		"completeness" : 0.62243921576817951,
+		"cumulative_histogram" :
+		[
+			0.42337166946968618,
+			0.23449127788758772,
+			0.13298594450840168,
+			0.056188668595755456,
+			0.00010808137545013436
+		],
+		"error_median" : 0.39804267883300781,
+		"error_percentile" :
+		[
+			0.069965362548828125,
+			0.17603492736816406,
+			0.39804267883300781,
+			0.92914772033691406,
+			2.7757129669189453,
+			10.31898307800293
+		],
+		"error_rms" : 2.3712455890272062,
+		"reg_shift" :
+		[
+			0.9375,
+			0.859375,
+			0.72509574890136719
+		]
+	}
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1.5\
+                             --StereoFusion.max_depth_error 1e-7\
+                             --StereoFusion.max_traversal_depth 500
+
+{
+	"entries" :
+	{
+		"completeness" : 0.67100414869108704,
+		"cumulative_histogram" :
+		[
+			0.47850900014992903,
+			0.27791413477735544,
+			0.1645854463033681,
+			0.071410743736054397,
+			0.00013096739485126161
+		],
+		"error_median" : 0.46967315673828125,
+		"error_percentile" :
+		[
+			0.08373260498046875,
+			0.21124458312988281,
+			0.46967315673828125,
+			1.1488399505615234,
+			3.5583877563476562,
+			10.963665008544922
+		],
+		"error_rms" : 2.6658078849758167,
+		"reg_shift" :
+		[
+			0.9375,
+			0.625,
+			0.66780281066894531
+		]
+	}
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1.2\
+                             --StereoFusion.max_depth_error 5e-8\
+                             --StereoFusion.max_traversal_depth 500
+
+
+{
+
+	"completeness" : 0.62179892372784706,
+
+	"cumulative_histogram" :
+
+	[
+
+		0.42163156511619176,
+
+		0.23413765205095016,
+
+		0.1330964393539987,
+
+		0.056535722077768039,
+
+		0.00011752204762580979
+
+	],
+
+	"error_median" : 0.39630699157714844,
+
+	"error_percentile" :
+
+	[
+
+		0.069791793823242188,
+
+		0.17593574523925781,
+
+		0.39630699157714844,
+
+		0.92748641967773438,
+
+		2.785736083984375,
+
+		10.357051849365234
+
+	],
+
+	"error_rms" : 2.3800718442459603,
+
+	"reg_shift" :
+
+	[
+
+		0.859375,
+
+		0.78125,
+
+		0.72109413146972656
+
+	]
+
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1\
+                             --StereoFusion.max_depth_error 1e-7\
+                             --StereoFusion.max_traversal_depth 500
+
+
+{
+
+	"completeness" : 0.66993795084842278,
+
+	"cumulative_histogram" :
+
+	[
+
+		0.47024140727884806,
+
+		0.27375131910588607,
+
+		0.16199317989551809,
+
+		0.069967120468162669,
+
+		0.00013561716712744525
+
+	],
+
+	"error_median" : 0.45733642578125,
+
+	"error_percentile" :
+
+	[
+
+		0.081232070922851562,
+
+		0.20492935180664062,
+
+		0.45733642578125,
+
+		1.1251888275146484,
+
+		3.4929161071777344,
+
+		10.900215148925781
+
+	],
+
+	"error_rms" : 2.637759614844474,
+
+	"reg_shift" :
+
+	[
+
+		0.9375,
+
+		0.78125,
+
+		0.66032028198242188
+
+	]
+
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1\
+                             --StereoFusion.max_depth_error 5e-8\
+                             --StereoFusion.max_traversal_depth 500
+
+{
+
+	"completeness" : 0.61922628887183906,
+
+	"cumulative_histogram" :
+
+	[
+
+		0.41992343782110425,
+
+		0.23314353112989336,
+
+		0.13264528668185377,
+
+		0.056307197544413497,
+
+		0.00012024328495909542
+
+	],
+
+	"error_median" : 0.39355850219726562,
+
+	"error_percentile" :
+
+	[
+
+		0.068511962890625,
+
+		0.1744537353515625,
+
+		0.39355850219726562,
+
+		0.92267417907714844,
+
+		2.7735347747802734,
+
+		10.367561340332031
+
+	],
+
+	"error_rms" : 2.3762225744549093,
+
+	"reg_shift" :
+
+	[
+
+		0.78125,
+
+		0.78125,
+
+		0.71961402893066406
+
+	]
+
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 1\
+                             --StereoFusion.max_depth_error 5e-8\
+                             --StereoFusion.max_traversal_depth 100
+
+{
+
+	"completeness" : 0.61922628887183906,
+
+	"cumulative_histogram" :
+
+	[
+
+		0.41992343782110425,
+
+		0.23314353112989336,
+
+		0.13264528668185377,
+
+		0.056307197544413497,
+
+		0.00012024328495909542
+
+	],
+
+	"error_median" : 0.39355850219726562,
+
+	"error_percentile" :
+
+	[
+
+		0.068511962890625,
+
+		0.1744537353515625,
+
+		0.39355850219726562,
+
+		0.92267417907714844,
+
+		2.7735347747802734,
+
+		10.367561340332031
+
+	],
+
+	"error_rms" : 2.3762225744549093,
+
+	"reg_shift" :
+
+	[
+
+		0.78125,
+
+		0.78125,
+
+		0.71961402893066406
+
+	]
+
+}
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 0.8\
+                             --StereoFusion.max_depth_error 1e-8\
+                             --StereoFusion.max_traversal_depth 100
+
+{
+        "entries" :
+        {
+                "completeness" : 0.61067131559230903,
+                "cumulative_histogram" :
+                [
+                        0.41353941107354603,
+                        0.22757931059320316,
+                        0.12872074387866728,
+                        0.054366077980309097,
+                        0.00011535881656485079
+                ],
+                "error_median" : 0.38599777221679688,
+                "error_percentile" :
+                [
+                        0.067829132080078125,
+                        0.1708984375,
+                        0.38599777221679688,
+                        0.89938926696777344,
+                        2.6757907867431641,
+                        10.273080825805664
+                ],
+                "error_rms" : 2.3348387698086923,
+                "reg_shift" :
+                [
+                        0.859375,
+                        0.78125,
+                        0.72509574890136719
+                ]
+        }
+}
+
+
+
+colmap stereo_fusion --workspace_path colmap/mvs \
+                             --output_path colmap/mvs/fused_new.ply \
+                             --input_type geometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 0.5\
+                             --StereoFusion.max_depth_error 1e-8\
+                             --StereoFusion.max_traversal_depth 500

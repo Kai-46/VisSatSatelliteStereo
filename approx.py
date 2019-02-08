@@ -75,15 +75,18 @@ class Approx(object):
 
             col, row = self.rpc_models[i].projection(xx, yy, zz)
 
+            # make sure all the points lie inside the image
+            width = self.rpc_models[i].width
+            height = self.rpc_models[i].height
             keep_mask = np.logical_and(col >= 0, row >= 0)
-            keep_mask = np.logical_and(keep_mask, col < self.rpc_models[i].width)
-            keep_mask = np.logical_and(keep_mask, row < self.rpc_models[i].height)
+            keep_mask = np.logical_and(keep_mask, col < width)
+            keep_mask = np.logical_and(keep_mask, row < height)
             P = solve_affine(xx, yy, zz, col, row, keep_mask)
 
             # write to file
             img_name = self.img_names[i]
             P = list(P.reshape((8,)))
-            affine_dict[img_name] = P
+            affine_dict[img_name] = [width, height] + P
 
         # with open(os.path.join(self.tile_dir, 'affine_latlon.json'), 'w') as fp:
         #     json.dump(affine_dict, fp)
@@ -98,8 +101,8 @@ class Approx(object):
 
         errors_txt = '\nimg_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
 
-        aoi_ul_east = self.aoi_dict['x']
-        aoi_ul_north = self.aoi_dict['y']
+        aoi_ll_east = self.aoi_dict['x']
+        aoi_ll_north = self.aoi_dict['y'] - self.aoi_dict['h']
 
         for i in range(self.cnt):
             region_dict = self.region_dicts[i]
@@ -115,35 +118,42 @@ class Approx(object):
             lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
 
             # create lat_lon_height grid
-            lat_points = np.linspace(ul_lat, lr_lat, 20)
-            lon_points = np.linspace(ul_lon, lr_lon, 20)
-            z_points = np.linspace(self.min_height, self.max_height, 20)
+            # note that this is a left-handed coordinate system
+            xy_axis_grid_points = 20
+            z_axis_grid_points = 20
+            lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
+            lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
+            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
 
             xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
             col, row = self.rpc_models[i].projection(xx, yy, zz)
 
             # create north_east_height grid
-            north_points = np.linspace(ul_north, lr_north, 20)
-            east_points = np.linspace(ul_east, lr_east, 20)
+            # note that this is a left-handed coordinate system
+            north_points = np.linspace(ul_north, lr_north, xy_axis_grid_points)
+            east_points = np.linspace(ul_east, lr_east, xy_axis_grid_points)
 
             xx, yy, zz = gen_grid(north_points, east_points, z_points)
 
-            # change to the common scene coordinate frame
-            # use a smaller number and change to the right-handed coordinate frame
-            xx = aoi_ul_north - xx
-            yy = yy - aoi_ul_east
+            # change to the right-handed coordinate frame and use a smaller number
+            xx_ = yy - aoi_ll_east
+            yy = xx - aoi_ll_north
+            xx = xx_
+            xx_ = None  # free memory
 
             # make sure all the points lie inside the image
+            width = self.rpc_models[i].width
+            height = self.rpc_models[i].height
             keep_mask = np.logical_and(col >= 0, row >= 0)
-            keep_mask = np.logical_and(keep_mask, col < self.rpc_models[i].width)
-            keep_mask = np.logical_and(keep_mask, row < self.rpc_models[i].height)
+            keep_mask = np.logical_and(keep_mask, col < width)
+            keep_mask = np.logical_and(keep_mask, row < height)
 
             K, R, t = solve_perspective(xx, yy, zz, col, row, keep_mask)
 
-            quat = quaternion.from_rotation_matrix(R)
+            qvec = quaternion.from_rotation_matrix(R)
             # fx, fy, cx, cy, s, qvec, t
-            params = [ K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1],
-                       quat.w, quat.x, quat.y, quat.z,
+            params = [width, height, K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1],
+                       qvec.w, qvec.x, qvec.y, qvec.z,
                        t[0, 0], t[1, 0], t[2, 0] ]
 
             img_name = self.img_names[i]

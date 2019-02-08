@@ -101,13 +101,13 @@ def triangulate(track, rpc_models, affine_models, out_file):
     os.remove(tmp_file)
 
     # double check the final_err
-    init_err = compute_reproj_err(rpc_models, track, init)
+    # init_err = compute_reproj_err(rpc_models, track, init)
     final_err = compute_reproj_err(rpc_models, track, final_point)
     # #print('here ceres final_err: {}, python: {}'.format(final_err, tmp))
-    # assert (np.abs(tmp - final_err) < 0.001)
+    # assert (np.abs(init_err - final_err) < 0.001)
 
-    tmp = utm.from_latlon(init_point[0], init_point[1])
-    init_point_utm = [tmp[0], tmp[1], init_point[2], tmp[2], tmp[3]]
+    # tmp = utm.from_latlon(init_point[0], init_point[1])
+    # init_point_utm = [tmp[0], tmp[1], init_point[2], tmp[2], tmp[3]]
 
     tmp = utm.from_latlon(final_point[0], final_point[1])
     final_point_utm = [tmp[0], tmp[1], final_point[2], tmp[2], tmp[3]]

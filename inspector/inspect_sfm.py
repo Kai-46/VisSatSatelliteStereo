@@ -7,31 +7,27 @@ import json
 import numpy as np
 import quaternion
 from inspector.plot_reproj_err import plot_reproj_err
-from colmap.extract_sfm import read_tracks, read_camera_params
+from colmap.extract_sfm import read_tracks
 from inspector.check_reproj_error import check_reproj_error
 from inspector.vector_angle import vector_angle
 from lib.ply_np_converter import np2ply
+import shutil
 
 
-def inspect_sfm(colmap_dir):
-    inspect_dir = os.path.join(colmap_dir, 'inspect')
-    if not os.path.exists(inspect_dir):
-        os.mkdir(inspect_dir)
+def read_camera_params(colmap_cameras, colmap_images):
+    camera_params = {}
 
-    sparse_dir = os.path.join(colmap_dir, 'sfm_perspective/sparse')
-    out_dir = os.path.join(inspect_dir, 'sfm_perspective/sparse')
-    sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PERSPECTIVE')
-    sfm_inspector.inspect_all()
+    for image_id in colmap_images:
+        image = colmap_images[image_id]
 
-    sparse_dir = os.path.join(colmap_dir, 'sfm_perspective/sparse_ba')
-    out_dir = os.path.join(inspect_dir, 'sfm_perspective/sparse_ba')
-    sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PERSPECTIVE')
-    sfm_inspector.inspect_all()
+        img_name = image.name
+        cam = colmap_cameras[image.camera_id]
 
-    sparse_dir = os.path.join(colmap_dir, 'sfm_pinhole/sparse_ba')
-    out_dir = os.path.join(inspect_dir, 'sfm_pinhole/sparse_ba')
-    sfm_inspector = SparseInspector(sparse_dir, out_dir, 'PINHOLE')
-    sfm_inspector.inspect_all()
+        img_size = (cam.width, cam.height)
+
+        camera_params[img_name] = (img_size, cam.params, image.qvec, image.tvec)
+
+    return camera_params
 
 
 class SparseInspector(object):
@@ -67,12 +63,14 @@ class SparseInspector(object):
         img_heights = []
 
         key_point_cnt = []
+        used_key_point_cnt = []
         for image_id in self.images:
             image = self.images[image_id]
 
             # img_id2name.append((image_id, image.name))
             img_names.append(image.name)
             key_point_cnt.append(len(image.xys))
+            used_key_point_cnt.append(np.sum(image.point3D_ids > -0.5))
 
             cam = self.cameras[image.camera_id]
             img_widths.append(cam.width)
@@ -92,6 +90,18 @@ class SparseInspector(object):
         plt.savefig(os.path.join(self.out_dir, 'inspect_key_points.jpg'))
         plt.close()
         #plt.show()
+
+        plt.figure()
+        plt.bar(range(0, self.img_cnt), used_key_point_cnt)
+        plt.xticks(ticks=range(0, self.img_cnt), labels=img_names, rotation=90)
+        plt.ylabel('# of sift features')
+        plt.grid(True)
+        plt.title('total # of images: {}'.format(self.img_cnt))
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(self.out_dir, 'inspect_used_key_points.jpg'))
+        plt.close()
+
 
         plt.figure()
         plt.plot(range(0, self.img_cnt), img_widths, 'b-o', label='width')
@@ -123,26 +133,50 @@ class SparseInspector(object):
                 qvec = self.images[img_id].qvec
                 tvec = self.images[img_id].tvec.reshape((3, 1))
                 R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
-                x = np.dot(R,x) + tvec
-                depth = x[2, 0]
+                x1 = np.dot(R,x) + tvec # do not change x
+                depth = x1[2, 0]
                 if depth > 0:
                     depth_range[img_name].append(depth)
+
+        depth_range_dir = os.path.join(self.out_dir, 'depth_ranges')
+        if os.path.exists(depth_range_dir):
+            shutil.rmtree(depth_range_dir, ignore_errors=True)
+        os.mkdir(depth_range_dir)
+        for img_name in depth_range:
+            plt.figure(figsize=(14, 5), dpi=80)
+            tmp = np.array(depth_range[img_name])
+            if tmp.size > 0:
+                plt.hist(tmp, bins=100, density=True)
+                tmp_min = np.min(tmp)
+                tmp_max = np.max(tmp)
+                plt.xticks(np.linspace(tmp_min, tmp_max, 10))
+                plt.ylabel('pdf')
+                plt.xlabel('depth (meters)')
+                plt.title('depth, min: {}, max: {}, range: {} meters'.format(tmp_min, tmp_max, tmp_max - tmp_min))
+                plt.grid(True)
+                plt.tight_layout()
+                plt.savefig(os.path.join(depth_range_dir, '{}.depth_range.jpg'.format(img_name)))
+                plt.close()
 
         for img_name in depth_range:
             if depth_range[img_name]:
                 tmp = sorted(depth_range[img_name])
                 cnt = len(tmp)
-                min_depth = tmp[int(0.01 * cnt)] * (1 - 0.25)
-                max_depth = tmp[int(0.99 * cnt)] * (1 + 0.25)
-                depth_range[img_name] = (min_depth, max_depth)
+                colmap_min_depth = tmp[int(0.01 * cnt)] * (1 - 0.25)
+                colmap_max_depth = tmp[int(0.99 * cnt)] * (1 + 0.25)
+                min_depth = tmp[int(0.01*cnt)]
+                max_depth = tmp[int(0.99*cnt)]
+                median_depth = tmp[int(0.5*cnt)]
+                mean_depth = np.mean(tmp)
+                depth_range[img_name] = (colmap_min_depth, colmap_max_depth, min_depth, max_depth, median_depth, mean_depth)
             else:
-                depth_range[img_name] = (0, 0)
+                depth_range[img_name] = (0., 0., 0., 0., 0., 0.)
 
         with open(os.path.join(self.out_dir, 'inspect_depth_range.txt'), 'w') as fp:
-            fp.write('# format: img_name, min_depth, max_depth\n')
+            fp.write('# format: img_name, colmap_min_depth, colmap_max_depth, min_depth, max_depth, range, median_depth, mean_depth\n')
             for img_name in sorted(depth_range.keys()):
-                min_depth, max_depth = depth_range[img_name]
-                fp.write('{} {} {}\n'.format(img_name, min_depth, max_depth))
+                colmap_min_depth, colmap_max_depth, min_depth, max_depth, median_depth, mean_depth = depth_range[img_name]
+                fp.write('{} {} {} {} {} {} {} {}\n'.format(img_name, colmap_min_depth, colmap_max_depth, min_depth, max_depth, max_depth - min_depth, median_depth, mean_depth))
             fp.write('\n')
 
     def inspect_reproj_err(self):
@@ -165,9 +199,9 @@ class SparseInspector(object):
                 fp.write(line)
 
         # track_file for rpc triangulation
-        tracks = [track['pixels'] for track in self.all_tracks]
-        with open(os.path.join(self.out_dir, 'sfm_tracks_for_rpc.json'), 'w') as fp:
-            json.dump(tracks, fp)
+        # tracks = [track['pixels'] for track in self.all_tracks]
+        # with open(os.path.join(self.out_dir, 'sfm_tracks_for_rpc.json'), 'w') as fp:
+        #     json.dump(tracks, fp)
 
         with open(os.path.join(self.out_dir, 'sfm_camera_parameters.txt'), 'w') as fp:
             if self.camera_model == 'PINHOLE':
@@ -211,10 +245,15 @@ class SparseInspector(object):
     def inspect_scene_points(self):
         points = np.array([track['xyz'] + (track['err'],) for track in self.all_tracks])
 
-        np.savetxt(os.path.join(self.out_dir, 'sfm_coordinates.txt'), points,
-                   header='# format: x, y, z, reproj_err')
+        # np.savetxt(os.path.join(self.out_dir, 'sfm_coordinates.txt'), points,
+        #            header='# format: x, y, z, reproj_err')
 
         np2ply(points[:, 0:3], os.path.join(self.out_dir, 'sfm_points.ply'))
+        with open(os.path.join(self.out_dir, 'sfm_points_bbx.txt'), 'w') as fp:
+            fp.write('x_min, x_max: {}, {}\n'.format(np.min(points[:, 0]), np.max(points[:, 0])))
+            fp.write('y_min, y_max: {}, {}\n'.format(np.min(points[:, 1]), np.max(points[:, 1])))
+            fp.write('z_min, z_max: {}, {}\n'.format(np.min(points[:, 2]), np.max(points[:, 2])))
+
 
     def inspect_angles(self):
         cam_center_positions = []
@@ -224,11 +263,16 @@ class SparseInspector(object):
         img_updown_angles = []
 
         img_angle_variations = []
-
+        all_rotations = []
+        all_translations = []
         for img_name in sorted(self.camera_params.keys()):
             img_size, intrinsic, qvec, tvec = self.camera_params[img_name]
             R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
             t = np.reshape(tvec, (3, 1))
+
+            all_rotations.append(R)
+            all_translations.append(t)
+
             cam_center_positions.append(np.dot(R.T, -t))
 
             if self.camera_model == 'PINHOLE':
@@ -258,6 +302,7 @@ class SparseInspector(object):
 
             img_angle_variations.append(max([img_leftright_angles[-1], img_updown_angles[-1]]))
 
+
         # compute pair-wise angles
         cnt = len(cam_center_positions)
         plt.figure(figsize=(14, 8))
@@ -272,6 +317,27 @@ class SparseInspector(object):
         plt.title('field of view')
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'field_of_view.jpg'))
+        plt.close()
+
+        # compute pair-wise motions
+        pairwise_motions = np.zeros((cnt, cnt))
+        for i in range(cnt):
+            for j in range(cnt):
+                # j with respect to i
+                relative_translation = -np.dot(np.dot(all_rotations[i], all_rotations[j].T), all_translations[j]) + all_translations[i]
+                pairwise_motions[i, j] = relative_translation[2, 0]
+        plt.figure(figsize=(14, 10))
+        plt.imshow(pairwise_motions, cmap='magma')
+        plt.colorbar()
+
+        # plt.show()
+        plt.xticks(range(0, cnt, 1))
+        plt.xlabel('image index')
+        plt.yticks(range(0, cnt, 1))
+        plt.ylabel('image index')
+        plt.title('pairwise forward motions (meters)')
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.out_dir, 'pairwise_forward_motions.jpg'))
         plt.close()
 
         # convert to unit vector
@@ -333,4 +399,4 @@ if __name__ == '__main__':
     colmap_dirs = [os.path.join(work_dir, 'colmap') for work_dir in work_dirs]
 
     for colmap_dir in colmap_dirs:
-        inspect_sfm(colmap_dir)
+        pass

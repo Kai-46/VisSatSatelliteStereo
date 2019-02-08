@@ -10,10 +10,10 @@
     "h": 368.2053341027349
   },
   "steps_to_run": {
-    "cut_image": false,
-    "derive_approx": false,
-    "colmap_sfm": false,
-    "colmap_mvs": false,
+    "cut_image": true,
+    "derive_approx": true,
+    "colmap_sfm": true,
+    "colmap_mvs": true,
     "register": true,
     "evaluate": true
   },

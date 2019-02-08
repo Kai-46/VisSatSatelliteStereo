@@ -7,11 +7,11 @@ import logging
 import shutil
 from colmap.read_model import read_model
 from lib.warp_affine import warp_affine
-import colmap_subdirs
+from bak import colmap_sfm
 
 
-def prep_for_sfm_perspective(tile_dir, colmap_dir):
-    colmap_subdirs.make_subdirs(colmap_dir)
+def prep_for_sfm_perspective(work_dir, colmap_dir):
+    colmap_sfm.make_subdirs(colmap_dir)
 
     sfm_dir = os.path.join(colmap_dir, 'sfm_perspective')
 
@@ -24,45 +24,17 @@ def prep_for_sfm_perspective(tile_dir, colmap_dir):
     image_subdir = os.path.join(sfm_dir, 'images')
     if os.path.exists(image_subdir):
         shutil.rmtree(image_subdir, ignore_errors=True)
-    shutil.copytree(os.path.join(tile_dir, 'images'), image_subdir)
+    shutil.copytree(os.path.join(work_dir, 'images'), image_subdir)
 
     # write init files
-    init_subdir = os.path.join(sfm_dir, 'init')
-    with open(os.path.join(tile_dir, 'approx_perspective_utm.json')) as fp:
-        perspective_dict = json.load(fp)
-
-    template = {}
-
-    cameras_line_template = '{camera_id} PERSPECTIVE {width} {height} {fx} {fy} {cx} {cy} {s}\n'
-    images_line_template = '{image_id} {qw} {qx} {qy} {qz} {tx} {ty} {tz} {camera_id} {image_name}\n\n'
-
-    for img_name in os.listdir(image_subdir):
-        # fx, fy, cx, cy, s, qvec, t
-        params = perspective_dict[img_name]
-        fx = params[0]
-        fy = params[1]
-        cx = params[2]
-        cy = params[3]
-        s = params[4]
-        qvec = params[5:9]
-        tvec = params[9:12]
-
-        img = imageio.imread(os.path.join(image_subdir, img_name))
-        h, w = img.shape
-
-        # write_to_template
-        cam_line = cameras_line_template.format(camera_id="{camera_id}", width=w, height=h,
-                                               fx=fx, fy=fy, cx=cx, cy=cy, s=s)
-        img_line = images_line_template.format(image_id="{image_id}", qw=qvec[0], qx=qvec[1], qy=qvec[2], qz=qvec[3],
-                                            tx=tvec[0], ty=tvec[1], tz=tvec[2], camera_id="{camera_id}", image_name=img_name)
-        template[img_name] = (cam_line, img_line)
-
-    with open(os.path.join(init_subdir, 'template.json'), 'w') as fp:
-         json.dump(template, fp, indent=2)
+    # with open(os.path.join(tile_dir, 'approx_perspective_utm.json')) as fp:
+    #     perspective_dict = json.load(fp)
+    #
+    # write_template_perspective(perspective_dict, os.path.join(sfm_dir, 'init_template.json'))
 
 
 def prep_for_sfm_pinhole(colmap_dir):
-    colmap_subdirs.make_subdirs(colmap_dir)
+    colmap_sfm.make_subdirs(colmap_dir)
 
     # delete the database, otherwise colmap will skip the feature extraction step
     # db_path = os.path.join(colmap_dir, 'sfm_pinhole/database.db')

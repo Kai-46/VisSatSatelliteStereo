@@ -80,7 +80,7 @@ def run_triangulation(result_file, work_dir, track_file, tmp_file):
     rpc_dict = {}
     for img_name in affine_dict:
         # projection matrix
-        affine_dict[img_name] = np.array(affine_dict[img_name]).reshape((2, 4))
+        affine_dict[img_name] = np.array(affine_dict[img_name][2:]).reshape((2, 4))
 
         meta_file = os.path.join(work_dir, 'metas/{}.json'.format(img_name[:-4]))
         with open(meta_file) as fp:
@@ -118,8 +118,7 @@ def run_triangulation(result_file, work_dir, track_file, tmp_file):
     logging.info('process {} done, triangulated {} points'.format(pid, cnt))
 
 
-def triangualte_all_points(work_dir, track_file, out_dir):
-    tmp_dir = os.path.join(work_dir, 'tmp')
+def triangualte_all_points(work_dir, track_file, out_file, tmp_dir):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
@@ -161,15 +160,21 @@ def triangualte_all_points(work_dir, track_file, out_dir):
         absolute.append(np.load(result_file))
     absolute = np.vstack(tuple(absolute))
 
-    np.savetxt(os.path.join(out_dir, 'rpc_absolute_coordinates.txt'), absolute,
+    np.savetxt(out_file, absolute,
                header='# format: easting, northing, height, zone_number, zone_letter (1 for N and -1 for S), reproj_err')
 
+    # remove all track_file
+    for track_file in track_file_list:
+        os.remove(track_file)
+    for result_file in result_file_list:
+        os.remove(result_file)
+
     # add inspector
-    zone_number = absolute[0, 3]
-    zone_letter = 'N' if absolute[0, 4] > 0 else 'S'
-    comments = ['projection: UTM {}{}'.format(zone_number, zone_letter),]
-    np2ply(absolute[:, 0:3], os.path.join(out_dir, 'rpc_absolute_points.ply'), comments)
-    plot_reproj_err(absolute[:, -1], os.path.join(out_dir, 'rpc_reproj_err.jpg'))
+    # zone_number = absolute[0, 3]
+    # zone_letter = 'N' if absolute[0, 4] > 0 else 'S'
+    # comments = ['projection: UTM {}{}'.format(zone_number, zone_letter),]
+    # np2ply(absolute[:, 0:3], os.path.join(out_dir, 'rpc_absolute_points.ply'), comments)
+    # plot_reproj_err(absolute[:, -1], os.path.join(out_dir, 'rpc_reproj_err.jpg'))
 
 
 if __name__ == '__main__':
@@ -195,4 +200,4 @@ if __name__ == '__main__':
         colmap_dir = os.path.join(work_dir, 'colmap')
         for dir in [os.path.join(colmap_dir, 'inspect/sfm_perspective/sparse'),]:
             print(dir)
-            triangualte_all_points(work_dir, os.path.join(dir, 'sfm_tracks_for_rpc.json'), dir)
+            # triangualte_all_points(work_dir, os.path.join(dir, 'sfm_tracks_for_rpc.json'), dir)

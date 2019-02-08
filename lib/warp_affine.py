@@ -17,16 +17,16 @@ def warp_affine(img_src, affine_matrix, no_blank_margin=True):
         col = np.sort(bbx[0, :])
         row = np.sort(bbx[1, :])
 
-        col_min = int(col[1])
-        row_min = int(row[1])
-        w = int(col[2] - col[1] + 1)
-        h = int(row[2] - row[1] + 1)
+        # leave some small margin
+        col_min = int(col[1]) + 3
+        row_min = int(row[1]) + 3
+        w = int(col[2]) - col_min - 3
+        h = int(row[2]) - row_min - 3
     else:
         col_min = np.min(bbx[0, :])
         col_max = np.max(bbx[0, :])
         row_min = np.min(bbx[1, :])
         row_max = np.max(bbx[1, :])
-
 
         w = int(np.round(col_max - col_min + 1))
         h = int(np.round(row_max - row_min + 1))

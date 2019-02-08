@@ -3,7 +3,7 @@ import json
 from lib.clean_data import clean_data
 from tile_cutter import TileCutter
 from approx import Approx
-from prep_for_colmap import prep_for_sfm, prep_for_mvs, create_init_files
+# from colmap_sfm_helper import prep_for_sfm, prep_for_mvs, create_init_files
 from lib.georegister_dense import georegister_dense
 import shutil
 import logging

@@ -5,11 +5,13 @@ import os
 import imageio
 from lib.warp_affine import warp_affine
 from colmap.extract_sfm import extract_all_tracks
+import shutil
 
 
 def remove_skew(perspective_img_dir, perspective_file, pinhole_img_dir, pinhole_file, warping_file):
-    if not os.path.exists(pinhole_img_dir):
-        os.mkdir(pinhole_img_dir)
+    if os.path.exists(pinhole_img_dir):
+        shutil.rmtree(pinhole_img_dir, ignore_errors=True)
+    os.mkdir(pinhole_img_dir)
 
     with open(perspective_file) as fp:
         perspective_dict = json.load(fp)

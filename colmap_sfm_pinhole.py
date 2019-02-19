@@ -30,7 +30,7 @@ def make_subdirs(sfm_dir):
 def check_sfm(work_dir, sfm_dir, warping_file):
     subdirs = [
                 os.path.join(sfm_dir, 'init_triangulate'),
-                os.path.join(sfm_dir, 'init_triangulate_ba')
+                # os.path.join(sfm_dir, 'init_triangulate_ba')
     ]
 
     for dir in subdirs:
@@ -85,9 +85,9 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template)
 
     # global bundle adjustment, this might not be useful, just left here for comparison
-    in_dir = os.path.join(sfm_dir, 'init_triangulate')
-    out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
-    colmap_sfm_commands.run_global_ba(in_dir, out_dir)
+    # in_dir = os.path.join(sfm_dir, 'init_triangulate')
+    # out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
+    # colmap_sfm_commands.run_global_ba(in_dir, out_dir)
 
     # write final camera_dict
     camera_dict = extract_camera_dict(out_dir)
@@ -95,10 +95,16 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
         json.dump(camera_dict, fp, indent=2, sort_keys=True)
 
     # normalize for the MVS
+    # colmap_dir = os.path.join(work_dir, 'colmap')
+    # in_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
+    # out_dir = os.path.join(colmap_dir, 'sparse_for_mvs')
+    # tform_file = os.path.join(colmap_dir, 'normalize.txt')
+    # if not os.path.exists(out_dir):
+    #     os.mkdir(out_dir)
+    # colmap_sfm_commands.run_normalize(in_dir, out_dir, tform_file)
+
+    # make a symbolic link here
     colmap_dir = os.path.join(work_dir, 'colmap')
-    in_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
-    out_dir = os.path.join(colmap_dir, 'sparse_for_mvs')
-    tform_file = os.path.join(colmap_dir, 'normalize.txt')
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
-    colmap_sfm_commands.run_normalize(in_dir, out_dir, tform_file)
+    if os.path.exists(os.path.join(colmap_dir, 'sparse_for_mvs')):
+        os.unlink(os.path.join(colmap_dir, 'sparse_for_mvs'))
+    os.symlink(os.path.join(sfm_dir, 'init_triangulate'), os.path.join(colmap_dir, 'sparse_for_mvs'))

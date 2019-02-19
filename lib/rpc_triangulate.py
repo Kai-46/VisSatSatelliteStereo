@@ -85,8 +85,10 @@ def triangulate(track, rpc_models, affine_models, out_file):
 
     # triangulate
     tmp_file = '{}.result.txt'.format(out_file)
-    run_cmd('/home/cornell/kz298/remote_dir/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(out_file, tmp_file), disable_log=True)
+    run_cmd('/data2/kz298/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(out_file, tmp_file), disable_log=True)
 
+    #run_cmd('/home/kai/satellite_stereo/satellite_stereo/multi_rpc_triangule/multi_rpc_triangulate {} {}'.format(
+    #    out_file, tmp_file), disable_log=True)
     # read result
     with open(out_file) as fp:
         lines = fp.readlines()

@@ -1,6 +1,6 @@
 {
   "dataset_dir": "/data2/kz298/dataset/mvs3dm/WV3/PAN",
-  "work_dir": "/data2/kz298/mvs3dm_result/Explorer",
+  "work_dir": "/home/kai/satellite_stereo/Explorer_subset",
   "bounding_box": {
     "zone_number": 21,
     "zone_letter": "H",
@@ -12,11 +12,11 @@
   "steps_to_run": {
     "cut_image": false,
     "derive_approx": false,
-    "colmap_sfm": true,
-    "colmap_mvs": true,
-    "colmap_fuse": true,
+    "colmap_sfm": false,
+    "colmap_mvs": false,
+    "colmap_fuse": false,
     "register": true,
-    "evaluate": true
+    "evaluate": false
   },
   "ground_truth": "/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/Explorer.tif"
 }

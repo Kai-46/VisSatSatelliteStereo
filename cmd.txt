@@ -391,3 +391,115 @@ colmap stereo_fusion --workspace_path colmap/mvs \
                              --StereoFusion.max_reproj_error 0.5\
                              --StereoFusion.max_depth_error 1e-8\
                              --StereoFusion.max_traversal_depth 500
+
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 9 \
+                        --PatchMatchStereo.filter 0 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 18.0 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.filter_min_ncc 0.03 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 15 \
+                        --PatchMatchStereo.num_iterations 10
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 9 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 18.0 \
+                        --PatchMatchStereo.filter_min_ncc 0.02 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 15 \
+                        --PatchMatchStereo.num_iterations 10
+
+colmap stereo_fusion --workspace_path mvs \
+                             --output_path mvs/fused_new.ply \
+                             --input_type photometric \
+                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.max_reproj_error 3\
+                             --StereoFusion.max_depth_error 5e-3
+
+colmap stereo_fusion --workspace_path mvs \
+                        --output_path mvs/fused_new.ply  \
+                        --input_type photometric \
+                        --StereoFusion.min_num_pixels 2 \
+                        --StereoFusion.max_reproj_error 3 \
+                        --StereoFusion.max_depth_error 0.02
+
+# surface normal estimation is very inaccurate
+colmap stereo_fusion --workspace_path mvs \
+                      --output_path mvs/fused_new.ply   \
+                      --input_type photometric \
+                      --StereoFusion.min_num_pixels 2     \
+                      --StereoFusion.max_reproj_error 3    \
+                      --StereoFusion.max_depth_error 0.03 \
+                      --StereoFusion.max_normal_error 50
+
+colmap stereo_fusion --workspace_path mvs \
+                      --output_path mvs/fused_new.ply   \
+                      --input_type geometric \
+                      --StereoFusion.min_num_pixels 2     \
+                      --StereoFusion.max_reproj_error 3    \
+                      --StereoFusion.max_depth_error 0.03 \
+                      --StereoFusion.max_normal_error 50
+
+
+colmap stereo_fusion --workspace_path mvs \
+                      --output_path mvs/fused_new.ply   \
+                      --input_type photometric \
+                      --StereoFusion.min_num_pixels 2     \
+                      --StereoFusion.max_reproj_error 3    \
+                      --StereoFusion.max_depth_error 0.03 \
+                      --StereoFusion.max_normal_error 90
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 5 \
+                        --PatchMatchStereo.min_triangulation_angle 18.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 17.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.1 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.gpu_index=1,2 \
+                        --PatchMatchStereo.num_samples 30 \
+                        --PatchMatchStereo.num_iterations 10
+
+
+colmap stereo_fusion --workspace_path mvs \
+                             --output_path mvs/fused.ply \
+                             --input_type photometric \
+                             --StereoFusion.min_num_pixels 5\
+                             --StereoFusion.max_reproj_error 2\
+                             --StereoFusion.max_depth_error 0.02\
+                             --StereoFusion.max_normal_error 60
+
+
+# debug
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 1 \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.03 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 1 \
+                         --PatchMatchStereo.filter_geom_consistency_max_cost 3 \
+                         --PatchMatchStereo.geom_consistency_regularizer 0.3 \
+                         --PatchMatchStereo.geom_consistency_max_cost 6
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 2 \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.1 \
+                        --PatchMatchStereo.geom_consistency 1 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 10 \
+                        --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
+                        --PatchMatchStereo.geom_consistency_regularizer 0.3 \
+                        --PatchMatchStereo.geom_consistency_max_cost 3 \
+                        --PatchMatchStereo.filter_min_num_consistent 2

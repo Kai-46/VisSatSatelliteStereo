@@ -11,10 +11,13 @@ def height_range(rpc_models):
         tmp = rpc_models[i].altOff + 0.7 * rpc_models[i].altScale
         z_max_list.append(tmp)
     # take intersection
-    z_min = max(z_min_list)
-    z_max = min(z_max_list)
+    # z_min = max(z_min_list)
+    # z_max = min(z_max_list)
 
     # manually set for mvs3dm dataset
+    # z_min = 0
+    # z_max = 100
+
     z_min = 10
     z_max = 80
 

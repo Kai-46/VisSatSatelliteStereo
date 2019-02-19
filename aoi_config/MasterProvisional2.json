@@ -14,6 +14,7 @@
     "derive_approx": true,
     "colmap_sfm": true,
     "colmap_mvs": true,
+    "colmap_fuse": true,
     "register": true,
     "evaluate": true
   },

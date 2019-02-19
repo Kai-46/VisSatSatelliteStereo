@@ -12,7 +12,7 @@ from lib.run_cmd import run_cmd
 from lib.timer import Timer
 import numpy as np
 from lib.logger import GlobalLogger
-
+from reparam_depth import reparam_depth
 
 
 class StereoPipeline(object):
@@ -196,9 +196,14 @@ class StereoPipeline(object):
 
         # need to delete mvs
         mvs_dir = os.path.join(colmap_dir, 'mvs')
-        if os.path.exists(mvs_dir):
-            shutil.rmtree(mvs_dir, ignore_errors=True)
-        os.mkdir(mvs_dir)
+        for subdir in [os.path.join(mvs_dir, 'images'),
+                       os.path.join(mvs_dir, 'sparse'),
+                       os.path.join(mvs_dir, 'stereo')]:
+            if os.path.exists(subdir):
+                shutil.rmtree(subdir, ignore_errors=True)
+
+        if not os.path.exists(mvs_dir):
+            os.mkdir(mvs_dir)
 
         # prepare dense workspace
         cmd = 'colmap image_undistorter --max_image_size 5000 \
@@ -207,16 +212,46 @@ class StereoPipeline(object):
                             --output_path {colmap_dir}/mvs'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
+        # compute depth ranges and generate last_rows.txt
+        reparam_depth(os.path.join(mvs_dir, 'sparse'), mvs_dir)
+
         # PMVS
+        # no need to use geom_consistency
+        # depth is the inverse of the actual height
+        # cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
+        #                 --PatchMatchStereo.window_radius 1 \
+        #                 --PatchMatchStereo.min_triangulation_angle 25.0 \
+        #                 --PatchMatchStereo.filter 1 \
+        #                 --PatchMatchStereo.sigma_spatial 1.0 \
+        #                 --PatchMatchStereo.sigma_color 0.2 \
+        #                 --PatchMatchStereo.filter_min_triangulation_angle 24.999 \
+        #                 --PatchMatchStereo.filter_min_ncc 0.2 \
+        #                 --PatchMatchStereo.geom_consistency 0 \
+        #                 --PatchMatchStereo.depth_min 0.01 \
+        #                 --PatchMatchStereo.depth_max 0.1 \
+        #                 --PatchMatchStereo.gpu_index=1,2 \
+        #                 --PatchMatchStereo.num_samples 30 \
+        #                 --PatchMatchStereo.num_iterations 14'.format(colmap_dir=colmap_dir)
         cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
-                        --PatchMatchStereo.window_radius 9 \
-                        --PatchMatchStereo.filter_min_triangulation_angle 24.999 \
+                        --PatchMatchStereo.window_radius 2 \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.1 \
                         --PatchMatchStereo.geom_consistency 1 \
-                        --PatchMatchStereo.filter_min_ncc 0.03 \
-                        --PatchMatchStereo.gpu_index=1,2 \
-                        --PatchMatchStereo.num_samples 30 \
-                        --PatchMatchStereo.num_iterations 12'.format(colmap_dir=colmap_dir)
+                        --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
+                        --PatchMatchStereo.geom_consistency_regularizer 0.5 \
+                        --PatchMatchStereo.geom_consistency_max_cost 5 \
+                        --PatchMatchStereo.filter_min_num_consistent 2 \
+                        --PatchMatchStereo.gpu_index=0,2 \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 10'.format(colmap_dir=colmap_dir)
+        # for debugging
         run_cmd(cmd)
+
+        # add inspector
+        from convert_depth_maps import convert_depth_maps
+        convert_depth_maps(mvs_dir, os.path.join(mvs_dir, 'height_maps'))
 
         # stop local timer
         local_timer.mark('Colmap MVS done')
@@ -227,7 +262,7 @@ class StereoPipeline(object):
         # prepare dense reconstruction
         colmap_dir = os.path.join(work_dir, 'colmap')
 
-        # set log file
+        # set log file2303787
         log_file = os.path.join(work_dir, 'logs/log_fuse.txt')
         self.logger.set_log_file(log_file)
         # create a local timer
@@ -235,19 +270,20 @@ class StereoPipeline(object):
         local_timer.start()
 
         # stereo fusion
+        # colmap's estimation of surface normal is very inaccurate
+        # therefore we completely ignore the surface normal during fusion
         cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/mvs \
                              --output_path {colmap_dir}/mvs/fused.ply \
                              --input_type geometric \
-                             --StereoFusion.min_num_pixels 3\
+                             --StereoFusion.min_num_pixels 2\
                              --StereoFusion.max_reproj_error 1\
-                             --StereoFusion.max_depth_error 1e-7\
-                             --StereoFusion.max_traversal_depth 500'.format(colmap_dir=colmap_dir)
+                             --StereoFusion.max_depth_error 0.4\
+                             --StereoFusion.max_normal_error 10'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # stop local timer
         local_timer.mark('Colmap Fusion done')
         logging.info(local_timer.summary())
-
 
     def run_registration(self):
         work_dir = self.config['work_dir']
@@ -267,12 +303,15 @@ class StereoPipeline(object):
         # alignment
         # from align_rpc import compute_transform
         # M, t = compute_transform(work_dir)
-        with open(os.path.join(colmap_dir, 'normalize.txt')) as fp:
-            lines = fp.readlines()
-            translation = [float(x) for x in lines[1].strip().split(' ')]
-            scale = float(lines[3].strip())
-        M = np.identity(3) / scale
-        t = np.array(translation).reshape((1, 3))
+        # with open(os.path.join(colmap_dir, 'normalize.txt')) as fp:
+        #     lines = fp.readlines()
+        #     translation = [float(x) for x in lines[1].strip().split(' ')]
+        #     scale = float(lines[3].strip())
+        # M = np.identity(3) / scale
+        # t = np.array(translation).reshape((1, 3))
+
+        M = np.identity(3)
+        t = np.zeros((1, 3))
 
         # add global shift
         with open(os.path.join(work_dir, 'aoi.json')) as fp:
@@ -307,18 +346,30 @@ class StereoPipeline(object):
         local_timer = Timer('Evaluation Module')
         local_timer.start()
 
+        ground_truth = self.config['ground_truth']
+        eval_ground_truth = '{evaluate_dir}/eval_ground_truth.tif'.format(evaluate_dir=evaluate_dir)
+        shutil.copy2(ground_truth, eval_ground_truth)
+
+        # normalize as png
+        cmd = 'gdal_translate -ot Byte -tr 0.5 0.5 -of png -scale 15 32 0 255 {evaluate_dir}/eval_ground_truth.tif {evaluate_dir}/eval_ground_truth.tif.png'.format(evaluate_dir=evaluate_dir)
+        run_cmd(cmd)
+
+        # get the covered area the ground truth
+        import subprocess, json
+        process = subprocess.Popen(['gdalinfo', '-json', eval_ground_truth], stdout=subprocess.PIPE)
+        out, err = process.communicate()
+        meta = json.loads(out)
+
+        aoi_ul_east, aoi_ul_north = meta['cornerCoordinates']['upperLeft']
+        aoi_lr_east, aoi_lr_north = meta['cornerCoordinates']['lowerRight']
+        aoi_width = aoi_lr_east - aoi_ul_east
+        aoi_height = aoi_ul_north - aoi_lr_north
+
         # flatten the point cloud
         # there's some problem here
-        with open(os.path.join(work_dir, 'aoi.json')) as fp:
-            aoi_dict = json.load(fp)
-
-        # offset is the lower left
-        ul_east = aoi_dict['x']
-        ul_north = aoi_dict['y']
-
         for resolution in [0.3, 0.5]:
-            width = int(1 + np.floor(aoi_dict['w'] / resolution))
-            height = int(1 + np.floor(aoi_dict['h'] / resolution))
+            width = int(1 + np.floor(aoi_width / resolution))
+            height = int(1 + np.floor(aoi_height / resolution))
 
             #
             eval_point_cloud = '{evaluate_dir}/eval_point_cloud.ply'.format(evaluate_dir=evaluate_dir)
@@ -331,8 +382,12 @@ class StereoPipeline(object):
             # flatten point cloud
             cmd = '/home/cornell/kz298/s2p/bin/plyflatten {resolution} {eval_dsm} \
                                 -srcwin "{xoff} {yoff} {xsize} {ysize}"'.format(resolution=resolution, eval_dsm=eval_dsm,
-                                xoff=ul_east, yoff=ul_north, xsize=width, ysize=height)
+                                xoff=aoi_ul_east, yoff=aoi_ul_north, xsize=width, ysize=height)
             run_cmd(cmd, input=eval_point_cloud)
+
+            # normalize as png
+            cmd = 'gdal_translate -ot Byte -of png -scale 15 32 0 255 {eval_dsm} {eval_dsm_png}'.format(eval_dsm=eval_dsm, eval_dsm_png=eval_dsm + '.png')
+            run_cmd(cmd)
 
         # evaluate for core3d
         # cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
@@ -340,11 +395,6 @@ class StereoPipeline(object):
         # run_cmd(cmd)
 
         # evaluate for mvs3dm
-        ground_truth = self.config['ground_truth']
-
-        eval_ground_truth = '{evaluate_dir}/eval_ground_truth.tif'.format(evaluate_dir=evaluate_dir)
-        shutil.copy2(ground_truth, eval_ground_truth)
-
         cmd = '/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
               --cthreshold 1 \
               -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)

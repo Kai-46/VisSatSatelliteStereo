@@ -16,6 +16,117 @@ import logging
 from lib.robust_bbx import robust_bbx
 import shutil
 
+import multiprocessing
+
+
+def tilecutter_job(ntf_list, xml_list, roi_dict, min_height, max_height, out_dir):
+    pid = os.getpid()
+
+    logging.info('running tilecutter job {}, total images to process: {}, output dir: {}'
+                 .format(pid, len(ntf_list), out_dir))
+
+    meta_dicts = [parse_meta(xml_file) for xml_file in xml_list]
+    rpc_models = [RPCModel(meta_dict) for meta_dict in meta_dicts]
+
+    ul_east = roi_dict['x']
+    ul_north = roi_dict['y']
+    lr_east = ul_east + roi_dict['w']
+    lr_north = ul_north - roi_dict['h']
+    zone_number = roi_dict['zone_number']
+    zone_letter = roi_dict['zone_letter']
+    ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
+    lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
+
+    lat_points = np.array([ul_lat, lr_lat])
+    lon_points = np.array([ul_lon, lr_lon])
+    z_points = np.array([min_height, max_height])
+    xx_lat, yy_lon, zz = gen_grid(lat_points, lon_points, z_points)
+
+    # start to process the images
+    cnt = len(ntf_list)
+    useful_cnt = 0
+    for i in range(cnt):
+        logging.info('process: {}, processing image {}/{}, already collect {} useful images...'
+                     .format(pid, i + 1, cnt, useful_cnt))
+
+        # check whether the image is too cloudy
+        cloudy_thres = 0.5
+        if meta_dicts[i]['cloudCover'] > cloudy_thres:
+            logging.warning('discarding this image because of too many clouds, cloudy level: {}, ntf: {}'
+                            .format(meta_dicts[i]['cloudCover'], ntf_list[i]))
+            continue
+
+        # compute the bounding box
+        col, row = rpc_models[i].projection(xx_lat, yy_lon, zz)
+
+        ul_col = int(np.round(np.min(col)))
+        ul_row = int(np.round(np.min(row)))
+        width = int(np.round(np.max(col))) - ul_col + 1
+        height = int(np.round(np.max(row))) - ul_row + 1
+
+        # check whether the bounding box lies in the image
+        ntf_width = meta_dicts[i]['width']
+        ntf_height = meta_dicts[i]['height']
+        intersect, _, overlap = check_bbx((0, 0, ntf_width, ntf_height),
+                                          (ul_col, ul_row, width, height))
+        overlap_thres = 0.5
+        if overlap < overlap_thres:
+            logging.warning('discarding this image due to small coverage of target area, overlap: {}, ntf: {}'
+                            .format(overlap, ntf_list[i]))
+            continue
+
+        ul_col, ul_row, width, height = intersect
+
+        # cut image
+        in_ntf = ntf_list[i]
+        cap_time = meta_dicts[i]['capTime'].strftime("%Y%m%d%H%M%S")
+
+        out_png = os.path.join(out_dir, '{}_{}_image.png'.format(cap_time, pid))
+
+        cut_image(in_ntf, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height))
+
+        # tone mapping
+        # out_jpg = out_png[:-4] + '.jpg'
+        # tone_map(out_png, out_jpg)
+        # # remove out_png
+        # os.remove(out_png)
+
+        # tone mapping
+        tone_map(out_png, out_png)
+
+        # save metadata
+        # need to modify the rpc function and image width, height
+        meta_dict = copy.deepcopy(meta_dicts[i])
+        # subtract the cutting offset here
+        rpc_dict = meta_dict['rpc']
+        rpc_dict['colOff'] = rpc_dict['colOff'] - ul_col
+        rpc_dict['rowOff'] = rpc_dict['rowOff'] - ul_row
+        meta_dict['rpc'] = rpc_dict
+        # modify width, height
+        meta_dict['width'] = width
+        meta_dict['height'] = height
+        # change datetime object to string
+        meta_dict['capTime'] = meta_dict['capTime'].isoformat()
+
+        with open(os.path.join(out_dir, '{}_{}_meta.json'.format(cap_time, pid)), 'w') as fp:
+            json.dump(meta_dict, fp, indent=2)
+
+        # save region
+        region_dict = {'zone_number': zone_number,
+                       'zone_letter': zone_letter,
+                       'x': ul_east,
+                       'y': ul_north,
+                       'w': lr_east - ul_east,
+                       'h': ul_north - lr_north}
+        with open(os.path.join(out_dir, '{}_{}_region.json'.format(cap_time, pid)), 'w') as fp:
+            json.dump(region_dict, fp)
+
+        # increase number of useful images
+        useful_cnt += 1
+
+    logging.info('tilecutter job {} finished, collected {}/{} useful images, output dir: {}'
+                 .format(pid, useful_cnt, len(ntf_list), out_dir))
+
 
 class TileCutter(object):
     # dataset_dir here is the cleaned_data_dir

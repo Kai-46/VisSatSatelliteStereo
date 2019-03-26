@@ -502,4 +502,38 @@ colmap patch_match_stereo --workspace_path mvs \
                         --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
                         --PatchMatchStereo.geom_consistency_regularizer 0.3 \
                         --PatchMatchStereo.geom_consistency_max_cost 3 \
-                        --PatchMatchStereo.filter_min_num_consistent 2
+                        --PatchMatchStereo.filter_min_num_consistent 2 \
+                        --PatchMatchStereo.overwrite 1
+
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 2 \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.1 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 10 \
+                        --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
+                        --PatchMatchStereo.geom_consistency_regularizer 0.3 \
+                        --PatchMatchStereo.geom_consistency_max_cost 3 \
+                        --PatchMatchStereo.filter_min_num_consistent 2 \
+                        --PatchMatchStereo.overwrite 1
+
+colmap patch_match_stereo --workspace_path mvs \
+                        --PatchMatchStereo.window_radius 2 \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 1 \
+                        --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
+                        --PatchMatchStereo.filter_min_ncc 0.1 \
+                        --PatchMatchStereo.geom_consistency 1 \
+                        --PatchMatchStereo.gpu_index=0 \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 1 \
+                        --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
+                        --PatchMatchStereo.geom_consistency_regularizer 0.3 \
+                        --PatchMatchStereo.geom_consistency_max_cost 3 \
+                        --PatchMatchStereo.filter_min_num_consistent 2 \
+                        --PatchMatchStereo.overwrite 0

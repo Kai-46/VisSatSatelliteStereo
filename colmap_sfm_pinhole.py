@@ -19,7 +19,6 @@ def make_subdirs(sfm_dir):
     subdirs = [
                 sfm_dir,
                 os.path.join(sfm_dir, 'init_triangulate'),
-                os.path.join(sfm_dir, 'init_triangulate_ba')
     ]
 
     for item in subdirs:
@@ -82,7 +81,7 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     colmap_sfm_commands.run_sift_matching(img_dir, db_file, camera_model='PINHOLE')
 
     out_dir = os.path.join(sfm_dir, 'init_triangulate')
-    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template)
+    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2.0, 2.0)
 
     # global bundle adjustment, this might not be useful, just left here for comparison
     # in_dir = os.path.join(sfm_dir, 'init_triangulate')

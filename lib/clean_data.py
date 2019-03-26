@@ -18,7 +18,7 @@ def clean_data(dataset_dir, out_dir):
 
     tmp_dir = os.path.join(out_dir, 'tmp')
     if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        shutil.rmtree(tmp_dir)
     os.mkdir(tmp_dir)
 
     for item in sorted(os.listdir(dataset_dir)):
@@ -32,7 +32,7 @@ def clean_data(dataset_dir, out_dir):
             # rename NTF
             # os.rename(os.path.join(dataset_dir, item), os.path.join(dataset_dir, '{}.NTF'.format(img_name)))
 
-            os.link(os.path.join(dataset_dir, item), os.path.join(out_dir, '{}.NTF'.format(img_name)))
+            os.symlink(os.path.join(dataset_dir, item), os.path.join(out_dir, '{}.NTF'.format(img_name)))
 
             tar = tarfile.open(os.path.join(dataset_dir, '{}.tar'.format(item[:-4])))
 

@@ -14,7 +14,7 @@ def gen_grid(x_points, y_points, z_points):
     z_point_cnt = z_points.size
     point_cnt = x_point_cnt * y_point_cnt * z_point_cnt
 
-    xx, yy = np.meshgrid(x_points, y_points)
+    xx, yy = np.meshgrid(x_points, y_points, indexing='ij')
     xx = np.reshape(xx, (-1, 1))
     yy = np.reshape(yy, (-1, 1))
     xx = np.tile(xx, (z_point_cnt, 1))

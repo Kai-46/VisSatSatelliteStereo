@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 
+
 def solve_affine(xx, yy, zz, col, row, keep_mask=None):
     diff_size = np.array([yy.size - xx.size, zz.size - xx.size, col.size - xx.size, row.size - xx.size])
     assert (np.all(diff_size == 0))
@@ -30,7 +31,7 @@ def solve_affine(xx, yy, zz, col, row, keep_mask=None):
 
     A = np.vstack((A1, A2))
     b = np.vstack((col, row))
-    res = np.linalg.lstsq(A, b, rcond=None)
+    res = np.linalg.lstsq(A, b, rcond=-1)
 
     logging.info('residual error (pixels): {}'.format(np.sqrt(res[1][0] / point_cnt)))
 

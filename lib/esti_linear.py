@@ -22,7 +22,7 @@ def esti_linear(source, target):
     A = np.vstack((A1, A2, A3))
     b = np.vstack((target_tmp[:, 0:1], target_tmp[:, 1:2], target_tmp[:, 2:3]))
 
-    result = np.linalg.lstsq(A, b, rcond=None)[0]
+    result = np.linalg.lstsq(A, b, rcond=-1)[0]
     M = result[0:9].reshape((3, 3))
     t = result[9:12].reshape((3, 1))
 

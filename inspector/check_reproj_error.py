@@ -1,5 +1,5 @@
 import numpy as np
-import quaternion
+from pyquaternion import Quaternion
 
 
 def check_reproj_error(camera_params, all_tracks, camera_model):
@@ -17,7 +17,7 @@ def check_reproj_error(camera_params, all_tracks, camera_model):
             K = np.array([[intrinsic[0], intrinsic[4], intrinsic[2]],
                           [0., intrinsic[1], intrinsic[3]],
                           [0., 0., 1.]])
-        R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+        R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
         t = np.reshape(tvec, (3, 1))
 
         proj_matrices[img_name] = np.dot(K, np.hstack((R, t)))

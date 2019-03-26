@@ -1,4 +1,4 @@
-# cut a big satellite image into small tiles
+# cut the AOI out of the big satellite image
 
 import os
 from lib.rpc_model import RPCModel
@@ -65,60 +65,25 @@ class TileCutter(object):
         self.useful_cnt = 0
 
     # cut area of interest; might divide the aoi into smaller regions
-    def cut_aoi(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north, use_small_regions=False):
+    def cut_aoi(self, zone_number, hemisphere, ul_east, ul_north, lr_east, lr_north):
         # save to aoi_dict
         aoi_dict = {'zone_number': zone_number,
-                    'zone_letter': zone_letter,
-                    'x': ul_east,
-                    'y': ul_north,
-                    'w': lr_east - ul_east,
-                    'h': ul_north - lr_north}
+                    'hemisphere': hemisphere,
+                    'ul_easting': ul_east,
+                    'ul_northing': ul_north,
+                    'width': lr_east - ul_east,
+                    'height': ul_north - lr_north}
         with open(os.path.join(self.out_dir, 'aoi.json'), 'w') as fp:
             json.dump(aoi_dict, fp)
 
         self.useful_cnt = 0
 
-        # view the whole aoi as a region
-        if not use_small_regions:
-            self.cut_region(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
-        else:
-            # overlap cutting
-            self.overlap_cut(zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north)
+        self.cut_region(zone_number, hemisphere, ul_east, ul_north, lr_east, lr_north)
 
-    # 3 * 3 overlap cutting
-    # one image will be cut into 10 smaller regions
-    def overlap_cut(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
-        dilate_ratio = 0.3
-
-        east_sep = np.linspace(ul_east, lr_east, 3 + 1)
-        north_sep = np.linspace(ul_north, lr_north, 3 + 1)
-
-        logging.info('start overlap cutting, dilate_ratio: {}'.format(dilate_ratio))
-        for i in range(3):
-            region_ul_east = east_sep[i]
-            w = east_sep[i+1] - region_ul_east
-            for j in range(3):
-                region_ul_north = north_sep[j]
-                h = region_ul_north - north_sep[j+1]
-                # dialate the bounding box
-                region_ul_east = region_ul_east - w * dilate_ratio / 2
-                region_ul_north = region_ul_north + h * dilate_ratio / 2
-                w = w * (1 + dilate_ratio)
-                h = h * (1 + dilate_ratio)
-                region_lr_east = region_ul_east + w
-                region_lr_north = region_ul_north - h
-                # correct
-                region_ul_east = region_ul_east if region_ul_east >= ul_east else ul_east
-                region_ul_north = region_ul_north if region_ul_north <= ul_north else ul_north
-                region_lr_east = region_lr_east if region_lr_east <= lr_east else lr_east
-                region_lr_north = region_lr_north if region_lr_north >= lr_north else lr_north
-
-                self.cut_region(zone_number, zone_letter, region_ul_east, region_ul_north, region_lr_east, region_lr_north)
-
-
-    def cut_region(self, zone_number, zone_letter, ul_east, ul_north, lr_east, lr_north):
-        ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
-        lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
+    def cut_region(self, zone_number, hemisphere, ul_east, ul_north, lr_east, lr_north):
+        northern = True if hemisphere == 'N' else False
+        ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, northern=northern)
+        lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, northern=northern)
 
         lat_points = np.array([ul_lat, lr_lat])
         lon_points = np.array([ul_lon, lr_lon])
@@ -140,12 +105,12 @@ class TileCutter(object):
             # compute the bounding box
             col, row = self.rpc_models[i].projection(xx_lat, yy_lon, zz)
 
-            # ul_col = int(np.round(np.min(col)))
-            # ul_row = int(np.round(np.min(row)))
-            # width = int(np.round(np.max(col))) - ul_col + 1
-            # height = int(np.round(np.max(row))) - ul_row + 1
+            ul_col = int(np.round(np.min(col)))
+            ul_row = int(np.round(np.min(row)))
+            width = int(np.round(np.max(col))) - ul_col + 1
+            height = int(np.round(np.max(row))) - ul_row + 1
 
-            ul_col, ul_row, width, height = robust_bbx(col, row)
+            # ul_col, ul_row, width, height = robust_bbx(col, row)
 
             # check whether the bounding box lies in the image
             ntf_width = self.meta_dicts[i]['width']
@@ -195,11 +160,11 @@ class TileCutter(object):
 
             # save region
             region_dict = {'zone_number': zone_number,
-                           'zone_letter': zone_letter,
-                           'x': ul_east,
-                           'y': ul_north,
-                           'w': lr_east - ul_east,
-                           'h': ul_north - lr_north}
+                           'hemisphere': hemisphere,
+                           'ul_easting': ul_east,
+                           'ul_northing': ul_north,
+                           'width': lr_east - ul_east,
+                           'height': ul_north - lr_north}
             with open(os.path.join(self.regions_subdir, '{:03d}_{}.json'.format(self.useful_cnt, cap_time)), 'w') as fp:
                 json.dump(region_dict, fp)
 
@@ -210,14 +175,4 @@ class TileCutter(object):
 
 
 if __name__ == '__main__':
-    cleaned_data_dir = '/data2/kz298/core3d_pan/jacksonville/cleaned_data'
-    work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'
-    if not os.path.exists(work_dir):
-        os.mkdir(work_dir)
-    with open('aoi_config/aoi-d4-jacksonville.json') as fp:
-        config = json.load(fp)
-    bbx = config['bounding_box']
-    # cut image and tone map
-    cutter = TileCutter(cleaned_data_dir, work_dir)
-    cutter.cut_aoi(bbx['zone_number'], bbx['zone_letter'],
-                   bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])
+    pass

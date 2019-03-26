@@ -9,8 +9,8 @@ import json
 def check_align(work_dir, source, target):
     with open(os.path.join(work_dir, 'aoi.json')) as fp:
         aoi_dict = json.load(fp)
-    aoi_ll_east = aoi_dict['x']
-    aoi_ll_north = aoi_dict['y'] - aoi_dict['h']
+    aoi_ll_east = aoi_dict['ul_easting']
+    aoi_ll_north = aoi_dict['ul_northing'] - aoi_dict['height']
 
     east = source[:, 0:1] + aoi_ll_east
     north = source[:, 1:2] + aoi_ll_north
@@ -72,8 +72,8 @@ if __name__ == '__main__':
             # compute absolute error
             with open(os.path.join(work_dir, 'aoi.json')) as fp:
                 aoi_dict = json.load(fp)
-            aoi_ll_east = aoi_dict['x']
-            aoi_ll_north = aoi_dict['y'] - aoi_dict['h']
+            aoi_ll_east = aoi_dict['ul_easting']
+            aoi_ll_north = aoi_dict['ul_northing'] - aoi_dict['height']
 
             east = source[:, 0:1] + aoi_ll_east
             north = source[:, 1:2] + aoi_ll_north

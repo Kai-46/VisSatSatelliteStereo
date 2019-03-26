@@ -5,7 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-import quaternion
+from pyquaternion import Quaternion
 from inspector.plot_reproj_err import plot_reproj_err
 from colmap.extract_sfm import read_tracks
 from inspector.check_reproj_error import check_reproj_error
@@ -132,7 +132,7 @@ class SparseInspector(object):
                 img_name = self.images[img_id].name
                 qvec = self.images[img_id].qvec
                 tvec = self.images[img_id].tvec.reshape((3, 1))
-                R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+                R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
                 x1 = np.dot(R,x) + tvec # do not change x
                 depth = x1[2, 0]
                 if depth > 0:
@@ -267,7 +267,7 @@ class SparseInspector(object):
         all_translations = []
         for img_name in sorted(self.camera_params.keys()):
             img_size, intrinsic, qvec, tvec = self.camera_params[img_name]
-            R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+            R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
             t = np.reshape(tvec, (3, 1))
 
             all_rotations.append(R)

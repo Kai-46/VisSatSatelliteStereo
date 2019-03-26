@@ -2,6 +2,7 @@ import os
 from lib.run_cmd import run_cmd
 import logging
 
+
 def cut_image(in_ntf, out_png, ntf_size, bbx_size):
     (ntf_width, ntf_height) = ntf_size
     (ul_col, ul_row, width, height) = bbx_size

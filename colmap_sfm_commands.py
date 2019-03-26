@@ -2,7 +2,7 @@ import os
 from lib.run_cmd import run_cmd
 from write_template import create_init_files
 
-gpu_index = '0,2'
+gpu_index = '1,2'
 
 
 def run_sift_matching(img_dir, db_file, camera_model):
@@ -24,13 +24,13 @@ def run_sift_matching(img_dir, db_file, camera_model):
     # feature matching
     cmd = 'colmap exhaustive_matcher --database_path {} \
                                             --SiftMatching.guided_matching 1 \
-                                            --SiftMatching.max_error 3 \
+                                            --SiftMatching.max_error 1 \
                                             --SiftMatching.gpu_index {}'.format(db_file, gpu_index)
 
     run_cmd(cmd)
 
 
-def run_point_triangulation(img_dir, db_file, out_dir, template_file):
+def run_point_triangulation(img_dir, db_file, out_dir, template_file, tri_merge_max_reproj_error, tri_complete_max_reproj_error, filter_max_reproj_error):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
@@ -65,18 +65,21 @@ def run_point_triangulation(img_dir, db_file, out_dir, template_file):
                                              --image_path {} \
                                              --input_path {} \
                                              --output_path {} \
-                                             --Mapper.filter_min_tri_angle 29.999 \
+                                             --Mapper.filter_min_tri_angle 9.999 \
                                              --Mapper.init_max_forward_motion 7e6 \
-                                             --Mapper.tri_min_angle 30 \
-                                             --Mapper.tri_merge_max_reproj_error 3 \
-                                             --Mapper.tri_complete_max_reproj_error 3 \
-                                             --Mapper.filter_max_reproj_error 3 \
+                                             --Mapper.tri_min_angle 10 \
+                                             --Mapper.tri_merge_max_reproj_error {} \
+                                             --Mapper.tri_complete_max_reproj_error {} \
+                                             --Mapper.filter_max_reproj_error {} \
                                              --Mapper.extract_colors 1 \
                                              --Mapper.max_extra_param 1e100 \
                                              --Mapper.ba_local_num_images 6 \
                                              --Mapper.ba_local_max_num_iterations 100 \
                                              --Mapper.ba_global_images_ratio 1.0000001\
-                                             --Mapper.ba_global_max_num_iterations 100'.format(db_file, img_dir, out_dir, out_dir)
+                                             --Mapper.ba_global_max_num_iterations 100'.format(db_file, img_dir, out_dir, out_dir,
+                                                                                               tri_merge_max_reproj_error,
+                                                                                               tri_complete_max_reproj_error,
+                                                                                               filter_max_reproj_error)
     run_cmd(cmd)
 
 
@@ -93,7 +96,7 @@ def run_global_ba(in_dir, out_dir):
                                     --BundleAdjustment.gradient_tolerance 1e-8 \
                                     --BundleAdjustment.parameter_tolerance 1e-8 \
                                     --BundleAdjustment.constrain_points 1 \
-                                    --BundleAdjustment.constrain_points_loss_weight 1.0'.format(in_dir=in_dir, out_dir=out_dir)
+                                    --BundleAdjustment.constrain_points_loss_weight 1000'.format(in_dir=in_dir, out_dir=out_dir)
     run_cmd(cmd)
 
 

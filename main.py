@@ -76,8 +76,8 @@ class StereoPipeline(object):
 
         # cut image and tone map
         cutter = TileCutter(cleaned_data_dir, work_dir)
-        cutter.cut_aoi(bbx['zone_number'], bbx['zone_letter'],
-                       bbx['x'], bbx['y'], bbx['x'] + bbx['w'], bbx['y'] - bbx['h'])
+        cutter.cut_aoi(bbx['zone_number'], bbx['hemisphere'],
+                       bbx['ul_easting'], bbx['ul_northing'], bbx['ul_easting'] + bbx['width'], bbx['ul_northing'] - bbx['height'])
         # stop local timer
         local_timer.mark('cut image done')
         logging.info(local_timer.summary())
@@ -215,43 +215,51 @@ class StereoPipeline(object):
         # compute depth ranges and generate last_rows.txt
         reparam_depth(os.path.join(mvs_dir, 'sparse'), mvs_dir)
 
-        # PMVS
-        # no need to use geom_consistency
-        # depth is the inverse of the actual height
-        # cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
-        #                 --PatchMatchStereo.window_radius 1 \
-        #                 --PatchMatchStereo.min_triangulation_angle 25.0 \
-        #                 --PatchMatchStereo.filter 1 \
-        #                 --PatchMatchStereo.sigma_spatial 1.0 \
-        #                 --PatchMatchStereo.sigma_color 0.2 \
-        #                 --PatchMatchStereo.filter_min_triangulation_angle 24.999 \
-        #                 --PatchMatchStereo.filter_min_ncc 0.2 \
-        #                 --PatchMatchStereo.geom_consistency 0 \
-        #                 --PatchMatchStereo.depth_min 0.01 \
-        #                 --PatchMatchStereo.depth_max 0.1 \
-        #                 --PatchMatchStereo.gpu_index=1,2 \
-        #                 --PatchMatchStereo.num_samples 30 \
-        #                 --PatchMatchStereo.num_iterations 14'.format(colmap_dir=colmap_dir)
+        win_radius = 2
+
+        # first run PMVS without filtering
+        gpu_index = '1,2'
         cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
-                        --PatchMatchStereo.window_radius 2 \
+                        --PatchMatchStereo.depth_min 0.008 \
+                        --PatchMatchStereo.depth_max 0.098 \
+                        --PatchMatchStereo.window_radius {win_radius}\
                         --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.filter 0 \
+                        --PatchMatchStereo.geom_consistency 0 \
+                        --PatchMatchStereo.gpu_index={gpu_index} \
+                        --PatchMatchStereo.num_samples 10 \
+                        --PatchMatchStereo.num_iterations 12 \
+                        --PatchMatchStereo.overwrite 1'.format(win_radius=win_radius,
+                                                               colmap_dir=colmap_dir, gpu_index=gpu_index)
+        run_cmd(cmd)
+
+        # next do forward-backward checking and filtering
+        cmd = 'colmap patch_match_stereo --workspace_path {colmap_dir}/mvs \
+                        --PatchMatchStereo.depth_min 0.008 \
+                        --PatchMatchStereo.depth_max 0.098 \
+                        --PatchMatchStereo.window_radius {win_radius} \
+                        --PatchMatchStereo.min_triangulation_angle 10.0 \
+                        --PatchMatchStereo.geom_consistency 1 \
+                        --PatchMatchStereo.use_exist_photom 1 \
+                        --PatchMatchStereo.overwrite 1 \
+                        --PatchMatchStereo.geom_consistency_regularizer 100.0 \
+                        --PatchMatchStereo.geom_consistency_max_cost 3 \
                         --PatchMatchStereo.filter 1 \
                         --PatchMatchStereo.filter_min_triangulation_angle 9.999 \
-                        --PatchMatchStereo.filter_min_ncc 0.1 \
-                        --PatchMatchStereo.geom_consistency 1 \
+                        --PatchMatchStereo.filter_min_ncc -0.999 \
                         --PatchMatchStereo.filter_geom_consistency_max_cost 1 \
-                        --PatchMatchStereo.geom_consistency_regularizer 0.5 \
-                        --PatchMatchStereo.geom_consistency_max_cost 5 \
                         --PatchMatchStereo.filter_min_num_consistent 2 \
-                        --PatchMatchStereo.gpu_index=0,2 \
+                        --PatchMatchStereo.gpu_index={gpu_index} \
                         --PatchMatchStereo.num_samples 10 \
-                        --PatchMatchStereo.num_iterations 10'.format(colmap_dir=colmap_dir)
+                        --PatchMatchStereo.num_iterations 1'.format(win_radius=win_radius,
+                                                                    colmap_dir=colmap_dir, gpu_index=gpu_index)
         # for debugging
         run_cmd(cmd)
 
         # add inspector
-        from convert_depth_maps import convert_depth_maps
-        convert_depth_maps(mvs_dir, os.path.join(mvs_dir, 'height_maps'))
+        from convert_depth_maps import convert_depth_maps, convert_normal_maps
+        convert_depth_maps(mvs_dir, os.path.join(mvs_dir, 'height_maps'), depth_type='geometric')
+        convert_normal_maps(mvs_dir, os.path.join(mvs_dir, 'height_maps'), normal_type='geometric')
 
         # stop local timer
         local_timer.mark('Colmap MVS done')
@@ -262,7 +270,7 @@ class StereoPipeline(object):
         # prepare dense reconstruction
         colmap_dir = os.path.join(work_dir, 'colmap')
 
-        # set log file2303787
+        # set log file
         log_file = os.path.join(work_dir, 'logs/log_fuse.txt')
         self.logger.set_log_file(log_file)
         # create a local timer
@@ -277,7 +285,7 @@ class StereoPipeline(object):
                              --input_type geometric \
                              --StereoFusion.min_num_pixels 2\
                              --StereoFusion.max_reproj_error 1\
-                             --StereoFusion.max_depth_error 0.4\
+                             --StereoFusion.max_depth_error 0.3\
                              --StereoFusion.max_normal_error 10'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
@@ -316,8 +324,8 @@ class StereoPipeline(object):
         # add global shift
         with open(os.path.join(work_dir, 'aoi.json')) as fp:
             aoi_dict = json.load(fp)
-        aoi_ll_east = aoi_dict['x']
-        aoi_ll_north = aoi_dict['y'] - aoi_dict['h']
+        aoi_ll_east = aoi_dict['ul_easting']
+        aoi_ll_north = aoi_dict['ul_northing'] - aoi_dict['height']
         t[0, 0] += aoi_ll_east
         t[0, 1] += aoi_ll_north
 
@@ -350,6 +358,10 @@ class StereoPipeline(object):
         eval_ground_truth = '{evaluate_dir}/eval_ground_truth.tif'.format(evaluate_dir=evaluate_dir)
         shutil.copy2(ground_truth, eval_ground_truth)
 
+        # create a low-resolution ground-truth
+        cmd = 'gdal_translate -tr 0.5 0.5 {evaluate_dir}/eval_ground_truth.tif {evaluate_dir}/eval_ground_truth_0.5.tif'.format(evaluate_dir=evaluate_dir)
+        run_cmd(cmd)
+
         # normalize as png
         cmd = 'gdal_translate -ot Byte -tr 0.5 0.5 -of png -scale 15 32 0 255 {evaluate_dir}/eval_ground_truth.tif {evaluate_dir}/eval_ground_truth.tif.png'.format(evaluate_dir=evaluate_dir)
         run_cmd(cmd)
@@ -368,16 +380,16 @@ class StereoPipeline(object):
         # flatten the point cloud
         # there's some problem here
         for resolution in [0.3, 0.5]:
-            width = int(1 + np.floor(aoi_width / resolution))
-            height = int(1 + np.floor(aoi_height / resolution))
+            width = int(np.floor(aoi_width / resolution))
+            height = int(1+np.floor(aoi_height / resolution))
 
             #
             eval_point_cloud = '{evaluate_dir}/eval_point_cloud.ply'.format(evaluate_dir=evaluate_dir)
             eval_dsm = '{evaluate_dir}/eval_dsm_{resolution}.tif'.format(evaluate_dir=evaluate_dir, resolution=resolution)
 
             # copy point cloud to evaluation folder
-            shutil.copy2(os.path.join(work_dir, 'register/registered_dense_points.ply'),
-                         eval_point_cloud)
+            # shutil.copy2(os.path.join(work_dir, 'register/registered_dense_points.ply'),
+            #              eval_point_cloud)
 
             # flatten point cloud
             cmd = '/home/cornell/kz298/s2p/bin/plyflatten {resolution} {eval_dsm} \
@@ -394,8 +406,14 @@ class StereoPipeline(object):
         #         -c {evaluate_config}'.format(evaluate_config=self.config['evaluate_config'])
         # run_cmd(cmd)
 
+        # compute a difference mask
+        # cmd = 'gdal_calc.py -A {evaluate_dir}/eval_dsm_0.5.tif\
+        #                     -B {evaluate_dir}/eval_ground_truth_0.5.tif \
+        #                     --outfile error.tif --calc="abs(A-B)"'.format(evaluate_dir=evaluate_dir)
+        # run_cmd(cmd)
+
         # evaluate for mvs3dm
-        cmd = '/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
+        cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
               --cthreshold 1 \
               -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
         run_cmd(cmd)

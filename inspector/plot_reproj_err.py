@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
+
 
 # reproj_errs should be a numpy array
 def plot_reproj_err(reproj_errs, fpath):

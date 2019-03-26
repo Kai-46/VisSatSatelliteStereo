@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import linalg
 import logging
+from inspector.scatter3d import scatter3d
 
 
 def factorize(matrix):
@@ -61,11 +62,11 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
         row = row[keep_mask].reshape((-1, 1))
         col = col[keep_mask].reshape((-1, 1))
 
-    # logging.info('xx: {}, {}'.format(np.min(xx), np.max(xx)))
-    # logging.info('yy: {}, {}'.format(np.min(yy), np.max(yy)))
-    # logging.info('zz: {}, {}'.format(np.min(zz), np.max(zz)))
-    # logging.info('col: {}, {}'.format(np.min(col), np.max(col)))
-    # logging.info('row: {}, {}'.format(np.min(row), np.max(row)))
+    # logging.info('solving perspective, xx: [{}, {}], yy: [{}, {}], zz: [{}, {}]'.format(np.min(xx), np.max(xx),
+    #                                                                                     np.min(yy), np.max(yy),
+    #                                                                                     np.min(zz), np.max(zz)))
+    #
+    # scatter3d(xx, yy, zz, '/data2/temp.jpg')
 
     point_cnt = xx.size
     all_ones = np.ones((point_cnt, 1))
@@ -79,7 +80,7 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
                     -row * xx, -row * yy, -row * zz, -row * all_ones))
 
     A = np.vstack((A1, A2))
-    u, s, vh = linalg.svd(A)
+    u, s, vh = linalg.svd(A, full_matrices=False)
 
     # logging.info('smallest singular value: {}'.format(s[11]))
 

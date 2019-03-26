@@ -1,6 +1,6 @@
 from colmap.read_model import read_model
 import numpy as np
-import quaternion
+from pyquaternion import Quaternion
 import os
 
 
@@ -12,17 +12,9 @@ def robust_depth_range(depth_range):
             min_depth = tmp[int(0.02 * cnt)]
             max_depth = tmp[int(0.98 * cnt)]
 
-            # uncertainty = max_depth - min_depth
-            # stretch = 0.1 * uncertainty
-            # min_depth -= stretch
-            # max_depth += stretch
-
-            # inv_depth_range = 1.0 / min_depth - 1.0 / max_depth
-            # stretch = 0.1 * inv_depth_range
-
             stretch = 5
-            min_depth_new = 1.0 / (1.0 / min_depth + stretch)
-            max_depth_new = 1.0 / (1.0 / max_depth - stretch)
+            min_depth_new = min_depth - stretch
+            max_depth_new = max_depth + stretch
             if max_depth_new <= min_depth_new:
                 min_depth_new = min_depth
                 max_depth_new = max_depth
@@ -54,7 +46,7 @@ def reparam_depth(sparse_dir, save_dir):
             img_name = colmap_images[img_id].name
             qvec = colmap_images[img_id].qvec
             tvec = colmap_images[img_id].tvec.reshape((3, 1))
-            R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+            R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
             x1 = np.dot(R,x) + tvec # do not change x
             depth = x1[2, 0]
             if depth > 0:
@@ -84,7 +76,7 @@ def reparam_depth(sparse_dir, save_dir):
             img_name = colmap_images[img_id].name
             qvec = colmap_images[img_id].qvec
             tvec = colmap_images[img_id].tvec.reshape((3, 1))
-            R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+            R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
 
             cam_id = colmap_images[img_id].camera_id
             fx, fy, cx, cy = colmap_cameras[cam_id].params
@@ -101,7 +93,8 @@ def reparam_depth(sparse_dir, save_dir):
 
             x1 = np.vstack((x, np.array([[1.,]])))
             x1 = np.dot(P_4by4, x1)
-            depth = x1[2, 0] / x1[3, 0]
+            # depth is the fourth component, instead of its inverse
+            depth = x1[3, 0] / x1[2, 0]
 
             reparam_depth_range[img_name].append(depth)
 
@@ -115,10 +108,10 @@ def reparam_depth(sparse_dir, save_dir):
             fp.write('{} {} {}\n'.format(img_name, min_depth, max_depth))
 
     with open(os.path.join(save_dir, 'reparam_depth.txt'), 'w') as fp:
-        fp.write('# format: img_name, depth_min, depth_max, dist_min (1 / depth_max), dist_max (1 / depth_min)\n')
+        fp.write('# format: img_name, depth_min, depth_max\n')
         for img_name in sorted(reparam_depth_range.keys()):
             min_depth, max_depth = reparam_depth_range[img_name]
-            fp.write('{} {} {} {} {}\n'.format(img_name, min_depth, max_depth, 1.0 / max_depth, 1.0 / min_depth))
+            fp.write('{} {} {}\n'.format(img_name, min_depth, max_depth))
 
     with open(os.path.join(save_dir, 'last_rows.txt'), 'w') as fp:
         for img_name in sorted(last_rows.keys()):

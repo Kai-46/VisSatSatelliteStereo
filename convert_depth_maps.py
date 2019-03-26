@@ -6,6 +6,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import imageio
+from lib.ply_np_converter import np2ply
+from lib.georegister_dense import georegister_dense
+from lib.write_to_geo_grid import write_to_geo_grid, fill_in_small_holes
 
 
 def save_image_only(matrix, save_file):
@@ -20,7 +23,7 @@ def save_image_only(matrix, save_file):
     ax.imshow(matrix, cmap='magma')
 
     fig.canvas.draw()
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
     w, h = fig.canvas.get_width_height()
     im = data.reshape((h, w, 3)).astype(dtype=np.uint8)
     plt.close(fig)
@@ -28,7 +31,7 @@ def save_image_only(matrix, save_file):
     imageio.imwrite(save_file, im)
 
 
-def convert_depth_maps(mvs_dir, out_dir):
+def convert_depth_maps(mvs_dir, out_dir, depth_type):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
@@ -47,7 +50,7 @@ def convert_depth_maps(mvs_dir, out_dir):
     for item in sorted(os.listdir(depth_dir)):
         #depth_type = 'photometric'
 
-        depth_type = 'geometric'
+        #depth_type = 'geometric'
         idx = item.rfind('.{}.bin'.format(depth_type))
         if idx == -1:
             continue
@@ -71,20 +74,40 @@ def convert_depth_maps(mvs_dir, out_dir):
 
         mask = depth <= 0
 
-        tmp = np.vstack((col, row, np.ones((1, width * height)), 1.0 / depth))
+        tmp = np.vstack((col + 0.5, row + 0.5, np.ones((1, width * height)), depth))
         tmp = np.dot(inv_proj_mats[img_name], tmp)
 
         tmp[0, :] /= tmp[3, :]
         tmp[1, :] /= tmp[3, :]
         tmp[2, :] /= tmp[3, :]
 
-        # tmp[2, :]
-
-        # disp_depth_min = 0
-        # disp_depth_max = 50
-
         disp_depth_min = 10
         disp_depth_max = 50
+
+        # flip_mask = np.logical_not(mask)
+        # x = tmp[0:1, :][flip_mask].reshape((1, -1))
+        # y = tmp[1:2, :][flip_mask].reshape((1, -1))
+        # z = tmp[2:3, :][flip_mask].reshape((1, -1))
+        # points = np.vstack((x, y, z)).T
+        # geo_grid, geo_info = write_to_geo_grid(points, resolution=0.3)
+        # print('{}, geo_grid emptry ratio: {}%'.format(
+        #     img_name, np.sum(np.isnan(geo_grid)) / geo_grid.size * 100))
+        #
+        # # fill in small holes
+        # dsm = fill_in_small_holes(geo_grid)
+        #
+        # geo_grid[np.isnan(geo_grid)] = disp_depth_min
+        # geo_grid[geo_grid < disp_depth_min] = disp_depth_min
+        # geo_grid[geo_grid > disp_depth_max] = disp_depth_max
+        # save_image_only(geo_grid, os.path.join(out_dir, '{}.{}.dsm.jpg'.format(img_name, depth_type)))
+        #
+        # # save to image
+        # dsm[np.isnan(dsm)] = disp_depth_min
+        # dsm[dsm < disp_depth_min] = disp_depth_min
+        # dsm[dsm > disp_depth_max] = disp_depth_max
+        # save_image_only(dsm, os.path.join(out_dir, '{}.{}.dsm.filled.jpg'.format(img_name, depth_type)))
+
+        # np2ply(tmp[0:3, :].T, os.path.join(out_dir, '{}.{}.ply'.format(img_name, depth_type)))
 
         tmp[2:3, :][mask] = disp_depth_min  # set height to zero
 
@@ -116,9 +139,9 @@ def convert_depth_maps(mvs_dir, out_dir):
         save_image_only(height_map, os.path.join(out_dir, '{}.{}.height.jpg'.format(img_name, depth_type)))
 
 
-def convert_normal_maps(mvs_dir, out_dir):
+def convert_normal_maps(mvs_dir, out_dir, normal_type):
     # normal_type = 'photometric'
-    normal_type = 'geometric'
+    # normal_type = 'geometric'
 
     normal_dir = os.path.join(mvs_dir, 'stereo/normal_maps')
 
@@ -152,8 +175,12 @@ def convert_normal_maps(mvs_dir, out_dir):
 if __name__ == '__main__':
     mvs_dir = '/data2/kz298/mvs3dm_result/MasterSequesteredPark/colmap/mvs'
     #mvs_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/mvs'
+
     #mvs_dir = '/home/kai/satellite_stereo/Explorer_subset/colmap/mvs'
     out_dir = os.path.join(mvs_dir, 'height_maps')
 
-    #convert_depth_maps(mvs_dir, out_dir)
-    convert_normal_maps(mvs_dir, out_dir)
+    #convert_depth_maps(mvs_dir, out_dir, 'photometric')
+    convert_depth_maps(mvs_dir, out_dir, 'geometric')
+
+    #convert_normal_maps(mvs_dir, out_dir, 'photometric')
+    convert_normal_maps(mvs_dir, out_dir, 'geometric')

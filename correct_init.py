@@ -2,7 +2,7 @@ import numpy as np
 import json
 from lib.esti_linear import esti_linear
 from lib.solve_perspective import factorize
-import quaternion
+from pyquaternion import Quaternion
 import logging
 
 
@@ -32,7 +32,7 @@ def correct_init(distorted, undistorted, source_camera_dict):
         K = np.array([[fx, s, cx],
                       [0., fy, cy],
                       [0., 0., 1.]])
-        R = quaternion.as_rotation_matrix(np.quaternion(qvec[0], qvec[1], qvec[2], qvec[3]))
+        R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
         tvec = np.array(tvec).reshape((3, 1))
 
         K_hat, R_hat, tvec_hat = factorize(np.hstack((np.dot(R, M), np.dot(R, b)+tvec)))
@@ -41,11 +41,11 @@ def correct_init(distorted, undistorted, source_camera_dict):
         # normalize K_hat
         K_hat = K_hat / K_hat[2, 2]
 
-        qvec_hat = quaternion.from_rotation_matrix(R_hat)
+        qvec_hat = Quaternion(matrix=R_hat)
 
         # w, h, fx, fy, cx, cy, s, qvec, t
         params_hat = [w, h, K_hat[0, 0], K_hat[1, 1], K_hat[0, 2], K_hat[1, 2], K_hat[0, 1],
-                                     qvec_hat.w, qvec_hat.x, qvec_hat.y, qvec_hat.z,
+                                     qvec_hat[0], qvec_hat[1], qvec_hat[2], qvec_hat[3],
                                      tvec_hat[0, 0], tvec_hat[1, 0], tvec_hat[2, 0]]
         target_camera_dict[img_name] = params_hat
 

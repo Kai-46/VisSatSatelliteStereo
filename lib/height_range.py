@@ -18,7 +18,7 @@ def height_range(rpc_models):
     # z_min = 0
     # z_max = 100
 
-    z_min = 10
-    z_max = 80
+    z_min = 0
+    z_max = 100
 
     return z_min, z_max

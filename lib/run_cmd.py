@@ -31,7 +31,7 @@ def run_cmd(cmd, disable_log=False, input=None):
                 process.wait()
     except (OSError, subprocess.CalledProcessError) as exception:
         print('oh my goodness!')
-        logging.error('Exception occured: {}'.format(exception))
+        logging.error('Exception occured: {}, cmd: {}'.format(exception, cmd))
         logging.error('Subprocess failed')
         exit(-1)
     else:

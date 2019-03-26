@@ -5,12 +5,12 @@ from lib.height_range import height_range
 from lib.gen_grid import gen_grid
 from lib.solve_affine import solve_affine
 from lib.solve_perspective import solve_perspective
-from lib.solve_pinhole import solve_pinhole
 import utm
 import numpy as np
-import quaternion
+from pyquaternion import Quaternion
 from lib.check_error import check_perspective_error
 import logging
+from lib.latlon_utm_converter import latlon_to_eastnorh, eastnorth_to_latlon
 from lib.robust_bbx import robust_bbx
 from lib.check_bbx import check_bbx
 
@@ -21,7 +21,7 @@ class Approx(object):
 
         # needs to use a common world coordinate frame for all smaller regions
         # common coordinate frame is:
-        #   aoi upper-left southing, aoi upper-left easting, aoi upper-left height
+        #   aoi lower-left easting, aoi lower-left northing, aoi lower-left height
         with open(os.path.join(tile_dir, 'aoi.json')) as fp:
             self.aoi_dict = json.load(fp)
 
@@ -55,25 +55,29 @@ class Approx(object):
         affine_dict = {}
         for i in range(self.cnt):
             region_dict = self.region_dicts[i]
-            ul_east = region_dict['x']
-            ul_north = region_dict['y']
-            lr_east = ul_east + region_dict['w']
-            lr_north = ul_north - region_dict['h']
+            ul_east = region_dict['ul_easting']
+            ul_north = region_dict['ul_northing']
+            lr_east = ul_east + region_dict['width']
+            lr_north = ul_north - region_dict['height']
             zone_number = region_dict['zone_number']
-            zone_letter = region_dict['zone_letter']
+            hemisphere = region_dict['hemisphere']
+
+            northern = True if hemisphere == 'N' else False
 
             # convert to lat, lon
-            ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
-            lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
+            ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, northern=northern)
+            lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, northern=northern)
 
             # create grid
-            lat_points = np.linspace(ul_lat, lr_lat, 20)
-            lon_points = np.linspace(ul_lon, lr_lon, 20)
-            z_points = np.linspace(self.min_height, self.max_height, 20)
+            xy_axis_grid_points = 100
+            z_axis_grid_points = 20
+            lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
+            lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
+            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
 
-            xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
+            lat_points, lon_points, z_points = gen_grid(lat_points, lon_points, z_points)
 
-            col, row = self.rpc_models[i].projection(xx, yy, zz)
+            col, row = self.rpc_models[i].projection(lat_points, lon_points, z_points)
 
             # make sure all the points lie inside the image
             width = self.rpc_models[i].width
@@ -81,15 +85,15 @@ class Approx(object):
             keep_mask = np.logical_and(col >= 0, row >= 0)
             keep_mask = np.logical_and(keep_mask, col < width)
             keep_mask = np.logical_and(keep_mask, row < height)
-            P = solve_affine(xx, yy, zz, col, row, keep_mask)
+
+            if np.sum(keep_mask) == 0:
+                print('something funny here, {}'.format(i))
+            P = solve_affine(lat_points, lon_points, z_points, col, row, keep_mask)
 
             # write to file
             img_name = self.img_names[i]
             P = list(P.reshape((8,)))
             affine_dict[img_name] = [width, height] + P
-
-        # with open(os.path.join(self.tile_dir, 'affine_latlon.json'), 'w') as fp:
-        #     json.dump(affine_dict, fp)
 
         return affine_dict
 
@@ -101,45 +105,61 @@ class Approx(object):
 
         errors_txt = '\nimg_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
 
-        aoi_ll_east = self.aoi_dict['x']
-        aoi_ll_north = self.aoi_dict['y'] - self.aoi_dict['h']
+        aoi_ll_east = self.aoi_dict['ul_easting']
+        aoi_ll_north = self.aoi_dict['ul_northing'] - self.aoi_dict['height']
 
         for i in range(self.cnt):
             region_dict = self.region_dicts[i]
-            ul_east = region_dict['x']
-            ul_north = region_dict['y']
-            lr_east = ul_east + region_dict['w']
-            lr_north = ul_north - region_dict['h']
+            ul_east = region_dict['ul_easting']
+            ul_north = region_dict['ul_northing']
+            lr_east = ul_east + region_dict['width']
+            lr_north = ul_north - region_dict['height']
             zone_number = region_dict['zone_number']
-            zone_letter = region_dict['zone_letter']
+            hemisphere = region_dict['hemisphere']
+            # northern = True if hemisphere == 'N' else False
 
-            # convert to lat, lon
-            ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
-            lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
-
-            # create lat_lon_height grid
-            # note that this is a left-handed coordinate system
-            xy_axis_grid_points = 20
+            # each grid-cell is about 5 meters * 5 meters * 5 meters
+            xy_axis_grid_points = 100
             z_axis_grid_points = 20
-            lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
-            lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
-            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
-
-            xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
-            col, row = self.rpc_models[i].projection(xx, yy, zz)
 
             # create north_east_height grid
             # note that this is a left-handed coordinate system
             north_points = np.linspace(ul_north, lr_north, xy_axis_grid_points)
             east_points = np.linspace(ul_east, lr_east, xy_axis_grid_points)
+            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
+            north_points, east_points, z_points = gen_grid(north_points, east_points, z_points)
 
-            xx, yy, zz = gen_grid(north_points, east_points, z_points)
+            lat_points, lon_points = eastnorth_to_latlon(east_points, north_points, zone_number, hemisphere)
+
+            # # convert to lat, lon
+            # ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, northern=northern)
+            # lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, northern=northern)
+            #
+            # # create lat_lon_height grid
+            # # note that this is a left-handed coordinate system
+            #
+            # lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
+            # lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
+            # z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
+            #
+            # lat_points, lon_points, z_points = gen_grid(lat_points, lon_points, z_points)
+            #
+
+            col, row = self.rpc_models[i].projection(lat_points, lon_points, z_points)
+
+            # create north_east_height grid
+            # note that this is a left-handed coordinate system
+            # north_points = np.linspace(ul_north, lr_north, xy_axis_grid_points)
+            # east_points = np.linspace(ul_east, lr_east, xy_axis_grid_points)
+            # z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
+            # north_points, east_points, z_points = gen_grid(north_points, east_points, z_points)
+
+            # east_points, north_points = latlon_to_eastnorh(lat_points, lon_points)
 
             # change to the right-handed coordinate frame and use a smaller number
-            xx_ = yy - aoi_ll_east
-            yy = xx - aoi_ll_north
-            xx = xx_
-            xx_ = None  # free memory
+            xx = east_points - aoi_ll_east
+            yy = north_points - aoi_ll_north
+            zz = z_points
 
             # make sure all the points lie inside the image
             width = self.rpc_models[i].width
@@ -150,11 +170,11 @@ class Approx(object):
 
             K, R, t = solve_perspective(xx, yy, zz, col, row, keep_mask)
 
-            qvec = quaternion.from_rotation_matrix(R)
+            qvec = Quaternion(matrix=R)
             # fx, fy, cx, cy, s, qvec, t
             params = [width, height, K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1],
-                       qvec.w, qvec.x, qvec.y, qvec.z,
-                       t[0, 0], t[1, 0], t[2, 0] ]
+                       qvec[0], qvec[1], qvec[2], qvec[3],
+                       t[0, 0], t[1, 0], t[2, 0]]
 
             img_name = self.img_names[i]
             perspective_dict[img_name] = params
@@ -164,81 +184,9 @@ class Approx(object):
             errors_txt += '{}: {}, {}, {}, {}, {}, {}\n'.format(img_name, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5])
 
         logging.info(errors_txt)
-        # with open(os.path.join(self.tile_dir, 'perspective_utm.json'), 'w') as fp:
-        #     json.dump(perspective_dict, fp)
 
         return perspective_dict
 
-    def approx_pinhole_utm(self):
-        logging.info('deriving a pinhole camera approximation...')
-        logging.info('scene coordinate frame is in UTM')
-
-        pinhole_dict = {}
-
-        errors_txt = '\nimg_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
-
-        aoi_ul_east = self.aoi_dict['x']
-        aoi_ul_north = self.aoi_dict['y']
-
-        for i in range(self.cnt):
-            region_dict = self.region_dicts[i]
-            ul_east = region_dict['x']
-            ul_north = region_dict['y']
-            lr_east = ul_east + region_dict['w']
-            lr_north = ul_north - region_dict['h']
-            zone_number = region_dict['zone_number']
-            zone_letter = region_dict['zone_letter']
-
-            # convert to lat, lon
-            ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, zone_letter)
-            lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, zone_letter)
-
-            # create lat_lon_height grid
-            lat_points = np.linspace(ul_lat, lr_lat, 20)
-            lon_points = np.linspace(ul_lon, lr_lon, 20)
-            z_points = np.linspace(self.min_height, self.max_height, 20)
-
-            xx, yy, zz = gen_grid(lat_points, lon_points, z_points)
-            col, row = self.rpc_models[i].projection(xx, yy, zz)
-
-            # create north_east_height grid
-            north_points = np.linspace(ul_north, lr_north, 20)
-            east_points = np.linspace(ul_east, lr_east, 20)
-
-            xx, yy, zz = gen_grid(north_points, east_points, z_points)
-
-            # change to the common scene coordinate frame
-            # use a smaller number and change to the right-handed coordinate frame
-            xx = aoi_ul_north - xx
-            yy = yy - aoi_ul_east
-
-            # make sure all the points lie inside the image
-            keep_mask = np.logical_and(col >= 0, row >= 0)
-            keep_mask = np.logical_and(keep_mask, col < self.rpc_models[i].width)
-            keep_mask = np.logical_and(keep_mask, row < self.rpc_models[i].height)
-
-            img_size = (self.rpc_models[i].width, self.rpc_models[i].height)
-
-            K, R, t = solve_pinhole(xx, yy, zz, col, row, img_size, keep_mask)
-
-            quat = quaternion.from_rotation_matrix(R)
-            # f, cx, cy, qvec, t
-            params = [ K[0, 0], K[0, 2], K[1, 2],
-                       quat.w, quat.x, quat.y, quat.z,
-                       t[0, 0], t[1, 0], t[2, 0] ]
-
-            img_name = self.img_names[i]
-            pinhole_dict[img_name] = params
-
-            # check approximation error
-            tmp = check_perspective_error(xx, yy, zz, col, row, K, R, t, keep_mask)
-            errors_txt += '{}: {}, {}, {}, {}, {}, {}\n'.format(img_name, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5])
-
-        logging.info(errors_txt)
-        # with open(os.path.join(self.tile_dir, 'perspective_utm.json'), 'w') as fp:
-        #     json.dump(perspective_dict, fp)
-
-        return pinhole_dict
 
 if __name__ == '__main__':
     work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'

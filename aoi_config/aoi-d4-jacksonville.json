@@ -1,22 +1,31 @@
 {
-  "dataset_dir":  "/data2/kz298/core3d_pan/jacksonville",
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d/performer_source_data/jacksonville/satellite_imagery/WV3/PAN",
   "work_dir": "/data2/kz298/core3d_result/aoi-d4-jacksonville",
   "bounding_box": {
       "zone_number" : 17,
-      "zone_letter" : "N",
-      "x" : 435532.000,
-      "y" : 3355520.000,
-      "w" : 1385.0,
-      "h" : 1413.0
+      "hemisphere" : "N",
+      "ul_easting" : 435532.000,
+      "ul_northing" : 3355520.000,
+      "width" : 1385.0,
+      "height" : 1413.0
   },
   "steps_to_run": {
-      "cut_image": false,
-      "derive_approx": false,
-      "colmap_sfm": false,
-      "colmap_mvs": true,
-      "colmap_fuse": false,
-      "register": false,
-      "evaluate": false
+    "process_dsm_gt": false,
+    "cut_image": false,
+    "derive_approx": false,
+    "colmap_sfm": false,
+    "skew_correct": false,
+    "inspect_sfm": false,
+    "reparam_depth": false,
+    "colmap_mvs": false,
+    "inspect_mvs": false,
+    "colmap_fuse": false,
+    "my_fuse": false,
+    "evaluate": true
   },
-  "evaluate_config": "/data2/kz298/core3d_evaluate/aoi-d4-jacksonville.config"
+  "z_min": -60.0,
+  "z_max": 190.0,
+  "mvs_window_radius": 5,
+  "ground_truth": "/home/cornell/kz298/evaluation/core3d-disclosed-tests/data/AOI-D4-Jacksonville/ground_truth/AOI-D4-DSM.tif",
+  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d4-jacksonville.config"
 }

@@ -1,22 +1,29 @@
 {
-  "dataset_dir": "/data2/kz298/dataset/mvs3dm/WV3/PAN",
+  "dataset_dir": "/bigdata/kz298/dataset/mvs3dm/WV3/PAN",
   "work_dir": "/data2/kz298/mvs3dm_result/MasterProvisional3",
   "bounding_box": {
     "zone_number": 21,
-    "zone_letter": "H",
-    "x": 353987.3159580445,
-    "y": 6188987.15576379,
-    "w": 381.3924301483203,
-    "h": 294.6166772842407
+    "hemisphere": "S",
+    "ul_easting": 353987.3159580445,
+    "ul_northing": 6188987.15576379,
+    "width": 381.3924301483203,
+    "height": 294.6166772842407
   },
   "steps_to_run": {
+    "process_dsm_gt": true,
     "cut_image": true,
     "derive_approx": true,
     "colmap_sfm": true,
+    "skew_correct": true,
+    "inspect_sfm": true,
+    "reparam_depth": true,
     "colmap_mvs": true,
+    "inspect_mvs": true,
     "colmap_fuse": true,
-    "register": true,
+    "my_fuse": true,
     "evaluate": true
   },
-  "ground_truth": "/data2/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterProvisional3.tif"
+  "z_min": -30.0,
+  "z_max": 150.0,
+  "ground_truth": "/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterProvisional3.tif"
 }

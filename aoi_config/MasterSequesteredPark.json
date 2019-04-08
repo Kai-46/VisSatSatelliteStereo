@@ -10,13 +10,21 @@
     "height": 485.1654461566359
   },
   "steps_to_run": {
-    "cut_image": false,
-    "derive_approx": false,
+    "process_dsm_gt": true,
+    "cut_image": true,
+    "derive_approx": true,
     "colmap_sfm": true,
+    "skew_correct": true,
+    "inspect_sfm": true,
+    "reparam_depth": true,
     "colmap_mvs": false,
+    "inspect_mvs": false,
     "colmap_fuse": false,
-    "register": false,
+    "my_fuse": false,
     "evaluate": false
   },
-  "ground_truth": "/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterSequesteredPark.tif"
+  "z_min": -30.0,
+  "z_max": 120.0,
+  "ground_truth": "/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterSequesteredPark.tif",
+  "evaluate_config": ""
 }

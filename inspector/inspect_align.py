@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
 
 
 def inspect_align(source, target, source_aligned, out_dir):

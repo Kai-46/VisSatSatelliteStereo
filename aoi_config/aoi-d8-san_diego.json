@@ -1,0 +1,31 @@
+{
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d_phase1b/ucsd",
+  "work_dir": "/data2/kz298/core3d_result/aoi-d8-san_diego",
+  "bounding_box": {
+      "zone_number" : 11,
+      "hemisphere" : "N",
+      "ul_easting" : 478017.711,
+      "ul_northing" : 3637283.062,
+      "width" : 1077.0,
+      "height" : 1092.5
+  },
+  "steps_to_run": {
+    "process_dsm_gt": false,
+    "cut_image": false,
+    "derive_approx": false,
+    "colmap_sfm": false,
+    "skew_correct": false,
+    "inspect_sfm": false,
+    "reparam_depth": false,
+    "colmap_mvs": false,
+    "inspect_mvs": false,
+    "colmap_fuse": false,
+    "my_fuse": false,
+    "evaluate": true
+  },
+  "z_min": 0,
+  "z_max": 150.0,
+  "mvs_window_radius": 5,
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D8-SanDiego/AOI-D8-DSM.tif",
+  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d8-san_diego.config"
+}

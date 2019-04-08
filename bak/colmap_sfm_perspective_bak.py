@@ -2,7 +2,7 @@ import os
 from write_template import write_template_perspective
 from absolute_coordinate import triangualte_all_points
 import numpy as np
-from correct_init import correct_init
+from old.correct_init import correct_init
 import json
 import colmap_sfm_commands
 from colmap.extract_sfm import extract_camera_dict, extract_all_to_dir

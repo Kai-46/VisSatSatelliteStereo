@@ -30,7 +30,6 @@ bounds=np.insert(bounds,idx,0)
 norm = BoundaryNorm(bounds, cmap.N)
 
 
-
 class DsmMerger(object):
     def __init__(self, bbx, resolution):
         self.xoff, self.yoff, self.xsize, self.ysize = bbx

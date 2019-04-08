@@ -7,7 +7,7 @@ import re
 from lib.image_util import read_image
 import utm
 from lib.save_image_only import save_image_only
-from lib.latlon_utm_converter import latlon_to_eastnorh, eastnorth_to_latlon
+from lib.latlon_utm_converter import eastnorth_to_latlon
 
 
 def process_dsm_gt(tile_dir, gt_file):

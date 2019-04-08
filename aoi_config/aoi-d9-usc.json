@@ -1,0 +1,31 @@
+{
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d_phase1b/usc",
+  "work_dir": "/data2/kz298/core3d_result/aoi-d9-usc",
+  "bounding_box": {
+      "zone_number" : 11,
+      "hemisphere" : "N",
+      "ul_easting" : 380757.000,
+      "ul_northing" : 3765547.000,
+      "width" : 1401.0,
+      "height" : 1405.0
+  },
+  "steps_to_run": {
+    "process_dsm_gt": true,
+    "cut_image": true,
+    "derive_approx": true,
+    "colmap_sfm": true,
+    "skew_correct": true,
+    "inspect_sfm": true,
+    "reparam_depth": true,
+    "colmap_mvs": true,
+    "inspect_mvs": true,
+    "colmap_fuse": true,
+    "my_fuse": true,
+    "evaluate": true
+  },
+  "z_min": 10.0,
+  "z_max": 130.0,
+  "mvs_window_radius": 5,
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D9-USC/AOI-D9-DSM.tif",
+  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d9-usc.config"
+}

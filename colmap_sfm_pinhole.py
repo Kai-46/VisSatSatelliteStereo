@@ -7,12 +7,13 @@ from colmap.extract_sfm import extract_camera_dict, write_all_tracks
 from correct_skew import add_skew_to_pinhole_tracks
 from absolute_coordinate import triangualte_all_points
 
-# for inspector
 from lib.ply_np_converter import np2ply
 from inspector.plot_reproj_err import plot_reproj_err
 from check_align import check_align
 from inspector.inspect_sfm import SparseInspector
 import logging
+from lib.proj_to_geo_grid import proj_to_geo_grid
+from lib.save_image_only import save_image_only
 
 
 def make_subdirs(sfm_dir):
@@ -63,6 +64,39 @@ def check_sfm(work_dir, sfm_dir, warping_file):
         target = rpc_coordinates[:, 0:3]
         check_align(work_dir, source, target)
 
+        # write to geo_grid and compute median error
+        # with open(os.path.join(work_dir, 'ground_truth/dsm_gt_bbx_local.json')) as fp:
+        #     bbx_local = json.load(fp)
+        #
+        # dsm = proj_to_geo_grid(source, bbx_local['ul_easting'], bbx_local['ul_northing'],
+        #                        bbx_local['resolution'], bbx_local['img_width'], bbx_local['img_height'])
+        # dsm_valid_mask = np.logical_not(np.isnan(dsm))
+        #
+        # dsm_gt = np.load(os.path.join(work_dir, 'ground_truth/dsm_gt_data.npy'))
+        # dsm_gt_valid_mask = np.load(os.path.join(work_dir, 'ground_truth/dsm_gt_data_valid_mask.npy'))
+        # signed_err = dsm - dsm_gt
+        # err = np.abs(signed_err)
+        # median_err = np.median(err[np.logical_and(dsm_gt_valid_mask, dsm_valid_mask)])
+        # logging.info('\nmedian error: {}\n'.format(median_err))
+        #
+        # from debugger.signed_colormap import get_signed_colormap
+        # np.save(os.path.join(inspect_dir, 'error.npy'), signed_err)
+        #
+        # signed_err[signed_err < -2.0] = -2.0
+        # signed_err[signed_err > 2.0] = 2.0
+        # signed_err[np.logical_not(dsm_gt_valid_mask)] = 0.0
+        # cmap, norm = get_signed_colormap()
+        #
+        # nan_mask = np.isnan(signed_err)
+        # signed_err[nan_mask] = 0.0
+        # save_image_only(signed_err, os.path.join(inspect_dir, 'error.jpg'), save_cbar=True, cmap=cmap, norm=norm)
+        # save_image_only(1.0 - np.float32(nan_mask), os.path.join(inspect_dir, 'error.mask.jpg'), plot=False)
+        #
+        # nan_mask = np.isnan(dsm)
+        # dsm[nan_mask] = np.nanmin(dsm)
+        # save_image_only(dsm, os.path.join(inspect_dir, 'dsm.jpg'))
+        # save_image_only(1.0 - np.float32(nan_mask), os.path.join(inspect_dir, 'dsm.mask.jpg'), plot=False)
+
 
 def run_sfm(work_dir, sfm_dir, init_camera_file):
     make_subdirs(sfm_dir)
@@ -83,7 +117,7 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     out_dir = os.path.join(sfm_dir, 'init_triangulate')
     colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2.0, 2.0)
 
-    # global bundle adjustment, this might not be useful, just left here for comparison
+    # # global bundle adjustment, this might not be useful, just left here for comparison
     # in_dir = os.path.join(sfm_dir, 'init_triangulate')
     # out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
     # colmap_sfm_commands.run_global_ba(in_dir, out_dir)

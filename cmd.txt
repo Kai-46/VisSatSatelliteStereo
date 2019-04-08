@@ -537,3 +537,5 @@ colmap patch_match_stereo --workspace_path mvs \
                         --PatchMatchStereo.geom_consistency_max_cost 3 \
                         --PatchMatchStereo.filter_min_num_consistent 2 \
                         --PatchMatchStereo.overwrite 0
+
+825, 2146, 480, 1739

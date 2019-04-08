@@ -1,22 +1,30 @@
 {
-  "dataset_dir":  "/data2/kz298/core3d_pan/wpafb",
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d/performer_source_data/wpafb/satellite_imagery/WV3/PAN",
   "work_dir": "/data2/kz298/core3d_result/aoi-d1-wpafb",
   "bounding_box": {
         "zone_number" : 16,
-        "zone_letter" : "N",
-        "x" : 747285.000,
-        "y" : 4407640.000,
-        "w" : 623.0,
-        "h" : 575
+        "hemisphere" : "N",
+        "ul_easting" : 747285.000,
+        "ul_northing" : 4407640.000,
+        "width" : 623.0,
+        "height" : 575.0
   },
   "steps_to_run": {
-        "cut_image": true,
-        "derive_approx": true,
-        "colmap_sfm": true,
-        "colmap_mvs": true,
-        "colmap_fuse": true,
-        "register": true,
-        "evaluate": true
+    "process_dsm_gt": false,
+    "cut_image": false,
+    "derive_approx": false,
+    "colmap_sfm": false,
+    "skew_correct": false,
+    "inspect_sfm": false,
+    "reparam_depth": false,
+    "colmap_mvs": false,
+    "inspect_mvs": false,
+    "colmap_fuse": false,
+    "my_fuse": false,
+    "evaluate": true
   },
+  "z_min": 170.0,
+  "z_max": 280.0,
+  "ground_truth" : "/home/cornell/kz298/evaluation/core3d-disclosed-tests/data/AOI-D1-WPAFB/ground_truth/AOI-D1-DSM.tif",
   "evaluate_config": "/data2/kz298/core3d_evaluate/aoi-d1-wpafb.config"
 }

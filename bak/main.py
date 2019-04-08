@@ -157,7 +157,7 @@ def main(config_file):
 
     # alignment
     # decide which solution to take
-    from align_sparse import compute_transform
+    from old.align_sparse import compute_transform
     # from align_rpc import compute_transform
     # from align_cam import compute_transform
     c, R, t = compute_transform(work_dir)

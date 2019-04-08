@@ -1,0 +1,31 @@
+{
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d_phase1b/san_fernando",
+  "work_dir": "/data2/kz298/core3d_result/aoi-d5-san_fernando",
+  "bounding_box": {
+      "zone_number" : 21,
+      "hemisphere" : "S",
+      "ul_easting" : 353743.000,
+      "ul_northing" : 6182692.000,
+      "width" : 1114.0,
+      "height" : 851.0
+  },
+  "steps_to_run": {
+    "process_dsm_gt": false,
+    "cut_image": false,
+    "derive_approx": false,
+    "colmap_sfm": false,
+    "skew_correct": false,
+    "inspect_sfm": false,
+    "reparam_depth": false,
+    "colmap_mvs": false,
+    "inspect_mvs": false,
+    "colmap_fuse": false,
+    "my_fuse": false,
+    "evaluate": true
+  },
+  "z_min": -20.0,
+  "z_max": 170.0,
+  "mvs_window_radius": 5,
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D5-SanFernando/AOI-D5-DSM.tif",
+  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d5-san_fernando.config"
+}

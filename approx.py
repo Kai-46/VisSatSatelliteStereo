@@ -1,7 +1,6 @@
 import os
 import json
 from lib.rpc_model import RPCModel
-from lib.height_range import height_range
 from lib.gen_grid import gen_grid
 from lib.solve_affine import solve_affine
 from lib.solve_perspective import solve_perspective
@@ -10,9 +9,7 @@ import numpy as np
 from pyquaternion import Quaternion
 from lib.check_error import check_perspective_error
 import logging
-from lib.latlon_utm_converter import latlon_to_eastnorh, eastnorth_to_latlon
-from lib.robust_bbx import robust_bbx
-from lib.check_bbx import check_bbx
+from lib.latlon_utm_converter import eastnorth_to_latlon
 
 
 class Approx(object):
@@ -40,10 +37,6 @@ class Approx(object):
 
         self.cnt = len(self.rpc_models)
 
-        self.min_height, self.max_height = height_range(self.rpc_models)
-
-        logging.info('\nheight min, max: {}, {}\n'.format(self.min_height, self.max_height))
-
     # def approx(self):
     #     self.approx_affine_latlon()
     #     self.approx_perspective_utm()
@@ -61,6 +54,10 @@ class Approx(object):
             lr_north = ul_north - region_dict['height']
             zone_number = region_dict['zone_number']
             hemisphere = region_dict['hemisphere']
+            min_height = region_dict['min_z']
+            max_height = region_dict['max_z']
+
+            logging.info('height min, max: {}, {}'.format(min_height, max_height))
 
             northern = True if hemisphere == 'N' else False
 
@@ -73,7 +70,7 @@ class Approx(object):
             z_axis_grid_points = 20
             lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
             lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
-            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
+            z_points = np.linspace(min_height, max_height, z_axis_grid_points)
 
             lat_points, lon_points, z_points = gen_grid(lat_points, lon_points, z_points)
 
@@ -86,8 +83,6 @@ class Approx(object):
             keep_mask = np.logical_and(keep_mask, col < width)
             keep_mask = np.logical_and(keep_mask, row < height)
 
-            if np.sum(keep_mask) == 0:
-                print('something funny here, {}'.format(i))
             P = solve_affine(lat_points, lon_points, z_points, col, row, keep_mask)
 
             # write to file
@@ -116,7 +111,10 @@ class Approx(object):
             lr_north = ul_north - region_dict['height']
             zone_number = region_dict['zone_number']
             hemisphere = region_dict['hemisphere']
-            # northern = True if hemisphere == 'N' else False
+            min_height = region_dict['min_z']
+            max_height = region_dict['max_z']
+
+            logging.info('height min, max: {}, {}'.format(min_height, max_height))
 
             # each grid-cell is about 5 meters * 5 meters * 5 meters
             xy_axis_grid_points = 100
@@ -126,35 +124,13 @@ class Approx(object):
             # note that this is a left-handed coordinate system
             north_points = np.linspace(ul_north, lr_north, xy_axis_grid_points)
             east_points = np.linspace(ul_east, lr_east, xy_axis_grid_points)
-            z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
+            z_points = np.linspace(min_height, max_height, z_axis_grid_points)
             north_points, east_points, z_points = gen_grid(north_points, east_points, z_points)
 
             lat_points, lon_points = eastnorth_to_latlon(east_points, north_points, zone_number, hemisphere)
 
-            # # convert to lat, lon
-            # ul_lat, ul_lon = utm.to_latlon(ul_east, ul_north, zone_number, northern=northern)
-            # lr_lat, lr_lon = utm.to_latlon(lr_east, lr_north, zone_number, northern=northern)
-            #
-            # # create lat_lon_height grid
-            # # note that this is a left-handed coordinate system
-            #
-            # lat_points = np.linspace(ul_lat, lr_lat, xy_axis_grid_points)
-            # lon_points = np.linspace(ul_lon, lr_lon, xy_axis_grid_points)
-            # z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
-            #
-            # lat_points, lon_points, z_points = gen_grid(lat_points, lon_points, z_points)
-            #
-
+            # convert to lat, lon
             col, row = self.rpc_models[i].projection(lat_points, lon_points, z_points)
-
-            # create north_east_height grid
-            # note that this is a left-handed coordinate system
-            # north_points = np.linspace(ul_north, lr_north, xy_axis_grid_points)
-            # east_points = np.linspace(ul_east, lr_east, xy_axis_grid_points)
-            # z_points = np.linspace(self.min_height, self.max_height, z_axis_grid_points)
-            # north_points, east_points, z_points = gen_grid(north_points, east_points, z_points)
-
-            # east_points, north_points = latlon_to_eastnorh(lat_points, lon_points)
 
             # change to the right-handed coordinate frame and use a smaller number
             xx = east_points - aoi_ll_east

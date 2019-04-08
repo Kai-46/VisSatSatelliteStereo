@@ -2,7 +2,6 @@ import os
 from write_template import write_template_perspective
 from absolute_coordinate import triangualte_all_points
 import numpy as np
-from correct_init import correct_init
 import json
 import colmap_sfm_commands
 from colmap.extract_sfm import extract_camera_dict, extract_all_to_dir
@@ -148,7 +147,7 @@ def remove_outliers(sparse_dir, bbx):
         fp.writelines(new_lines)
 
 
-def run_sfm(work_dir, sfm_dir, init_camera_file):
+def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
     make_subdirs(sfm_dir)
 
     with open(init_camera_file) as fp:
@@ -164,20 +163,21 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     colmap_sfm_commands.run_sift_matching(img_dir, db_file, camera_model='PERSPECTIVE')
 
     out_dir = os.path.join(sfm_dir, 'init_triangulate')
-    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2, 2)
+    # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2, 2)
+    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 2.0, 3.0, 3.0)
 
     # we change target to a local coordinate frame
     with open(os.path.join(work_dir, 'aoi.json')) as fp:
         aoi_dict = json.load(fp)
     bbx = (0.0, aoi_dict['width'], 0.0, aoi_dict['height'], 0.0, 100.0)
-    remove_outliers(os.path.join(sfm_dir, 'init_triangulate'), bbx)
+    #remove_outliers(os.path.join(sfm_dir, 'init_triangulate'), bbx)
 
     # global bundle adjustment
     in_dir = os.path.join(sfm_dir, 'init_triangulate')
     out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
-    colmap_sfm_commands.run_global_ba(in_dir, out_dir)
+    colmap_sfm_commands.run_global_ba(in_dir, out_dir, weight)
 
-    remove_outliers(os.path.join(sfm_dir, 'init_triangulate_ba'), bbx)
+    #remove_outliers(os.path.join(sfm_dir, 'init_triangulate_ba'), bbx)
 
     # retriangulate
     camera_dict = extract_camera_dict(out_dir)
@@ -189,7 +189,7 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     out_dir = os.path.join(sfm_dir, 'init_ba_triangulate')
     colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 1.5, 2, 2)
 
-    remove_outliers(os.path.join(sfm_dir, 'init_ba_triangulate'), bbx)
+    #remove_outliers(os.path.join(sfm_dir, 'init_ba_triangulate'), bbx)
 
     # copy
     shutil.copyfile(os.path.join(sfm_dir, 'init_ba_camera_dict.json'), os.path.join(sfm_dir, 'final_camera_dict.json'))

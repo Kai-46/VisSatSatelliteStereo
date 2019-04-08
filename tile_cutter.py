@@ -13,13 +13,13 @@ import json
 import numpy as np
 import copy
 import logging
-from lib.robust_bbx import robust_bbx
 import shutil
+from lib.blank_ratio import blank_ratio
 
 
 class TileCutter(object):
     # dataset_dir here is the cleaned_data_dir
-    def __init__(self, dataset_dir, out_dir):
+    def __init__(self, dataset_dir, out_dir, z_range=None):
         assert(os.path.exists(out_dir))
 
         self.dataset_dir = os.path.abspath(dataset_dir)
@@ -41,25 +41,27 @@ class TileCutter(object):
         tmp = sorted(tmp, key=lambda x: x[1])
         self.time_index = [x[0] for x in tmp]
 
-        self.min_height, self.max_height = height_range(self.rpc_models)
+        if z_range is not None:
+            self.min_height, self.max_height = z_range
+        else:
+            self.min_height, self.max_height = height_range(self.rpc_models)
 
         logging.info('min_height, max_height: {}, {}'.format(self.min_height, self.max_height))
 
         # prepare directory structure
-
         self.image_subdir = os.path.join(self.out_dir, 'images')
         if os.path.exists(self.image_subdir):
-            shutil.rmtree(self.image_subdir, ignore_errors=True)
+            shutil.rmtree(self.image_subdir)
         os.mkdir(self.image_subdir)
 
         self.metas_subdir = os.path.join(self.out_dir, 'metas')
         if os.path.exists(self.metas_subdir):
-            shutil.rmtree(self.metas_subdir, ignore_errors=True)
+            shutil.rmtree(self.metas_subdir)
         os.mkdir(self.metas_subdir)
 
         self.regions_subdir = os.path.join(self.out_dir, 'regions')
         if os.path.exists(self.regions_subdir):
-            shutil.rmtree(self.regions_subdir, ignore_errors=True)
+            shutil.rmtree(self.regions_subdir)
         os.mkdir(self.regions_subdir)
 
         self.useful_cnt = 0
@@ -67,14 +69,14 @@ class TileCutter(object):
     # cut area of interest; might divide the aoi into smaller regions
     def cut_aoi(self, zone_number, hemisphere, ul_east, ul_north, lr_east, lr_north):
         # save to aoi_dict
-        aoi_dict = {'zone_number': zone_number,
-                    'hemisphere': hemisphere,
-                    'ul_easting': ul_east,
-                    'ul_northing': ul_north,
-                    'width': lr_east - ul_east,
-                    'height': ul_north - lr_north}
-        with open(os.path.join(self.out_dir, 'aoi.json'), 'w') as fp:
-            json.dump(aoi_dict, fp)
+        # aoi_dict = {'zone_number': zone_number,
+        #             'hemisphere': hemisphere,
+        #             'ul_easting': ul_east,
+        #             'ul_northing': ul_north,
+        #             'width': lr_east - ul_east,
+        #             'height': ul_north - lr_north}
+        # with open(os.path.join(self.out_dir, 'aoi.json'), 'w') as fp:
+        #     json.dump(aoi_dict, fp)
 
         self.useful_cnt = 0
 
@@ -110,14 +112,14 @@ class TileCutter(object):
             width = int(np.round(np.max(col))) - ul_col + 1
             height = int(np.round(np.max(row))) - ul_row + 1
 
-            # ul_col, ul_row, width, height = robust_bbx(col, row)
-
             # check whether the bounding box lies in the image
             ntf_width = self.meta_dicts[i]['width']
             ntf_height = self.meta_dicts[i]['height']
             intersect, _, overlap = check_bbx((0, 0, ntf_width, ntf_height),
                                               (ul_col, ul_row, width, height))
-            overlap_thres = 0.5
+
+            logging.info('overlap: {}'.format(overlap))
+            overlap_thres = 0.8
             if overlap < overlap_thres:
                 logging.warning('discarding this image due to small coverage of target area, overlap: {}, ntf: {}'
                               .format(overlap, self.ntf_list[i]))
@@ -140,6 +142,13 @@ class TileCutter(object):
 
             # tone mapping
             tone_map(out_png, out_png)
+
+            ratio = blank_ratio(out_png)
+            if ratio > 0.2:
+                logging.warning('discarding this image due to large portion of black pixels, ratio: {}, ntf: {}'
+                              .format(ratio, self.ntf_list[i]))
+                os.remove(out_png)
+                continue
 
             # save metadata
             # need to modify the rpc function and image width, height
@@ -164,7 +173,9 @@ class TileCutter(object):
                            'ul_easting': ul_east,
                            'ul_northing': ul_north,
                            'width': lr_east - ul_east,
-                           'height': ul_north - lr_north}
+                           'height': ul_north - lr_north,
+                           'min_z': self.min_height,
+                           'max_z': self.max_height}
             with open(os.path.join(self.regions_subdir, '{:03d}_{}.json'.format(self.useful_cnt, cap_time)), 'w') as fp:
                 json.dump(region_dict, fp)
 

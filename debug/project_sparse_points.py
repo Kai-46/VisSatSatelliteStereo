@@ -78,7 +78,6 @@ def project_sparse(inspect_dir, work_dir):
                                                                                np.median(diff), np.mean(diff),
                                                                                tmp[0], tmp[1]))
 
-
 if __name__ == '__main__':
     work_dir = '/data2/kz298/mvs3dm_result/MasterSequesteredPark/'
     inspect_dir = os.path.join(work_dir, 'colmap/sfm_perspective/init_ba_triangulate_inspect')

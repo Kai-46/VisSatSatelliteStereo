@@ -5,14 +5,12 @@ from lib.height_range import height_range
 from lib.gen_grid import gen_grid
 from lib.solve_affine import solve_affine
 from lib.solve_perspective import solve_perspective
-from lib.solve_pinhole import solve_pinhole
+from old.solve_pinhole import solve_pinhole
 import utm
 import numpy as np
 import quaternion
 from lib.check_error import check_perspective_error
 import logging
-from lib.robust_bbx import robust_bbx
-from lib.check_bbx import check_bbx
 
 
 class Approx(object):
@@ -239,6 +237,7 @@ class Approx(object):
         #     json.dump(perspective_dict, fp)
 
         return pinhole_dict
+
 
 if __name__ == '__main__':
     work_dir = '/data2/kz298/core3d_aoi/aoi-d4-jacksonville'

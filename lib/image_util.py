@@ -202,6 +202,10 @@ def write_image(image, out_file, geo=None, proj=None, meta=None, np_type=None, b
     if np_type is None:
         np_type = np.float32
 
+    # replace nan with no_data
+    if no_data is not None:
+        image[np.isnan(image)] = no_data
+
     if len(image.shape) == 2:
         # This is a single band image - expand the dimension
         image = np.expand_dims(image, axis=2)

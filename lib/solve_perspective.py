@@ -86,13 +86,18 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
 
     P = np.real(vh[11, :]).reshape((3, 4))
 
+    singular_values = ''
+    for i in range(11, -1, -1):
+        singular_values += ' {}'.format(np.real(s[i]))
+    logging.info('singular values: {}'.format(singular_values))
+
     # factorize into standard form
     r, q, t = factorize(P)
 
-    with open('/data2/ex1_perspective.txt', 'w') as fp:
-        fp.write('K:\n{}\n\n'.format(r))
-        fp.write('R:\n{}\n\n'.format(q))
-        fp.write('t:\n{}\n'.format(t))
+    # with open('/data2/ex1_perspective.txt', 'w') as fp:
+    #     fp.write('K:\n{}\n\n'.format(r))
+    #     fp.write('R:\n{}\n\n'.format(q))
+    #     fp.write('t:\n{}\n'.format(t))
 
     return r, q, t
 

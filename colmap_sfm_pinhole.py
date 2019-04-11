@@ -1,19 +1,9 @@
 import os
 import numpy as np
-from write_template import write_template_pinhole
+from colmap_sfm_utils import write_template_pinhole
 import json
 import colmap_sfm_commands
 from colmap.extract_sfm import extract_camera_dict, write_all_tracks
-from correct_skew import add_skew_to_pinhole_tracks
-from absolute_coordinate import triangualte_all_points
-
-from lib.ply_np_converter import np2ply
-from inspector.plot_reproj_err import plot_reproj_err
-from check_align import check_align
-from inspector.inspect_sfm import SparseInspector
-import logging
-from lib.proj_to_geo_grid import proj_to_geo_grid
-from lib.save_image_only import save_image_only
 
 
 def make_subdirs(sfm_dir):
@@ -25,77 +15,6 @@ def make_subdirs(sfm_dir):
     for item in subdirs:
         if not os.path.exists(item):
             os.mkdir(item)
-
-
-def check_sfm(work_dir, sfm_dir, warping_file):
-    subdirs = [
-                os.path.join(sfm_dir, 'init_triangulate'),
-                # os.path.join(sfm_dir, 'init_triangulate_ba')
-    ]
-
-    for dir in subdirs:
-        logging.info('\ninspecting {} ...'.format(dir))
-        inspect_dir = dir + '_inspect'
-        if not os.path.exists(inspect_dir):
-            os.mkdir(inspect_dir)
-
-        all_tracks = add_skew_to_pinhole_tracks(dir, warping_file)
-        xyz_file = os.path.join(inspect_dir, 'kai_coordinates.txt')
-        track_file = os.path.join(inspect_dir, 'kai_tracks.json')
-        write_all_tracks(all_tracks, xyz_file, track_file)
-
-        # triangulate points
-        rpc_xyz_file = os.path.join(inspect_dir, 'kai_rpc_coordinates.txt')
-        triangualte_all_points(work_dir, track_file, rpc_xyz_file, os.path.join(inspect_dir, '/tmp'))
-
-        sfm_inspector = SparseInspector(dir, inspect_dir, camera_model='PINHOLE')
-        sfm_inspector.inspect_all()
-
-        # check rpc_reproj_err and rpc_points
-        rpc_coordinates = np.loadtxt(rpc_xyz_file)
-        zone_number = rpc_coordinates[0, 3]
-        zone_letter = 'N' if rpc_coordinates[0, 4] > 0 else 'S'
-        comments = ['projection: UTM {}{}'.format(zone_number, zone_letter),]
-        np2ply(rpc_coordinates[:, 0:3], os.path.join(inspect_dir, 'rpc_absolute_points.ply'), comments)
-        plot_reproj_err(rpc_coordinates[:, -1], os.path.join(inspect_dir, 'rpc_reproj_err.jpg'))
-
-        # check alignment
-        source = np.loadtxt(xyz_file)[:, 0:3]
-        target = rpc_coordinates[:, 0:3]
-        check_align(work_dir, source, target)
-
-        # write to geo_grid and compute median error
-        # with open(os.path.join(work_dir, 'ground_truth/dsm_gt_bbx_local.json')) as fp:
-        #     bbx_local = json.load(fp)
-        #
-        # dsm = proj_to_geo_grid(source, bbx_local['ul_easting'], bbx_local['ul_northing'],
-        #                        bbx_local['resolution'], bbx_local['img_width'], bbx_local['img_height'])
-        # dsm_valid_mask = np.logical_not(np.isnan(dsm))
-        #
-        # dsm_gt = np.load(os.path.join(work_dir, 'ground_truth/dsm_gt_data.npy'))
-        # dsm_gt_valid_mask = np.load(os.path.join(work_dir, 'ground_truth/dsm_gt_data_valid_mask.npy'))
-        # signed_err = dsm - dsm_gt
-        # err = np.abs(signed_err)
-        # median_err = np.median(err[np.logical_and(dsm_gt_valid_mask, dsm_valid_mask)])
-        # logging.info('\nmedian error: {}\n'.format(median_err))
-        #
-        # from debugger.signed_colormap import get_signed_colormap
-        # np.save(os.path.join(inspect_dir, 'error.npy'), signed_err)
-        #
-        # signed_err[signed_err < -2.0] = -2.0
-        # signed_err[signed_err > 2.0] = 2.0
-        # signed_err[np.logical_not(dsm_gt_valid_mask)] = 0.0
-        # cmap, norm = get_signed_colormap()
-        #
-        # nan_mask = np.isnan(signed_err)
-        # signed_err[nan_mask] = 0.0
-        # save_image_only(signed_err, os.path.join(inspect_dir, 'error.jpg'), save_cbar=True, cmap=cmap, norm=norm)
-        # save_image_only(1.0 - np.float32(nan_mask), os.path.join(inspect_dir, 'error.mask.jpg'), plot=False)
-        #
-        # nan_mask = np.isnan(dsm)
-        # dsm[nan_mask] = np.nanmin(dsm)
-        # save_image_only(dsm, os.path.join(inspect_dir, 'dsm.jpg'))
-        # save_image_only(1.0 - np.float32(nan_mask), os.path.join(inspect_dir, 'dsm.mask.jpg'), plot=False)
 
 
 def run_sfm(work_dir, sfm_dir, init_camera_file):

@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import linalg
 import logging
-from inspector.scatter3d import scatter3d
 
 
 def factorize(matrix):

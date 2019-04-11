@@ -119,6 +119,7 @@ def extract_all_to_files(sparse_dir, camera_dict_file, xyz_file, track_file, ext
         all_tracks = read_tracks(colmap_images, colmap_points3D)
     write_all_tracks(all_tracks, xyz_file, track_file)
 
+
 def extract_all_to_dir(sparse_dir, out_dir, ext='.txt'):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
@@ -140,3 +141,9 @@ def extract_all_to_dir(sparse_dir, out_dir, ext='.txt'):
 #     all_tracks = read_tracks(colmap_images, colmap_points3D)
 #
 #     return camera_params, all_tracks
+
+
+if __name__ == '__main__':
+    sparse_dir = '/data2/kz298/mvs3dm_result/MasterProvisional2/colmap/sfm_perspective/init_triangulate'
+    out_dir = '/data2/kz298/tmp'
+    extract_all_to_dir(sparse_dir, out_dir)

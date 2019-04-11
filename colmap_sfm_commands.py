@@ -1,6 +1,6 @@
 import os
 from lib.run_cmd import run_cmd
-from write_template import create_init_files
+from colmap_sfm_utils import create_init_files
 
 gpu_index = '0,1,2'
 

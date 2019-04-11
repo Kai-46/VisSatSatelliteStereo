@@ -1,10 +1,10 @@
 import os
 import json
-from lib.clean_data import clean_data
-from tile_cutter import TileCutter
-from approx import Approx
+from clean_data import clean_data
+from image_crop import image_crop
+from camera_approx import CameraApprox
 import colmap_sfm_perspective, colmap_sfm_pinhole
-from correct_skew import remove_skew
+from skew_correct import skew_correct
 import shutil
 import logging
 from lib.run_cmd import run_cmd
@@ -13,15 +13,10 @@ import numpy as np
 from lib.logger import GlobalLogger
 from reparam_depth import reparam_depth
 from colmap_mvs_commands import run_photometric_mvs, run_consistency_check
-from lib.proj_to_geo_grid import proj_to_geo_grid
-from lib.save_image_only import save_image_only
 from process_dsm_gt import process_dsm_gt
-from debugger.debug_perspective import debug_perspective
-from debugger.convert_mvs_results import convert_depth_maps, convert_normal_maps
-from debugger.aggregate_dsm import aggregate_dsm
-import colmap_fuse
-from debugger.merge_dsm import merge_dsm
-
+import aggregate_2p5d
+import aggregate_3d
+import utm
 
 
 class StereoPipeline(object):
@@ -41,34 +36,37 @@ class StereoPipeline(object):
     def run(self):
         print(self.config)
 
-        # write aoi json
-        bbx_utm = self.config['bounding_box']
-        aoi_dict = {'zone_number': bbx_utm['zone_number'],
-                    'hemisphere': bbx_utm['hemisphere'],
-                    'ul_easting': bbx_utm['ul_easting'],
-                    'ul_northing': bbx_utm['ul_northing'],
-                    'width': bbx_utm['width'],
-                    'height': bbx_utm['height']}
-        with open(os.path.join(self.config['work_dir'], 'aoi.json'), 'w') as fp:
-            json.dump(aoi_dict, fp, indent=2)
+        self.write_aoi()
+
+        if self.config['steps_to_run']['clean_data']:
+            self.clean_data()
 
         if self.config['steps_to_run']['process_dsm_gt']:
             process_dsm_gt(self.config['work_dir'], self.config['ground_truth'])
 
-        if self.config['steps_to_run']['cut_image']:
-            self.run_cut_image()
+        if self.config['steps_to_run']['crop_image']:
+            self.run_crop_image()
 
         if self.config['steps_to_run']['derive_approx']:
             self.run_derive_approx()
 
-        if self.config['steps_to_run']['colmap_sfm']:
-            self.run_colmap_sfm()
+        if self.config['steps_to_run']['colmap_sfm_perspective']:
+            self.run_colmap_sfm_perspective()
+
+        if self.config['steps_to_run']['inspect_sfm_perspective']:
+            self.run_inspect_sfm_perspective()
+
+        if self.config['steps_to_run']['debug_approx']:
+            self.run_debug_approx()
 
         if self.config['steps_to_run']['skew_correct']:
             self.run_skew_correct()
 
-        if self.config['steps_to_run']['inspect_sfm']:
-            self.run_inspect_sfm()
+        if self.config['steps_to_run']['colmap_sfm_pinhole']:
+            self.run_colmap_sfm_pinhole()
+
+        if self.config['steps_to_run']['inspect_sfm_pinhole']:
+            self.run_inspect_sfm_pinhole()
 
         if self.config['steps_to_run']['reparam_depth']:
             self.run_reparam_depth()
@@ -79,42 +77,97 @@ class StereoPipeline(object):
         if self.config['steps_to_run']['inspect_mvs']:
             self.run_inspect_mvs()
 
-        if self.config['steps_to_run']['my_fuse']:
-            self.run_my_fuse()
+        if self.config['steps_to_run']['aggregate_2p5d']:
+            self.run_aggregate_2p5d()
 
-        if self.config['steps_to_run']['colmap_fuse']:
-            self.run_colmap_fuse()
+        if self.config['steps_to_run']['aggregate_3d']:
+            self.run_aggregate_3d()
 
         if self.config['steps_to_run']['evaluate']:
             self.run_evaluation()
 
-    def run_cut_image(self):
+    def write_aoi(self):
+        # write aoi.json
+        bbx_utm = self.config['bounding_box']
+        zone_number = bbx_utm['zone_number']
+        hemisphere = bbx_utm['hemisphere']
+        ul_easting = bbx_utm['ul_easting']
+        ul_northing = bbx_utm['ul_northing']
+        lr_easting = ul_easting + bbx_utm['width']
+        lr_northing = ul_northing - bbx_utm['height']
+
+        # compute a lat_lon bbx
+        corners_easting = [ul_easting, lr_easting, lr_easting, ul_easting]
+        corners_northing = [ul_northing, ul_northing, lr_northing, lr_northing]
+        corners_lat = []
+        corners_lon = []
+        northern = True if hemisphere == 'N' else False
+        for i in range(4):
+            lat, lon = utm.to_latlon(corners_easting[i], corners_northing[i], zone_number, northern=northern)
+            corners_lat.append(lat)
+            corners_lon.append(lon)
+        lat_min = min(corners_lat)
+        lat_max = max(corners_lat)
+        lon_min = min(corners_lon)
+        lon_max = max(corners_lon)
+
+        aoi_dict = {'zone_number': zone_number,
+                    'hemisphere': hemisphere,
+                    'ul_easting': ul_easting,
+                    'ul_northing': ul_northing,
+                    'lr_easting': lr_easting,
+                    'lr_northing': lr_northing,
+                    'width': bbx_utm['width'],
+                    'height': bbx_utm['height'],
+                    'lat_min': lat_min,
+                    'lat_max': lat_max,
+                    'lon_min': lon_min,
+                    'lon_max': lon_max,
+                    'alt_min': self.config['alt_min'],
+                    'alt_max': self.config['alt_max']}
+
+        with open(os.path.join(self.config['work_dir'], 'aoi.json'), 'w') as fp:
+            json.dump(aoi_dict, fp, indent=2)
+
+    def clean_data(self):
         dataset_dir = self.config['dataset_dir']
         work_dir = self.config['work_dir']
-        bbx = self.config['bounding_box']
 
-        # set log file to 'logs/log_cut_image.txt'
-        log_file = os.path.join(work_dir, 'logs/log_cut_image.txt')
+        # set log file and timer
+        log_file = os.path.join(work_dir, 'logs/log_clean_data.txt')
         self.logger.set_log_file(log_file)
-
         # create a local timer
-        local_timer = Timer('Cut Image Module')
+        local_timer = Timer('Data cleaning Module')
         local_timer.start()
 
         # clean data
         cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
         if os.path.exists(cleaned_data_dir):  # remove cleaned_data_dir
-            shutil.rmtree(cleaned_data_dir, ignore_errors=True)
+            shutil.rmtree(cleaned_data_dir)
         os.mkdir(cleaned_data_dir)
 
         clean_data(dataset_dir, cleaned_data_dir)
 
-        # cut image and tone map
-        cutter = TileCutter(cleaned_data_dir, work_dir, (self.config['z_min'], self.config['z_max']))
-        cutter.cut_aoi(bbx['zone_number'], bbx['hemisphere'],
-                       bbx['ul_easting'], bbx['ul_northing'], bbx['ul_easting'] + bbx['width'], bbx['ul_northing'] - bbx['height'])
         # stop local timer
-        local_timer.mark('cut image done')
+        local_timer.mark('Data cleaning done')
+        logging.info(local_timer.summary())
+
+    def run_crop_image(self):
+        work_dir = self.config['work_dir']
+
+        # set log file
+        log_file = os.path.join(work_dir, 'logs/log_crop_image.txt')
+        self.logger.set_log_file(log_file)
+
+        # create a local timer
+        local_timer = Timer('Image cropping module')
+        local_timer.start()
+
+        # crop image and tone map
+        image_crop(work_dir)
+
+        # stop local timer
+        local_timer.mark('image cropping done')
         logging.info(local_timer.summary())
 
     def run_derive_approx(self):
@@ -129,21 +182,17 @@ class StereoPipeline(object):
         local_timer.start()
 
         # derive approximations for later uses
-        appr = Approx(work_dir)
+        appr = CameraApprox(work_dir)
 
-        perspective_dict = appr.approx_perspective_utm()
-        with open(os.path.join(work_dir, 'approx_perspective_utm.json'), 'w') as fp:
-            json.dump(perspective_dict, fp, indent=2, sort_keys=True)
-
-        affine_dict = appr.approx_affine_latlon()
-        with open(os.path.join(work_dir, 'approx_affine_latlon.json'), 'w') as fp:
-            json.dump(affine_dict, fp, indent=2, sort_keys=True)
+        appr.approx_perspective_utmalt()
+        appr.approx_affine_latlonalt()
+        appr.approx_perspective_enu()
 
         # stop local timer
         local_timer.mark('Derive approximation done')
         logging.info(local_timer.summary())
 
-    def run_colmap_sfm(self, weight=1e-3):
+    def run_colmap_sfm_perspective(self, weight=1e-3):
         work_dir = os.path.abspath(self.config['work_dir'])
         colmap_dir = os.path.join(work_dir, 'colmap')
         subdirs = [
@@ -166,35 +215,43 @@ class StereoPipeline(object):
         if os.path.exists(os.path.join(colmap_dir, 'sfm_perspective/images')):
             os.unlink(os.path.join(colmap_dir, 'sfm_perspective/images'))
         os.symlink(os.path.join(work_dir, 'images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
-        init_camera_file = os.path.join(work_dir, 'approx_perspective_utm.json')
+        init_camera_file = os.path.join(work_dir, 'approx_camera/perspective_enu.json')
         colmap_sfm_perspective.run_sfm(work_dir, sfm_dir, init_camera_file, weight)
 
         # stop local timer
         local_timer.mark('Colmap SfM done')
         logging.info(local_timer.summary())
 
-    def run_inspect_sfm(self):
+    def run_inspect_sfm_perspective(self):
         work_dir = os.path.abspath(self.config['work_dir'])
-        sfm_dir = os.path.join(work_dir, 'colmap/sfm_perspective')
 
-        log_file = os.path.join(work_dir, 'logs/log_inspect_sfm.txt')
+        log_file = os.path.join(work_dir, 'logs/log_inspect_sfm_perspective.txt')
         self.logger.set_log_file(log_file)
         local_timer = Timer('inspect sfm')
         local_timer.start()
 
         # inspect sfm perspective
-        logging.info('inspecting sfm perspective...')
-        colmap_sfm_perspective.check_sfm(work_dir, sfm_dir)
-        debug_perspective(work_dir)
-
-        # inspect sfm pinhole
-        logging.info('inspecting sfm pinhole...')
-        sfm_dir = os.path.join(work_dir, 'colmap/sfm_pinhole')
-        warping_file = os.path.join(work_dir, 'colmap/skew_correct/affine_warpings.json')
-        colmap_sfm_pinhole.check_sfm(work_dir, sfm_dir, warping_file)
+        sfm_dir = os.path.join(work_dir, 'colmap/sfm_perspective')
+        import debuggers.colmap_sfm_perspective_debugger
+        debuggers.colmap_sfm_perspective_debugger.check_sfm(work_dir, sfm_dir)
 
         # stop local timer
-        local_timer.mark('inspect sfm done')
+        local_timer.mark('inspect sfm perspective done')
+        logging.info(local_timer.summary())
+
+    def run_debug_approx(self):
+        work_dir = os.path.abspath(self.config['work_dir'])
+
+        log_file = os.path.join(work_dir, 'logs/log_debug_approx.txt')
+        self.logger.set_log_file(log_file)
+        local_timer = Timer('debug approx')
+        local_timer.start()
+
+        import debuggers.perspective_approx_debugger
+        debuggers.perspective_approx_debugger.debug_approx(work_dir)
+
+        # stop local timer
+        local_timer.mark('debug approx done')
         logging.info(local_timer.summary())
 
     def run_skew_correct(self):
@@ -202,8 +259,7 @@ class StereoPipeline(object):
         colmap_dir = os.path.join(work_dir, 'colmap')
         subdirs = [
             colmap_dir,
-            os.path.join(colmap_dir, 'skew_correct'),
-            os.path.join(colmap_dir, 'sfm_pinhole')
+            os.path.join(colmap_dir, 'skew_correct')
         ]
 
         for item in subdirs:
@@ -211,20 +267,36 @@ class StereoPipeline(object):
                 os.mkdir(item)
 
         # second time SfM
+        log_file = os.path.join(work_dir, 'logs/log_skew_correct.txt')
+        self.logger.set_log_file(log_file)
+        # create a local timer
+        local_timer = Timer('Skew correct module')
+        local_timer.start()
+
+        # skew-correct images
+        skew_correct(work_dir)
+
+        # stop local timer
+        local_timer.mark('Skew correct done')
+        logging.info(local_timer.summary())
+
+    def run_colmap_sfm_pinhole(self):
+        work_dir = os.path.abspath(self.config['work_dir'])
+        colmap_dir = os.path.join(work_dir, 'colmap')
+        subdirs = [
+            colmap_dir,
+            os.path.join(colmap_dir, 'sfm_pinhole')
+        ]
+
+        for item in subdirs:
+            if not os.path.exists(item):
+                os.mkdir(item)
+
         log_file = os.path.join(work_dir, 'logs/log_sfm_pinhole.txt')
         self.logger.set_log_file(log_file)
         # create a local timer
         local_timer = Timer('Colmap SfM Module, pinhole camera')
         local_timer.start()
-
-        # skew-correct images
-        perspective_img_dir = os.path.join(colmap_dir, 'sfm_perspective/images')
-        # after bundle-adjustment
-        perspective_file = os.path.join(colmap_dir, 'sfm_perspective/final_camera_dict.json')
-        pinhole_img_dir = os.path.join(colmap_dir, 'skew_correct/images')
-        pinhole_file = os.path.join(colmap_dir, 'skew_correct/pinhole_dict.json')
-        warping_file = os.path.join(colmap_dir, 'skew_correct/affine_warpings.json')
-        remove_skew(perspective_img_dir, perspective_file, pinhole_img_dir, pinhole_file, warping_file)
 
         # create a hard link to avoid copying of images
         sfm_dir = os.path.join(colmap_dir, 'sfm_pinhole')
@@ -237,6 +309,22 @@ class StereoPipeline(object):
 
         # stop local timer
         local_timer.mark('Colmap SfM done')
+        logging.info(local_timer.summary())
+
+    def run_inspect_sfm_pinhole(self):
+        work_dir = os.path.abspath(self.config['work_dir'])
+        log_file = os.path.join(work_dir, 'logs/log_inspect_sfm_pinhole.txt')
+        self.logger.set_log_file(log_file)
+        local_timer = Timer('inspect sfm')
+        local_timer.start()
+
+        sfm_dir = os.path.join(work_dir, 'colmap/sfm_pinhole')
+        warping_file = os.path.join(work_dir, 'colmap/skew_correct/affine_warpings.json')
+        import debuggers.colmap_sfm_pinhole_debugger
+        debuggers.colmap_sfm_pinhole_debugger.check_sfm(work_dir, sfm_dir, warping_file)
+
+        # stop local timer
+        local_timer.mark('inspect sfm pinhole done')
         logging.info(local_timer.summary())
 
     def run_reparam_depth(self):
@@ -301,46 +389,43 @@ class StereoPipeline(object):
         local_timer.start()
 
         logging.info('inspecting mvs ...')
-        # add inspector
+        print('fuck you')
+        from convert_mvs_results import convert_depth_maps, convert_normal_maps
         type_name = 'geometric'
         convert_depth_maps(work_dir, depth_type=type_name)
         convert_normal_maps(work_dir, normal_type=type_name)
 
-        aggregate_dsm(os.path.join(work_dir, 'mvs_results/height_maps/geo_grid_npy'),
-                      os.path.join(work_dir, 'mvs_results/height_maps/geo_grid_aggregate'),
-                      work_dir)
-        # stop local timer
         local_timer.mark('inspect mvs done')
         logging.info(local_timer.summary())
 
-    def run_colmap_fuse(self):
+    def run_aggregate_3d(self):
         work_dir = self.config['work_dir']
         # set log file
-        log_file = os.path.join(work_dir, 'logs/log_colmap_fuse.txt')
+        log_file = os.path.join(work_dir, 'logs/log_aggregate_3d.txt')
         self.logger.set_log_file(log_file)
         # create a local timer
-        local_timer = Timer('Colmap Fusion Module')
+        local_timer = Timer('3D aggregation module')
         local_timer.start()
 
-        colmap_fuse.run_fuse(work_dir)
+        aggregate_3d.run_fuse(work_dir)
 
         # stop local timer
-        local_timer.mark('Colmap Fusion done')
+        local_timer.mark('3D aggregation done')
         logging.info(local_timer.summary())
 
-    def run_my_fuse(self):
+    def run_aggregate_2p5d(self):
         work_dir = self.config['work_dir']
         # set log file
-        log_file = os.path.join(work_dir, 'logs/log_my_fuse.txt')
+        log_file = os.path.join(work_dir, 'logs/log_aggregate_2p5d.txt')
         self.logger.set_log_file(log_file)
         # create a local timer
-        local_timer = Timer('Fusion Module')
+        local_timer = Timer('2.5D aggregation module')
         local_timer.start()
 
-        merge_dsm(work_dir)
+        aggregate_2p5d.run_fuse(work_dir)
 
         # stop local timer
-        local_timer.mark('Fusion done')
+        local_timer.mark('2.5D aggregation done')
         logging.info(local_timer.summary())
 
     def run_evaluation(self):
@@ -354,7 +439,7 @@ class StereoPipeline(object):
         self.logger.set_log_file(log_file)
 
         # create a local timer
-        local_timer = Timer('Evaluation Module')
+        local_timer = Timer('Evaluation module')
         local_timer.start()
 
         # copy ground truth to evaluation folder
@@ -363,7 +448,7 @@ class StereoPipeline(object):
         shutil.copy2(ground_truth, eval_ground_truth)
 
         if self.config['evaluate_config']:
-            from lib.image_util import write_image, read_image
+            from old.image_util import write_image, read_image
             _, geo, proj, meta, width, height = read_image(eval_ground_truth)
 
             dsm = np.load(os.path.join(work_dir, 'mvs_results/merged_dsm.npy'))
@@ -402,39 +487,26 @@ class StereoPipeline(object):
 
         else:
             # analysis for mvs3dm
-            from lib.image_util import write_image, read_image
-            _, geo, proj, meta, width, height = read_image(eval_ground_truth)
-
-            dsm = np.load(os.path.join(work_dir, 'mvs_results/merged_dsm.npy'))
-            write_image(dsm, os.path.join(work_dir, 'mvs_results/merged_dsm.tif'), geo=geo, proj=proj, meta=meta, no_data=-9999)
-
-            # align
-            cmd = '/home/cornell/kz298/pubgeo/build/align3d {} {} maxt=10.0'.format(eval_ground_truth, os.path.join(work_dir, 'mvs_results/merged_dsm.tif'))
-            run_cmd(cmd)
-
-            # another dsm
-            dsm = np.load(os.path.join(work_dir, 'mvs_results/colmap_fused_dsm.npy'))
-            write_image(dsm, os.path.join(work_dir, 'mvs_results/colmap_fused_dsm.tif'), geo=geo, proj=proj, meta=meta, no_data=-9999)
-
-            # align
-            cmd = '/home/cornell/kz298/pubgeo/build/align3d {} {} maxt=10.0'.format(eval_ground_truth, os.path.join(work_dir, 'mvs_results/colmap_fused_dsm.tif'))
-            run_cmd(cmd)
+            from visualization.compare_dsm_tif import compare
+            test_dsm = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d.tif')
+            out_dir = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/evaluation')
+            compare(eval_ground_truth, test_dsm, out_dir, align=True)
 
             # evaluate for mvs3dm
-            logging.info('\n\nevaluating my fusion ...')
-            eval_point_cloud = os.path.join(work_dir, 'mvs_results/merged_dsm.ply')
+            logging.info('\n\nevaluating 2.5D fusion ...')
+            eval_point_cloud = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d.ply')
             cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
                   --cthreshold 1 \
                   -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
             run_cmd(cmd)
 
-            logging.info('\n\nevaluating colmap fusion ...')
+            # logging.info('\n\nevaluating colmap fusion ...')
 
-            eval_point_cloud = os.path.join(work_dir, 'mvs_results/colmap_fused.ply')
-            cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
-                  --cthreshold 1 \
-                  -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
-            run_cmd(cmd)
+            # eval_point_cloud = os.path.join(work_dir, 'mvs_results/colmap_fused.ply')
+            # cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
+            #       --cthreshold 1 \
+            #       -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
+            # run_cmd(cmd)
 
         # stop local timer
         local_timer.mark('geo-registration done')

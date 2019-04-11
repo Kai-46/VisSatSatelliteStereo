@@ -3,10 +3,8 @@ import json
 import os
 from colmap.read_dense import read_array
 from lib.save_image_only import save_image_only
-from lib.ply_np_converter import np2ply
-from lib.georegister_dense import georegister_dense
 import cv2
-from lib.image_util import read_image
+from old.image_util import read_image
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

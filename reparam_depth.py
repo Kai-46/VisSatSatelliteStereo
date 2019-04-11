@@ -2,6 +2,7 @@ from colmap.read_model import read_model
 import numpy as np
 from pyquaternion import Quaternion
 import os
+import logging
 
 
 def robust_depth_range(depth_range):
@@ -10,7 +11,7 @@ def robust_depth_range(depth_range):
             tmp = depth_range[img_name]
             max_val = max(tmp)
             min_val = min(tmp)
-            print('img_name: {}, depth min: {}, max: {}, ratio: {}'.format(img_name, min_val,
+            logging.info('img_name: {}, depth min: {}, max: {}, ratio: {}'.format(img_name, min_val,
                                                                 max_val, max_val / min_val))
             tmp = sorted(depth_range[img_name])
             cnt = len(tmp)
@@ -63,7 +64,7 @@ def reparam_depth(sparse_dir, save_dir):
     # protective margin 20 meters
     margin = 20.0
     min_z_value = np.percentile(z_values, 1) - margin
-    print('min_z_value: {}'.format(min_z_value))
+    logging.info('min_z_value: {}'.format(min_z_value))
     z_values = None
 
     # reparametrize depth
@@ -95,8 +96,8 @@ def reparam_depth(sparse_dir, save_dir):
             P_3by4 = np.dot(K, np.hstack((R, tvec)))
 
             depth_min = depth_range[img_name][0]
-            depth_max = depth_range[img_name][1]
-            print('depth_min: {}, depth_max: {}, ratio: {}'.format(depth_min, depth_max, depth_max / depth_min))
+            # depth_max = depth_range[img_name][1]
+            # logging.info('depth_min: {}, depth_max: {}, ratio: {}'.format(depth_min, depth_max, depth_max / depth_min))
             P_4by4 = np.vstack((P_3by4, depth_min * last_row))
 
             if img_name not in last_rows:
@@ -144,7 +145,7 @@ def reparam_depth(sparse_dir, save_dir):
     upper_stretch = 100.
     min_depth = common_reparam_depth_range[int(0.01 * cnt)] - lower_stretch
     max_depth = common_reparam_depth_range[int(0.99 * cnt)] + upper_stretch
-    print('{} points, depth_min: {}, depth_max: {}'.format(cnt, min_depth, max_depth))
+    logging.info('{} points, depth_min: {}, depth_max: {}'.format(cnt, min_depth, max_depth))
 
     with open(os.path.join(save_dir, 'reparam_depth_range.txt'), 'w') as fp:
         fp.write('{} {}\n'.format(min_depth, max_depth))

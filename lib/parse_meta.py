@@ -62,4 +62,6 @@ def parse_meta(xml_file):
     # cloudless or not
     meta_dict['cloudCover'] = float(tree.find('IMD/IMAGE/CLOUDCOVER').text)
 
+    meta_dict['sensor_id'] = tree.find('IMD/IMAGE/SATID').text
+
     return meta_dict

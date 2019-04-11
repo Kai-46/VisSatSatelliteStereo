@@ -9,3 +9,6 @@ utm==0.4.2
 imageio==2.5.0
 opencv-python==4.0.0
 pyquaternion==0.9.5
+pymap3d==1.7.15
+python-dateutil==2.8.0
+

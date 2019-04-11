@@ -1,14 +1,21 @@
-from lib.image_util import read_image, parse_proj_str
+from old.image_util import read_image, parse_proj_str
 import numpy as np
-import utm
-
+from lib.latlon_utm_converter import eastnorth_to_latlon
 
 # each pixel of a dsm is (east, north, height)
 # return (east, north, height) and (latitude, longitude, height)
-def dsm2np(dsm_file):
+def dsm2np(dsm_file, nodata=-9999):
     dsm, geo, proj, meta, width, height = read_image(dsm_file)
+
+    meta_dict = {
+        'geo': geo,
+        'proj': proj,
+        'meta': meta,
+        'width': width,
+        'height': height
+    }
+
     zone_number, hemisphere = parse_proj_str(proj)
-    northern = True if hemisphere == 'N' else False
     dsm = dsm[:, :, 0]
 
     ul_east = geo[0]
@@ -25,19 +32,16 @@ def dsm2np(dsm_file):
     zz = np.reshape(dsm, (-1, 1))
 
     # select out valid values
-    nan_value = -9999.0
-    mask = zz > nan_value
+    mask = (zz == nodata)
     xx = xx[mask].reshape((-1, 1))
     yy = yy[mask].reshape((-1, 1))
     zz = zz[mask].reshape((-1, 1))
 
-    utm_pts = np.hstack((xx, yy, zz))
-    latlon_pts = np.copy(utm_pts)
-    for i in range(latlon_pts.shape[0]):
-        lat, lon = utm.to_latlon(utm_pts[i, 0], utm_pts[i, 1], zone_number, northern=northern)
-        latlon_pts[i, 0] = lat
-        latlon_pts[i, 1] = lon
-    return utm_pts, latlon_pts
+    lat, lon = eastnorth_to_latlon(xx, yy, zone_number, hemisphere)
+
+    latlonalt = np.hstack((lat, lon, zz))
+
+    return latlonalt
 
 
 def np2dsm(np):
@@ -45,11 +49,4 @@ def np2dsm(np):
 
 
 if __name__ == '__main__':
-    tif = '/data2/kz298/mvs3dm_result/MasterSequesteredPark/evaluation/eval_ground_truth.tif'
-
-    utm_pts, latlon_pts = dsm2np(tif)
-
-    np.save('/data2/kz298/mvs3dm_result/MasterSequesteredPark/ground_truth/ground_truth_utm.npy', utm_pts)
-    np.save('/data2/kz298/mvs3dm_result/MasterSequesteredPark/ground_truth/ground_truth_latlon.npy', latlon_pts)
-
-    print('hello')
+    pass

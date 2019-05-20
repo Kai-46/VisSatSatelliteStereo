@@ -2,7 +2,7 @@ import os
 from lib.run_cmd import run_cmd
 from colmap_sfm_utils import create_init_files
 
-gpu_index = '0,1,2'
+gpu_index = '-1'
 
 
 def run_sift_matching(img_dir, db_file, camera_model):

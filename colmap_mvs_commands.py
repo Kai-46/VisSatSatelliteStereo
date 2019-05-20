@@ -1,7 +1,7 @@
 from lib.run_cmd import run_cmd
 
 
-gpu_index = '0,1,2'
+gpu_index = '-1'
 
 
 def run_photometric_mvs(mvs_dir, window_radius, depth_range=None):

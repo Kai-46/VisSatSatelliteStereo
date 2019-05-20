@@ -510,127 +510,7 @@ class StereoPipeline(object):
         logging.info(local_timer.summary())
 
     def run_evaluation(self):
-        work_dir = self.config['work_dir']
-        evaluate_dir = os.path.join(work_dir, 'evaluation')
-        if not os.path.exists(evaluate_dir):
-            os.mkdir(evaluate_dir)
-
-        # set log file
-        log_file = os.path.join(work_dir, 'logs/log_evaluate.txt')
-        self.logger.set_log_file(log_file)
-
-        # create a local timer
-        local_timer = Timer('Evaluation module')
-        local_timer.start()
-
-        # copy ground truth to evaluation folder
-        ground_truth = self.config['ground_truth']
-        eval_ground_truth = '{evaluate_dir}/eval_ground_truth.tif'.format(evaluate_dir=evaluate_dir)
-        shutil.copy2(ground_truth, eval_ground_truth)
-
-        if self.config['evaluate_config']:
-            from old.image_util import write_image, read_image
-            _, geo, proj, meta, width, height = read_image(eval_ground_truth)
-
-            dsm = np.load(os.path.join(work_dir, 'mvs_results/merged_dsm.npy'))
-            write_image(dsm, os.path.join(work_dir, 'evaluation/dsm.tif'), geo=geo, proj=proj, meta=meta, no_data=-9999)
-
-            # evaluate for core3d
-            # cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
-            #         -c {}'.format(self.config['evaluate_config'])
-
-            cmd = 'python3 /data2/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
-                    -c {}'.format(self.config['evaluate_config'])
-            run_cmd(cmd)
-
-            subdir = os.path.join(work_dir, 'evaluation/my_fuse')
-            if os.path.exists(subdir):
-                shutil.rmtree(subdir)
-            if not os.path.exists(subdir):
-                os.mkdir(subdir)
-            for item in os.listdir(os.path.join(work_dir, 'evaluation')):
-                if item == 'eval_ground_truth.tif':
-                    continue
-
-                shutil.move(os.path.join(work_dir, 'evaluation', item), subdir)
-
-            dsm = np.load(os.path.join(work_dir, 'mvs_results/colmap_fused_dsm.npy'))
-            write_image(dsm, os.path.join(work_dir, 'evaluation/dsm.tif'), geo=geo, proj=proj, meta=meta, no_data=-9999)
-
-            # evaluate for core3d
-            # cmd = 'python3 /home/cornell/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
-            #         -c {}'.format(self.config['evaluate_config'])
-            #
-
-            cmd = 'python3 /data2/kz298/core3d-metrics/core3dmetrics/run_geometrics.py --test-ignore 2 \
-                    -c {}'.format(self.config['evaluate_config'])
-            run_cmd(cmd)
-
-        else:
-            # analysis for mvs3dm
-            from visualization.compare_dsm_tif import compare
-            test_dsm = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d.tif')
-            out_dir = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/evaluation')
-            compare(eval_ground_truth, test_dsm, out_dir, align=True)
-
-            # evaluate for mvs3dm
-            logging.info('\n\nevaluating 2.5D fusion ...')
-            eval_point_cloud = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d.ply')
-            cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
-                  --cthreshold 1 \
-                  -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
-            run_cmd(cmd)
-
-            # logging.info('\n\nevaluating colmap fusion ...')
-
-            # eval_point_cloud = os.path.join(work_dir, 'mvs_results/colmap_fused.ply')
-            # cmd = '/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
-            #       --cthreshold 1 \
-            #       -t {} -i {}'.format(eval_ground_truth, eval_point_cloud)
-            # run_cmd(cmd)
-
-        # stop local timer
-        local_timer.mark('geo-registration done')
-        logging.info(local_timer.summary())
-
-    def search_window_radius(self, window_radius_list):
-        work_dir = self.config['work_dir']
-        for window_radius in window_radius_list:
-            print('current window radius: {}'.format(window_radius))
-            self.run_colmap_mvs(window_radius)
-            self.run_inspect_mvs()
-            self.run_aggregate_2p5d()
-            self.run_aggregate_3d()
-            self.run_evaluation()
-            os.rename(os.path.join(work_dir, 'mvs_results'),
-                      os.path.join(work_dir, 'mvs_results_winrad_{}'.format(window_radius)))
-            os.rename(os.path.join(work_dir, 'logs/log_mvs.txt'),
-                      os.path.join(work_dir, 'logs/log_mvs_winrad_{}.txt'.format(window_radius)))
-            os.rename(os.path.join(work_dir, 'logs/log_evaluate.txt'),
-                      os.path.join(work_dir, 'logs/log_evaluate_winrad_{}.txt'.format(window_radius)))
-
-    def search_regularization_weight(self, weight_list):
-        work_dir = self.config['work_dir']
-        for weight in weight_list:
-            print('current weight: {}'.format(weight))
-            self.run_colmap_sfm(weight=weight)
-            self.run_skew_correct()
-            self.run_reparam_depth()
-            self.run_colmap_mvs(window_radius=5)
-            self.run_inspect_mvs()
-            self.run_my_fuse()
-            self.run_colmap_fuse()
-            self.run_evaluation()
-            os.rename(os.path.join(work_dir, 'mvs_results'),
-                      os.path.join(work_dir, 'mvs_results_weight_{:.8}'.format(weight)))
-            os.rename(os.path.join(work_dir, 'logs/log_sfm_perspective.txt'),
-                      os.path.join(work_dir, 'logs/log_sfm_perspective_weight_{:.8}.txt'.format(weight)))
-            os.rename(os.path.join(work_dir, 'logs/log_sfm_pinhole.txt'),
-                      os.path.join(work_dir, 'logs/log_sfm_pinhole_weight_{:.8}.txt'.format(weight)))
-            os.rename(os.path.join(work_dir, 'logs/log_mvs.txt'),
-                      os.path.join(work_dir, 'logs/log_mvs_weight_{:.8}.txt'.format(weight)))
-            os.rename(os.path.join(work_dir, 'logs/log_evaluate.txt'),
-                      os.path.join(work_dir, 'logs/log_evaluate_weight_{:.8}.txt'.format(weight)))
+        pass
 
 
 if __name__ == '__main__':
@@ -639,22 +519,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Satellite Stereo')
     parser.add_argument('--config_file', type=str,
                         help='configuration file')
-    parser.add_argument('--search_window', type=int, default=0,
-                        help='0 or 1, whether to search window radius')
-    parser.add_argument('--search_weight', type=int, default=0,
-                        help='0 or 1, whether to search regularization weight')
-    parser.add_argument('--gpu_indices', type=str,
-                        help='gpu devices to use')
 
     args = parser.parse_args()
 
     pipeline = StereoPipeline(args.config_file)
 
-    if args.search_window > 0:
-        pipeline.search_window_radius([2, 3, 5, 7, 9, 11, 13, 15, 17, 19])
-    elif args.search_weight > 0:
-        # pipeline.search_regularization_weight([0., 0.001, 0.01, 0.1, 1., 10., 100.])
-        # pipeline.search_regularization_weight([1., 10., 100.])
-        pipeline.search_regularization_weight([100., 1000.])
-    else:
-        pipeline.run()
+    pipeline.run()

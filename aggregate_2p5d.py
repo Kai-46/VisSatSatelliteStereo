@@ -5,17 +5,6 @@ import json
 import logging
 from lib.dsm_util import write_dsm_tif
 from visualization.plot_height_map import plot_height_map
-from visualization.plot_error_map import plot_error_map
-
-
-def compute_stats(all_dsm):
-    # compute stddev
-
-    # compute mad
-
-    # compute num_measurements
-
-    pass
 
 
 def run_fuse(work_dir):
@@ -26,7 +15,7 @@ def run_fuse(work_dir):
         os.mkdir(out_dir)
 
     all_dsm = []
-    for item in os.listdir(geo_grid_npy_dir):
+    for item in sorted(os.listdir(geo_grid_npy_dir)):
         dsm = np.load(os.path.join(geo_grid_npy_dir, item))
         logging.info('current dsm empty ratio: {} %'.format(np.sum(np.isnan(dsm)) / dsm.size))
 

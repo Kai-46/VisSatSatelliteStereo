@@ -10,22 +10,27 @@
     "height": 368.2053341027349
   },
   "steps_to_run": {
+    "clean_data": true,
     "process_dsm_gt": true,
-    "cut_image": true,
+    "crop_image": true,
     "derive_approx": true,
-    "colmap_sfm": true,
+    "choose_subset": true,
+    "colmap_sfm_perspective": true,
+    "inspect_sfm_perspective": true,
+    "debug_approx": false,
     "skew_correct": true,
-    "inspect_sfm": true,
+    "select_subset": true,
+    "colmap_sfm_pinhole": true,
+    "inspect_sfm_pinhole": true,
     "reparam_depth": true,
     "colmap_mvs": true,
     "inspect_mvs": true,
-    "colmap_fuse": true,
-    "my_fuse": true,
-    "evaluate": true
+    "aggregate_2p5d": true,
+    "aggregate_3d": true,
+    "evaluate": false
   },
-  "z_min": -20.0,
-  "z_max": 80.0,
-  "ground_truth": "/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/Lidar_gt/MasterProvisional1.tif",
+  "alt_min": -20.0,
+  "alt_max": 80.0,
+  "ground_truth": "/bigdata/kz298/paper_result/benchmark/gt/masterprovisional1/masterprovisional1.tif",
   "evaluate_config": ""
-
 }

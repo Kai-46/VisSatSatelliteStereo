@@ -42,9 +42,9 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     # colmap_sfm_commands.run_global_ba(in_dir, out_dir)
 
     # write final camera_dict
-    camera_dict = extract_camera_dict(out_dir)
-    with open(os.path.join(sfm_dir, 'final_camera_dict.json'), 'w') as fp:
-        json.dump(camera_dict, fp, indent=2, sort_keys=True)
+    # camera_dict = extract_camera_dict(out_dir)
+    # with open(os.path.join(sfm_dir, 'final_camera_dict.json'), 'w') as fp:
+    #     json.dump(camera_dict, fp, indent=2, sort_keys=True)
 
     # normalize for the MVS
     # colmap_dir = os.path.join(work_dir, 'colmap')
@@ -56,7 +56,7 @@ def run_sfm(work_dir, sfm_dir, init_camera_file):
     # colmap_sfm_commands.run_normalize(in_dir, out_dir, tform_file)
 
     # make a symbolic link here
-    colmap_dir = os.path.join(work_dir, 'colmap')
-    if os.path.exists(os.path.join(colmap_dir, 'sparse_for_mvs')):
-        os.unlink(os.path.join(colmap_dir, 'sparse_for_mvs'))
-    os.symlink(os.path.join(sfm_dir, 'init_triangulate'), os.path.join(colmap_dir, 'sparse_for_mvs'))
+    # colmap_dir = os.path.join(work_dir, 'colmap')
+    # if os.path.exists(os.path.join(colmap_dir, 'sparse_for_mvs')):
+    #     os.unlink(os.path.join(colmap_dir, 'sparse_for_mvs'))
+    # os.symlink(os.path.join(sfm_dir, 'init_triangulate'), os.path.join(colmap_dir, 'sparse_for_mvs'))

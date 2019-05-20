@@ -86,7 +86,12 @@ def skew_correct(work_dir):
     with open(os.path.join(out_dir, 'skews.csv'), 'w') as fp:
         fp.write(info_txt)
 
+    if os.path.exists(os.path.join(out_dir, 'perspective_images')):
+        os.unlink(os.path.join(out_dir, 'perspective_images'))
     os.symlink(perspective_img_dir, os.path.join(out_dir, 'perspective_images'))
+
+    if os.path.exists(os.path.join(out_dir, 'perspective_dict.json')):
+        os.unlink(os.path.join(out_dir, 'perspective_dict.json'))
     os.symlink(perspective_file, os.path.join(out_dir, 'perspective_dict.json'))
 
 

@@ -14,8 +14,8 @@ def enu_to_latlonalt(e, n, u, lat0, lon0, alt0):
 
 
 if __name__ == '__main__':
-    lat = -34.448
-    lon = -58.575
+    lat = -34.450
+    lon = -58.579
     alt = 20.31
 
     lat0 = -34.448

@@ -7,18 +7,6 @@ import logging
 # first find .NTF file, and extract order_id, prod_id, standard name
 # then extract rpc file and preview image from the .tar file
 
-# def raw_name_to_cleaned_name(raw_name):
-#     idx = raw_name.find('-P1BS-')
-#     img_name = raw_name[idx - 13:idx + 26]
-#
-#     idx = raw_name.find('WV')
-#     sensor = raw_name[idx:idx + 4]
-#
-#     # prepend sensor to img_name
-#     cleaned_name = sensor + '_' + img_name
-#
-#     return cleaned_name
-
 
 def clean_data(dataset_dir, out_dir):
     # out_dir must exist and be empty
@@ -49,7 +37,7 @@ def clean_data(dataset_dir, out_dir):
             prod_id = item[idx+6:idx+26]
             img_name = item[idx - 13:idx + 26]
 
-            os.symlink(os.path.join(dataset_dir, item), os.path.join(out_dir, '{}.NTF'.format(img_name)))
+            # os.symlink(os.path.join(dataset_dir, item), os.path.join(out_dir, '{}.NTF'.format(img_name)))
 
             tar = tarfile.open(os.path.join(dataset_dir, '{}.tar'.format(item[:-4])))
 
@@ -69,16 +57,19 @@ def clean_data(dataset_dir, out_dir):
             #                       if img_name in x and (x[-4:] == '.XML' or x[-4:] == '.JPG')])
 
             rpc_file = os.path.join(des_folder, '{}_PAN'.format(prod_id), '{}.XML'.format(img_name))
-            jpg_file = os.path.join(des_folder, '{}_PAN'.format(prod_id), '{}-BROWSE.JPG'.format(img_name))
-            img_files = [rpc_file, jpg_file]
-            for x in img_files:
-                shutil.copy(x, out_dir)
+            # jpg_file = os.path.join(des_folder, '{}_PAN'.format(prod_id), '{}-BROWSE.JPG'.format(img_name))
+            # img_files = [rpc_file, jpg_file]
+            # for x in img_files:
+            #     shutil.copy(x, out_dir)
 
             # remove control characters in the xml file
-            rpc_file = os.path.join(out_dir, '{}.XML'.format(img_name))
+            # rpc_file = os.path.join(out_dir, '{}.XML'.format(img_name))
+
             with open(rpc_file, encoding='utf-8', errors='ignore') as fp:
                 content = fp.read()
             content = "".join([ch for ch in content if unicodedata.category(ch)[0] != "C"])
+
+            rpc_file = os.path.join(out_dir, '{}.XML'.format(item[:-4]))
             with open(rpc_file, 'w') as fp:
                 fp.write(content)
 
@@ -90,8 +81,11 @@ def clean_data(dataset_dir, out_dir):
 
 
 if __name__ == '__main__':
-    dataset_dir = '/data2/kz298/core3d_pan/jacksonville'
-    out_dir = os.path.join(dataset_dir, 'cleaned_data')
+    import sys
+    dataset_dir = sys.argv[1]
+    out_dir = sys.argv[2]
+    print('dataset_dir: {}, out_dir: {}'.format(dataset_dir, out_dir))
+
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
     clean_data(dataset_dir, out_dir)

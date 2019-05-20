@@ -9,10 +9,11 @@ from pyquaternion import Quaternion
 from lib.check_error import check_perspective_error
 import logging
 from lib.latlon_utm_converter import eastnorth_to_latlon
-from lib.latlonalt_enu_converter import latlonalt_to_enu
+from coordinate_system import global_to_local
 
 
-def discretize_volume(bbx_file):
+def discretize_volume(work_dir):
+    bbx_file = os.path.join(work_dir, 'aoi.json')
     with open(bbx_file) as fp:
         bbx = json.load(fp)
 
@@ -47,12 +48,9 @@ def discretize_volume(bbx_file):
     zz_utm = alt_points
 
     # convert to enu
-    lat_min = bbx['lat_min']
-    lon_min = bbx['lon_min']
-    xx_enu, yy_enu, zz_enu = latlonalt_to_enu(lat_points, lon_points, alt_points, lat_min, lon_min, alt_min)
-
     latlonalt = np.hstack((lat_points, lon_points, alt_points))
     utm_local = np.hstack((xx_utm, yy_utm, zz_utm))
+    xx_enu, yy_enu, zz_enu = global_to_local(work_dir, lat_points, lon_points, alt_points)
     enu = np.hstack((xx_enu, yy_enu, zz_enu))
     return latlonalt, utm_local, enu
 
@@ -61,7 +59,7 @@ class CameraApprox(object):
     def __init__(self, work_dir):
         self.work_dir = work_dir
 
-        self.latlonalt, self.utm_local, self.enu = discretize_volume(os.path.join(work_dir, 'aoi.json'))
+        self.latlonalt, self.utm_local, self.enu = discretize_volume(work_dir)
 
         self.img_names = []
         self.rpc_models = []
@@ -83,12 +81,12 @@ class CameraApprox(object):
         logging.info('deriving an affine camera approximation...')
         logging.info('scene coordinate frame is in lat, lon, alt')
 
+        lat_points = self.latlonalt[:, 0:1]
+        lon_points = self.latlonalt[:, 1:2]
+        alt_points = self.latlonalt[:, 2:3]
+
         affine_dict = {}
         for i in range(self.cnt):
-            lat_points = self.latlonalt[:, 0:1]
-            lon_points = self.latlonalt[:, 1:2]
-            alt_points = self.latlonalt[:, 2:3]
-
             col, row = self.rpc_models[i].projection(lat_points, lon_points, alt_points)
 
             # make sure all the points lie inside the image
@@ -125,16 +123,17 @@ class CameraApprox(object):
 
         errors_txt = 'img_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
 
+        lat_points = self.latlonalt[:, 0:1]
+        lon_points = self.latlonalt[:, 1:2]
+        alt_points = self.latlonalt[:, 2:3]
+
+        xx = self.utm_local[:, 0:1]
+        yy = self.utm_local[:, 1:2]
+        zz = self.utm_local[:, 2:3]
+
         for i in range(self.cnt):
-            lat_points = self.latlonalt[:, 0:1]
-            lon_points = self.latlonalt[:, 1:2]
-            alt_points = self.latlonalt[:, 2:3]
 
             col, row = self.rpc_models[i].projection(lat_points, lon_points, alt_points)
-
-            xx = self.utm_local[:, 0:1]
-            yy = self.utm_local[:, 1:2]
-            zz = self.utm_local[:, 2:3]
 
             # make sure all the points lie inside the image
             width = self.rpc_models[i].width
@@ -181,16 +180,16 @@ class CameraApprox(object):
 
         errors_txt = 'img_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
 
+        lat_points = self.latlonalt[:, 0:1]
+        lon_points = self.latlonalt[:, 1:2]
+        alt_points = self.latlonalt[:, 2:3]
+
+        xx = self.enu[:, 0:1]
+        yy = self.enu[:, 1:2]
+        zz = self.enu[:, 2:3]
+
         for i in range(self.cnt):
-            lat_points = self.latlonalt[:, 0:1]
-            lon_points = self.latlonalt[:, 1:2]
-            alt_points = self.latlonalt[:, 2:3]
-
             col, row = self.rpc_models[i].projection(lat_points, lon_points, alt_points)
-
-            xx = self.enu[:, 0:1]
-            yy = self.enu[:, 1:2]
-            zz = self.enu[:, 2:3]
 
             # make sure all the points lie inside the image
             width = self.rpc_models[i].width

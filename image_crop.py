@@ -106,6 +106,9 @@ def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
         # change datetime object to string
         meta_dict['capTime'] = meta_dict['capTime'].isoformat()
 
+        meta_dict['ul_col_original'] = ul_col
+        meta_dict['ul_row_original'] = ul_row
+
         out_json = os.path.join(out_dir, '{}:{:04d}:{}.json'.format(pid, i, base_name))
         with open(out_json, 'w') as fp:
             json.dump(meta_dict, fp, indent=2)
@@ -180,10 +183,12 @@ def image_crop(work_dir):
         img_file, meta_file = all_files[i]
         idx = img_file.rfind(':')
         sensor = sensor_ids[img_file]
-        target_img_name = '{:04d}_{}_{}'.format(i, sensor, img_file[idx+1:])
+        time = img_file[idx+1:idx+8]
+        target_img_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, img_file[idx+9:])
 
         idx = meta_file.rfind(':')
-        target_xml_name = '{:04d}_{}_{}'.format(i, sensor, meta_file[idx+1:])
+        time = img_file[idx+1:idx+8]
+        target_xml_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, meta_file[idx+9:])
 
         shutil.copyfile(img_file, os.path.join(images_subdir, target_img_name))
         shutil.copyfile(meta_file, os.path.join(metas_subdir, target_xml_name))

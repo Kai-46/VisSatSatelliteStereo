@@ -1,11 +1,10 @@
-import numpy as np
 from lib.dsm_util import read_dsm_tif
+from lib.ply_np_converter import np2ply
+import numpy as np
 
 
-# each pixel of a dsm is (east, north, alt)
-# return (east, north, alt)
-def dsm2np(dsm_file):
-    dsm, meta_dict = read_dsm_tif(dsm_file)
+def dsm_to_ply(in_tif, out_ply):
+    dsm, meta_dict = read_dsm_tif(in_tif)
 
     zz = dsm.reshape((-1, 1))
     valid_mask = np.logical_not(np.isnan(zz))
@@ -21,12 +20,15 @@ def dsm2np(dsm_file):
     xx = xx[valid_mask].reshape((-1, 1))
     yy = yy[valid_mask].reshape((-1, 1))
 
-    return np.hstack((yy, xx, zz))
-
-
-def np2dsm(np):
-    pass
+    points = np.hstack((yy, xx, zz))
+    comment_1 = 'projection: UTM {}{}'.format(meta_dict['zone_number'], meta_dict['hemisphere'])
+    comments = [comment_1,]
+    np2ply(points, out_ply, comments)
 
 
 if __name__ == '__main__':
-    pass
+    in_tif = '/data2/kz298/mvs3dm_result/MasterProvisional2/mvs_results_all/aggregate_2p5d/evaluation/icp/aggregate_2p5d_icp.tif'
+    out_ply = in_tif[:-4] + '.ply'
+
+    dsm_to_ply(in_tif, out_ply)
+

@@ -50,6 +50,9 @@ class StereoPipeline(object):
         if self.config['steps_to_run']['derive_approx']:
             self.run_derive_approx()
 
+        if self.config['steps_to_run']['choose_subset']:
+            self.run_choose_subset()
+
         if self.config['steps_to_run']['colmap_sfm_perspective']:
             self.run_colmap_sfm_perspective()
 
@@ -61,6 +64,9 @@ class StereoPipeline(object):
 
         if self.config['steps_to_run']['skew_correct']:
             self.run_skew_correct()
+
+        if self.config['steps_to_run']['select_subset']:
+            self.run_select_subset()
 
         if self.config['steps_to_run']['colmap_sfm_pinhole']:
             self.run_colmap_sfm_pinhole()
@@ -192,7 +198,41 @@ class StereoPipeline(object):
         local_timer.mark('Derive approximation done')
         logging.info(local_timer.summary())
 
-    def run_colmap_sfm_perspective(self, weight=1e-3):
+    def run_choose_subset(self):
+        work_dir = os.path.abspath(self.config['work_dir'])
+        colmap_dir = os.path.join(work_dir, 'colmap')
+        if not os.path.exists(colmap_dir):
+            os.mkdir(colmap_dir)
+        out_dir = os.path.join(colmap_dir, 'subset_for_sfm')
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.mkdir(out_dir)
+        image_subdir = os.path.join(out_dir, 'images')
+        os.mkdir(image_subdir)
+
+        with open(os.path.join(work_dir, 'approx_camera/perspective_enu.json')) as fp:
+            perspective_dict = json.load(fp)
+
+        # build image id to name mapping
+        img_id2name = {}
+        for img_name in perspective_dict.keys():
+            id = int(img_name[:img_name.find('_')])
+            img_id2name[id] = img_name
+
+        #subset_img_ids = list(range(15)) + list(range(33, 40))
+        subset_img_ids = img_id2name.keys()     # select all
+        subset_perspective_dict = {}
+
+        for img_id in subset_img_ids:
+            img_name = img_id2name[img_id]
+            subset_perspective_dict[img_name] = perspective_dict[img_name]
+            shutil.copy2(os.path.join(work_dir, 'images', img_name),
+                         image_subdir)
+
+        with open(os.path.join(out_dir, 'perspective_dict.json'), 'w') as fp:
+            json.dump(subset_perspective_dict, fp, indent=2)
+
+    def run_colmap_sfm_perspective(self, weight=1):
         work_dir = os.path.abspath(self.config['work_dir'])
         colmap_dir = os.path.join(work_dir, 'colmap')
         subdirs = [
@@ -214,8 +254,8 @@ class StereoPipeline(object):
         # create a hard link to avoid copying of images
         if os.path.exists(os.path.join(colmap_dir, 'sfm_perspective/images')):
             os.unlink(os.path.join(colmap_dir, 'sfm_perspective/images'))
-        os.symlink(os.path.join(work_dir, 'images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
-        init_camera_file = os.path.join(work_dir, 'approx_camera/perspective_enu.json')
+        os.symlink(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
+        init_camera_file = os.path.join(work_dir, 'colmap/subset_for_sfm/perspective_dict.json')
         colmap_sfm_perspective.run_sfm(work_dir, sfm_dir, init_camera_file, weight)
 
         # stop local timer
@@ -280,17 +320,51 @@ class StereoPipeline(object):
         local_timer.mark('Skew correct done')
         logging.info(local_timer.summary())
 
+    def run_select_subset(self):
+        work_dir = os.path.abspath(self.config['work_dir'])
+        out_dir = os.path.join(work_dir, 'colmap/subset_for_mvs')
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.mkdir(out_dir)
+
+        image_subdir = os.path.join(out_dir, 'images')
+        if not os.path.exists(image_subdir):
+            os.mkdir(image_subdir)
+
+        log_file = os.path.join(work_dir, 'logs/log_select_subset.txt')
+        self.logger.set_log_file(log_file)
+        # create a local timer
+        local_timer = Timer('select subset')
+        local_timer.start()
+
+        with open(os.path.join(work_dir, 'colmap/skew_correct/pinhole_dict.json')) as fp:
+            pinhole_dict = json.load(fp)
+
+        # build image id to name mapping
+        img_id2name = {}
+        for img_name in pinhole_dict.keys():
+            id = int(img_name[:img_name.find('_')])
+            img_id2name[id] = img_name
+
+        #subset_img_ids = list(range(15)) + list(range(33, 40))
+        subset_img_ids = img_id2name.keys()     # select all
+        subset_pinhole_dict = {}
+
+        for img_id in subset_img_ids:
+            img_name = img_id2name[img_id]
+            subset_pinhole_dict[img_name] = pinhole_dict[img_name]
+            shutil.copy2(os.path.join(work_dir, 'colmap/skew_correct/images', img_name),
+                         image_subdir)
+
+        with open(os.path.join(out_dir, 'pinhole_dict.json'), 'w') as fp:
+            json.dump(subset_pinhole_dict, fp, indent=2)
+
+        # stop local timer
+        local_timer.mark('select_subset')
+        logging.info(local_timer.summary())
+
     def run_colmap_sfm_pinhole(self):
         work_dir = os.path.abspath(self.config['work_dir'])
-        colmap_dir = os.path.join(work_dir, 'colmap')
-        subdirs = [
-            colmap_dir,
-            os.path.join(colmap_dir, 'sfm_pinhole')
-        ]
-
-        for item in subdirs:
-            if not os.path.exists(item):
-                os.mkdir(item)
 
         log_file = os.path.join(work_dir, 'logs/log_sfm_pinhole.txt')
         self.logger.set_log_file(log_file)
@@ -299,11 +373,14 @@ class StereoPipeline(object):
         local_timer.start()
 
         # create a hard link to avoid copying of images
+        colmap_dir = os.path.join(work_dir, 'colmap')
         sfm_dir = os.path.join(colmap_dir, 'sfm_pinhole')
+        if not os.path.exists(sfm_dir):
+            os.mkdir(sfm_dir)
         if os.path.exists(os.path.join(colmap_dir, 'sfm_pinhole/images')):
             os.unlink(os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        os.symlink(os.path.join(colmap_dir, 'skew_correct/images'), os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        init_camera_file = os.path.join(colmap_dir, 'skew_correct/pinhole_dict.json')
+        os.symlink(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole/images'))
+        init_camera_file = os.path.join(colmap_dir, 'subset_for_mvs/pinhole_dict.json')
 
         colmap_sfm_pinhole.run_sfm(work_dir, sfm_dir, init_camera_file)
 
@@ -346,13 +423,17 @@ class StereoPipeline(object):
 
         # prepare dense workspace
         cmd = 'colmap image_undistorter --max_image_size 10000 \
-                            --image_path {colmap_dir}/skew_correct/images  \
-                            --input_path {colmap_dir}/sparse_for_mvs \
+                            --image_path {colmap_dir}/sfm_pinhole/images  \
+                            --input_path {colmap_dir}/sfm_pinhole/init_triangulate \
                             --output_path {colmap_dir}/mvs'.format(colmap_dir=colmap_dir)
         run_cmd(cmd)
 
         # compute depth ranges and generate last_rows.txt
         reparam_depth(os.path.join(mvs_dir, 'sparse'), mvs_dir)
+
+        # stop local timer
+        local_timer.mark('reparam depth done')
+        logging.info(local_timer.summary())
 
     def run_colmap_mvs(self, window_radius=5):
         work_dir = self.config['work_dir']
@@ -389,9 +470,9 @@ class StereoPipeline(object):
         local_timer.start()
 
         logging.info('inspecting mvs ...')
-        print('fuck you')
         from convert_mvs_results import convert_depth_maps, convert_normal_maps
         type_name = 'geometric'
+        #type_name = 'photometric'
         convert_depth_maps(work_dir, depth_type=type_name)
         convert_normal_maps(work_dir, normal_type=type_name)
 
@@ -518,8 +599,8 @@ class StereoPipeline(object):
             print('current window radius: {}'.format(window_radius))
             self.run_colmap_mvs(window_radius)
             self.run_inspect_mvs()
-            self.run_my_fuse()
-            self.run_colmap_fuse()
+            self.run_aggregate_2p5d()
+            self.run_aggregate_3d()
             self.run_evaluation()
             os.rename(os.path.join(work_dir, 'mvs_results'),
                       os.path.join(work_dir, 'mvs_results_winrad_{}'.format(window_radius)))

@@ -50,11 +50,14 @@ def run_point_triangulation(img_dir, db_file, out_dir, template_file, tri_merge_
                                              --Mapper.tri_complete_max_reproj_error {} \
                                              --Mapper.filter_max_reproj_error {} \
                                              --Mapper.extract_colors 1 \
+                                             --Mapper.ba_refine_focal_length 0 \
+                                             --Mapper.ba_refine_extra_params 0\
                                              --Mapper.max_extra_param 1e20 \
                                              --Mapper.ba_local_num_images 6 \
                                              --Mapper.ba_local_max_num_iterations 100 \
                                              --Mapper.ba_global_images_ratio 1.0000001\
-                                             --Mapper.ba_global_max_num_iterations 100'.format(db_file, img_dir, out_dir, out_dir,
+                                             --Mapper.ba_global_max_num_iterations 100 \
+                                             --Mapper.tri_ignore_two_view_tracks 0'.format(db_file, img_dir, out_dir, out_dir,
                                                                                                tri_merge_max_reproj_error,
                                                                                                tri_complete_max_reproj_error,
                                                                                                filter_max_reproj_error)
@@ -69,11 +72,14 @@ def run_global_ba(in_dir, out_dir, weight):
     # one meter is roughly three pixels, we should square it
     cmd = 'colmap bundle_adjuster --input_path {in_dir} --output_path {out_dir} \
                                     --BundleAdjustment.max_num_iterations 5000 \
+                                    --BundleAdjustment.refine_focal_length 0\
                                     --BundleAdjustment.refine_principal_point 1 \
+                                    --BundleAdjustment.refine_extra_params 0 \
+                                    --BundleAdjustment.refine_extrinsics 0 \
                                     --BundleAdjustment.function_tolerance 1e-6 \
                                     --BundleAdjustment.gradient_tolerance 1e-8 \
                                     --BundleAdjustment.parameter_tolerance 1e-8 \
-                                    --BundleAdjustment.constrain_points 1 \
+                                    --BundleAdjustment.constrain_points 0 \
                                     --BundleAdjustment.constrain_points_loss_weight {weight}'.format(in_dir=in_dir, out_dir=out_dir, weight=weight)
 
     run_cmd(cmd)

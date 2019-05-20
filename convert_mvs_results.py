@@ -3,6 +3,7 @@ import numpy as np
 import shutil
 from colmap.read_dense import read_array
 from lib.proj_to_utm_grid import proj_to_utm_grid
+from lib.proj_to_grid import proj_to_grid
 from visualization.plot_height_map import plot_height_map
 from visualization.save_image_only import save_image_only
 import json
@@ -71,6 +72,19 @@ def convert_depth_map_worker(work_dir, out_dir, items, depth_type):
         yy = tmp[1:2, :][valid_mask].reshape((-1, 1))
         zz = tmp[2:3, :][valid_mask].reshape((-1, 1))
 
+        # np.save(os.path.join(out_dir, 'enu_points/{}.{}.points.npy'.format(img_name, depth_type)),
+        #         np.hstack((xx, yy, zz)))
+
+        with open(os.path.join(work_dir, 'geo_grid.json')) as fp:
+            geo_grid = json.load(fp)
+        dsm = proj_to_grid(np.hstack((xx, yy, zz)), geo_grid['ul_e'], geo_grid['ul_n'],
+                           geo_grid['e_resolution'], geo_grid['n_resolution'], geo_grid['e_size'], geo_grid['n_size'])
+        np.save(os.path.join(out_dir, 'enu_grid_npy/{}.{}.dsm.npy'.format(img_name, depth_type)),
+                dsm)
+        plot_height_map(dsm,
+                        os.path.join(out_dir, 'enu_grid/{}.{}.dsm.jpg'.format(img_name, depth_type)),
+                        save_cbar=True)
+
         lat, lon, alt = local_to_global(work_dir, xx, yy, zz)
         dsm = proj_to_utm_grid(np.hstack((lat, lon, alt)), meta_dict['ul_easting'], meta_dict['ul_northing'],
                                    meta_dict['east_resolution'], meta_dict['north_resolution'],
@@ -88,12 +102,17 @@ def convert_depth_maps(work_dir, depth_type):
     mvs_result_dir = os.path.join(work_dir, 'mvs_results')
     if not os.path.exists(mvs_result_dir):
         os.mkdir(mvs_result_dir)
+
     out_dir = os.path.join(mvs_result_dir, 'height_maps')
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
     for subdir in [out_dir,
                    os.path.join(out_dir, 'img_grid'),
                    os.path.join(out_dir, 'geo_grid'),
                    os.path.join(out_dir, 'img_grid_npy'),
-                   os.path.join(out_dir, 'geo_grid_npy')]:
+                   os.path.join(out_dir, 'geo_grid_npy'),
+                   os.path.join(out_dir, 'enu_grid'),
+                   os.path.join(out_dir, 'enu_grid_npy')]:
         if not os.path.exists(subdir):
             os.mkdir(subdir)
 
@@ -130,8 +149,9 @@ def convert_depth_maps(work_dir, depth_type):
 def convert_normal_maps(work_dir, normal_type):
     mvs_dir = os.path.join(work_dir, 'colmap/mvs')
     out_dir = os.path.join(work_dir, 'mvs_results/normal_maps')
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+    os.mkdir(out_dir)
 
     normal_dir = os.path.join(mvs_dir, 'stereo/normal_maps')
     for item in sorted(os.listdir(normal_dir)):

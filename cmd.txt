@@ -539,3 +539,7 @@ colmap patch_match_stereo --workspace_path mvs \
                         --PatchMatchStereo.overwrite 0
 
 825, 2146, 480, 1739
+
+
+/bigdata/kz298/dataset/mvs3dm/Challenge_Data_and_Software/software/masterchallenge_metrics/build/bin/run-metrics \
+                  --cthreshold 1 -t /data2/kz298/mvs3dm_result/MasterProvisional2/evaluation/eval_ground_truth.tif -i s2p_50_pairs_median.ply

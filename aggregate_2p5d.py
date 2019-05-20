@@ -48,6 +48,8 @@ def run_fuse(work_dir):
 
     all_dsm_mean_no_outliers = np.nanmean(all_dsm, axis=2)
 
+    # todo: add median filter here
+
     # write tif
     with open(os.path.join(work_dir, 'ground_truth/dsm_gt_meta.json')) as fp:
         meta_dict = json.load(fp)

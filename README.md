@@ -1,5 +1,6 @@
 # Satellite Stereo
 
+* Use python3 instead of python2
 * All the python dependent packages can be installed via
 
 pip install -r requirements.txt
@@ -17,5 +18,6 @@ I've kept the necessary steps (set to true) to produce the final point cloud, wi
 &nbsp;&nbsp;&nbsp;&nbsp;    ...
 
 * The output point cloud would be inside "{work_dir}/mvs_results/aggregate_2p5d/aggregate_2p5d.ply".
+* Example usage: python3 main.py --config_file aoi_config/aoi-d4-jacksonville.json
 
 

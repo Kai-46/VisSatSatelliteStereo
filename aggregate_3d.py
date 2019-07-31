@@ -25,6 +25,9 @@ def fuse(colmap_dir):
 def run_fuse(work_dir):
     fuse(os.path.join(work_dir, 'colmap'))
 
+    if not os.path.exists(os.path.join(work_dir, 'mvs_results')):
+        os.mkdir(os.path.join(work_dir, 'mvs_results'))
+        
     out_dir = os.path.join(work_dir, 'mvs_results/aggregate_3d')
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)

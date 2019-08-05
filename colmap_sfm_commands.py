@@ -24,7 +24,7 @@ def run_sift_matching(img_dir, db_file, camera_model):
     # feature matching
     cmd = 'colmap exhaustive_matcher --database_path {} \
                                             --SiftMatching.guided_matching 1 \
-                                            --SiftMatching.max_error 1 \
+                                            --SiftMatching.max_error 3 \
                                             --SiftMatching.gpu_index {}'.format(db_file, gpu_index)
 
     run_cmd(cmd)
@@ -79,7 +79,7 @@ def run_global_ba(in_dir, out_dir, weight):
                                     --BundleAdjustment.function_tolerance 1e-6 \
                                     --BundleAdjustment.gradient_tolerance 1e-8 \
                                     --BundleAdjustment.parameter_tolerance 1e-8 \
-                                    --BundleAdjustment.constrain_points 0 \
+                                    --BundleAdjustment.constrain_points 1 \
                                     --BundleAdjustment.constrain_points_loss_weight {weight}'.format(in_dir=in_dir, out_dir=out_dir, weight=weight)
 
     run_cmd(cmd)

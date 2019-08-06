@@ -24,9 +24,9 @@
     "inspect_sfm_pinhole": false,
     "reparam_depth": true,
     "colmap_mvs": true,
-    "inspect_mvs": true,
-    "aggregate_2p5d": true,
-    "aggregate_3d": false,
+    "inspect_mvs": false,
+    "aggregate_2p5d": false,
+    "aggregate_3d": true,
     "evaluate": false
   },
   "alt_min": 10.0,

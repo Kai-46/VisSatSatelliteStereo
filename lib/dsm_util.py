@@ -33,8 +33,9 @@ def read_dsm_tif(file):
     nodata = band.GetNoDataValue()
 
     # to ease later processing, replace nodata regions with nan
-    mask = np.isclose(image, nodata)
-    image[mask] = np.nan
+    if nodata is not None:
+        mask = np.isclose(image, nodata)
+        image[mask] = np.nan
 
     zone_number, hemisphere = parse_proj_str(proj)
     # return a meta dict

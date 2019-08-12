@@ -37,8 +37,8 @@ def clean_data(dataset_dir, out_dir):
 
     cnt = 0
     for item in sorted(os.listdir(dataset_dir)):
-        if 'WV03' not in item:  # only select 'WV03' satellite images
-            continue
+        # if 'WV03' not in item:  # only select 'WV03' satellite images
+        #     continue
 
         if item[-4:] == '.NTF' and os.path.exists(os.path.join(dataset_dir, '{}.tar'.format(item[:-4]))):
             logging.info('cleaning {}'.format(item))

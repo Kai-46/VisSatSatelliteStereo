@@ -25,8 +25,8 @@ def clean_data(dataset_dirs, out_dir):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
-    dataset_dir = os.path.abspath(dataset_dir)
-    logging.info('dataset path: {}'.format(dataset_dir))
+    dataset_dirs = [os.path.abspath(dataset_dir) for dataset_dir in dataset_dirs]
+    logging.info('dataset path: {}'.format(dataset_dirs))
     logging.info('will save files to folder: {}'.format(out_dir))
     logging.info('the standard format is: <7 char date><6 char time>-P1BS-<20 char product id>.NTF\n\n')
 

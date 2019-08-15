@@ -54,7 +54,7 @@ def skew_correct(work_dir):
 
         affine_warping_dict[img_name] = affine_matrix
 
-        new_h, new_w = img_dst.shape
+        new_h, new_w = img_dst.shape[:2]
         # add off_set to camera parameters
         cx += off_set[0]
         cy += off_set[1]

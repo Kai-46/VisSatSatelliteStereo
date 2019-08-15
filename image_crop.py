@@ -1,6 +1,8 @@
 # cut the AOI out of the big satellite image
 
 import os
+
+from clean_data import clean_image_info
 from lib.rpc_model import RPCModel
 from lib.parse_meta import parse_meta
 from lib.gen_grid import gen_grid
@@ -18,7 +20,7 @@ import glob
 import dateutil.parser
 
 
-def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
+def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, result_file, msi_file=None):
     with open(utm_bbx_file) as fp:
         utm_bbx = json.load(fp)
     ul_easting = utm_bbx['ul_easting']
@@ -38,21 +40,17 @@ def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
     alt_points = np.array([alt_min, alt_max])
     xx_lat, yy_lon, zz_alt = gen_grid(lat_points, lon_points, alt_points)
 
-    cnt = len(ntf_list)
     pid = os.getpid()
     effective_file_list = []
-    for i in range(cnt):
-        ntf_file = ntf_list[i]
-        xml_file = xml_list[i]
-        logging.info('process {}, cropping {}/{}, ntf: {}'.format(pid, i, cnt, ntf_file))
-
+    logging.info('process {}, cropping {}/{}, ntf: {}'.format(pid, n, total_cnt, ntf_file))
+    try:
         meta_dict = parse_meta(xml_file)
         # check whether the image is too cloudy
         cloudy_thres = 0.5
         if meta_dict['cloudCover'] > cloudy_thres:
             logging.warning('discarding this image because of too many clouds, cloudy level: {}, ntf: {}'
                             .format(meta_dict['cloudCover'], ntf_file))
-            continue
+            return
 
         # compute the bounding box
         rpc_model = RPCModel(meta_dict)
@@ -72,7 +70,7 @@ def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
         if overlap < overlap_thres:
             logging.warning('discarding this image due to small coverage of target area, overlap: {}, ntf: {}'
                             .format(overlap, ntf_file))
-            continue
+            return
 
         ul_col, ul_row, width, height = intersect
 
@@ -80,19 +78,20 @@ def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
         idx1 = ntf_file.rfind('/')
         idx2 = ntf_file.rfind('.')
         base_name = ntf_file[idx1+1:idx2]
-        out_png = os.path.join(out_dir, '{}:{:04d}:{}.png'.format(pid, i, base_name))
+        out_png = os.path.join(out_dir, '{}:{:04d}:{}.png'.format(pid, n, base_name))
 
-        cut_image(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height))
+        cut_image(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height), msi_file)
 
         # tone mapping
-        tone_map(out_png, out_png)
+        if msi_file is None:
+            tone_map(out_png, out_png)
 
         ratio = blank_ratio(out_png)
         if ratio > 0.2:
             logging.warning('discarding this image due to large portion of black pixels, ratio: {}, ntf: {}'
                             .format(ratio, ntf_file))
             os.remove(out_png)
-            continue
+            return
 
         # save meta_dict
         # subtract the cutting offset here
@@ -109,17 +108,17 @@ def image_crop_worker(ntf_list, xml_list, utm_bbx_file, out_dir, result_file):
         meta_dict['ul_col_original'] = ul_col
         meta_dict['ul_row_original'] = ul_row
 
-        out_json = os.path.join(out_dir, '{}:{:04d}:{}.json'.format(pid, i, base_name))
+        out_json = os.path.join(out_dir, '{}:{:04d}:{}.json'.format(pid, n, base_name))
         with open(out_json, 'w') as fp:
             json.dump(meta_dict, fp, indent=2)
-
         effective_file_list.append((out_png, out_json))
 
-    with open(result_file, 'w') as fp:
-        json.dump(effective_file_list, fp, indent=2)
+    finally:
+        with open(result_file, 'w') as fp:
+            json.dump(effective_file_list, fp, indent=2)
 
 
-def image_crop(work_dir):
+def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None):
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
     ntf_list = glob.glob('{}/*.NTF'.format(cleaned_data_dir))
     xml_list = [item[:-4] + '.XML' for item in ntf_list]
@@ -129,31 +128,33 @@ def image_crop(work_dir):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
-    # split all_tracks into multiple chunks
-    process_cnt = multiprocessing.cpu_count()
-    process_list = []
+    associated_msi = {}
+    if pan_msi_pairing is not None:
+        for pair in pan_msi_pairing:
+            pan = pair[0]
+            name = clean_image_info(pan)[0] + '.NTF'
+            associated_msi[name] = None
+            if(len(pair)) > 1:
+                associated_msi[name] = pair[1]
 
-    chunk_size = int(len(ntf_list) / process_cnt)
-    chunks = [[j*chunk_size, (j+1)*chunk_size] for j in range(process_cnt)]
-    chunks[-1][1] = len(ntf_list)
-
+    pool = multiprocessing.Pool(crop_image_max_processes)
+    results = []
     result_file_list = []
-    for i in range(process_cnt):
-        idx1 = chunks[i][0]
-        idx2 = chunks[i][1]
-        ntf_sublist = ntf_list[idx1:idx2]
-        xml_sublist = xml_list[idx1:idx2]
+    cnt = len(ntf_list)
+    for i in range(cnt):
+        ntf_file = ntf_list[i]
+        xml_file = xml_list[i]
+        msi_file = associated_msi[os.path.basename(ntf_file)]
+
         utm_bbx_file = os.path.join(work_dir, 'aoi.json')
         out_dir = tmp_dir
         result_file = os.path.join(tmp_dir, 'image_crop_result_{}.json'.format(i))
-        p = multiprocessing.Process(target=image_crop_worker, args=(ntf_sublist, xml_sublist, utm_bbx_file, out_dir, result_file))
-        process_list.append(p)
-        p.start()
-
         result_file_list.append(result_file)
-
-    for p in process_list:
-        p.join()
+        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file, msi_file)))
+    for r in results:
+        r.get()
+    pool.close()
+    pool.join()
 
     # now try to merge the cropping result
     all_files = []

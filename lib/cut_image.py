@@ -4,8 +4,6 @@ import cv2
 import numpy as np
 from osgeo import gdal, gdal_array
 from skimage import exposure
-
-from core3d.image.image_info import ImageGrouper
 from lib.run_cmd import run_cmd
 import logging
 from s2p import rpc_utils
@@ -279,7 +277,7 @@ def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
     os.remove(pan_sharpened_rgb)
 
 
-def cut_image(in_ntf, out_png, ntf_size, bbx_size):
+def cut_image(in_ntf, out_png, ntf_size, bbx_size, msi_ntf=None):
     (ntf_width, ntf_height) = ntf_size
     (ul_col, ul_row, width, height) = bbx_size
 
@@ -291,16 +289,6 @@ def cut_image(in_ntf, out_png, ntf_size, bbx_size):
     logging.info('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row, width, height))
     logging.info('png image to save: {}'.format(out_png))
 
-    grouper = ImageGrouper()
-    import glob
-    files = []
-    files.extend(glob.glob("/media/user/A12T/phase1b-performer-data-package/Data-To-Performers-OriginalFormat/jacksonville/satellite_imagery/WV3/MSI/*.NTF"))
-    files.extend(glob.glob("/media/user/A12T/phase1b-performer-data-package/Data-To-Performers-OriginalFormat/jacksonville/satellite_imagery/WV3/PAN/*.NTF"))
-    files.extend(glob.glob("/media/user/A12T/phase1b-performer-data-package/Data-To-Performers-OriginalFormat/jacksonville/satellite_imagery/WV2/MSI/*.NTF"))
-    files.extend(glob.glob("/media/user/A12T/phase1b-performer-data-package/Data-To-Performers-OriginalFormat/jacksonville/satellite_imagery/WV2/PAN/*.NTF"))
-    grouper.group_date_location(files)
-    logging.info("Checking for: {}".format(os.path.abspath(in_ntf)))
-    msi_ntf = grouper.get_msi(os.path.realpath(in_ntf))
     if msi_ntf is not None:
         logging.info("Found MSI: {} for PAN {}".format(msi_ntf, in_ntf))
         create_rgb_aligned_with_pan(in_ntf, ul_col, ul_row, width, height, msi_ntf, out_png)

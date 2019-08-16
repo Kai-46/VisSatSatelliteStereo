@@ -1,6 +1,6 @@
 import utm
 import numpy as np
-from lib.parallel_apply_along_axis import parallel_apply_along_axis
+from .parallel_apply_along_axis import parallel_apply_along_axis
 import functools
 
 

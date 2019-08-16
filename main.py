@@ -152,6 +152,9 @@ class StereoPipeline(object):
             shutil.rmtree(cleaned_data_dir)
         os.mkdir(cleaned_data_dir)
 
+        # check if dataset_dir is a list or tuple
+        if not (isinstance(dataset_dir, list) or isinstance(dataset_dir, tuple)):
+            dataset_dir = [dataset_dir, ]
         clean_data(dataset_dir, cleaned_data_dir)
 
         # stop local timer

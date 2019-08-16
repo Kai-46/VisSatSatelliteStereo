@@ -1,5 +1,6 @@
 # Satellite Stereo
 
+* Install [colmap_for_satellite_stereo](https://github.com/Kai-46/colmap_for_satellite_stereo) first.
 * Use python3 instead of python2
 * All the python dependent packages can be installed via
 

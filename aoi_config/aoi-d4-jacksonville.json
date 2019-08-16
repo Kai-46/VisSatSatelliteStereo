@@ -1,5 +1,8 @@
 {
-  "dataset_dir":  "/bigdata/kz298/dataset/paper_dataset_raw/jacksonville",
+  "dataset_dir":  [
+      "/bigdata/kz298/dataset/jacksonville/satellite_imagery/WV3/PAN",
+      "/bigdata/kz298/dataset/jacksonville/satellite_imagery/WV2/PAN"
+  ],
   "work_dir": "/data2/kz298/core3d_result/aoi-d4-jacksonville",
   "bounding_box": {
       "zone_number" : 17,

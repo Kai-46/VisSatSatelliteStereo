@@ -53,3 +53,23 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
 
     out_dir = os.path.join(sfm_dir, 'init_ba_triangulate')
     colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 1.5, 2, 2)
+
+    # for later uses: check how big the image-space translations are
+    with open(os.path.join(sfm_dir, 'init_camera_dict.json')) as fp:
+        pre_bundle_cameras = json.load(fp)
+
+    with open(os.path.join(sfm_dir, 'init_ba_camera_dict.json')) as fp:
+        after_bundle_cameras = json.load(fp)
+
+    result = ['img_name, delta_cx, delta_cy\n', ]
+    for img_name in sorted(pre_bundle_cameras.keys()):
+        # w, h, fx, fy, cx, cy, s, qw, qx, qy, qz, tx, ty, tz
+        pre_bundle_params = pre_bundle_cameras[img_name]
+        after_bundle_params = after_bundle_cameras[img_name]
+        delta_cx = after_bundle_params[4] - pre_bundle_params[4]
+        delta_cy = after_bundle_params[5] - pre_bundle_params[5]
+
+        result.append('{}, {}, {}\n'.format(img_name, delta_cx, delta_cy))
+
+    with open(os.path.join(sfm_dir, 'principal_points_adjustment.csv'), 'w') as fp:
+        fp.write(''.join(result))

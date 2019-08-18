@@ -6,7 +6,7 @@ import numpy as np
 # keep all pixels in the source image
 # return img_dst, off_set
 def warp_affine(img_src, affine_matrix, no_blank_margin=True):
-    height, width = img_src.shape
+    height, width = img_src.shape[:2]
 
     # compute bounding box
     bbx = np.dot(affine_matrix, np.array([[0, width, width, 0],

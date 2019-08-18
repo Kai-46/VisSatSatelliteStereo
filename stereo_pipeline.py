@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import json
 from clean_data import clean_data
@@ -24,6 +25,12 @@ class StereoPipeline(object):
         with open(config_file) as fp:
             self.config = json.load(fp)
 
+        self.pan_msi_pairing = None
+
+        self.crop_image_max_processes = multiprocessing.cpu_count()
+        if 'crop_image_max_processes' in self.config:
+            self.crop_image_max_processes = self.config['crop_image_max_processes']
+
         # make work_dir
         if not os.path.exists(self.config['work_dir']):
             os.mkdir(self.config['work_dir'])
@@ -37,6 +44,9 @@ class StereoPipeline(object):
         print(self.config)
 
         self.write_aoi()
+
+        if 'pan_msi_pairing' in self.config:
+            self.pan_msi_pairing = self.config['pan_msi_pairing']
 
         if self.config['steps_to_run']['clean_data']:
             self.clean_data()
@@ -136,7 +146,16 @@ class StereoPipeline(object):
             json.dump(aoi_dict, fp, indent=2)
 
     def clean_data(self):
-        dataset_dir = self.config['dataset_dir']
+        dataset_dir = []
+        if self.pan_msi_pairing is not None:
+            # if pan_msi_pairing present - build the dataset_dir from the pan files
+            for f in self.pan_msi_pairing:
+                d = os.path.dirname(f[0])
+                if d not in dataset_dir:
+                    dataset_dir.append(d)
+        elif 'dataset_dir' in self.config:
+            dataset_dir = self.config['dataset_dir']
+
         work_dir = self.config['work_dir']
 
         # set log file and timer
@@ -173,7 +192,7 @@ class StereoPipeline(object):
         local_timer.start()
 
         # crop image and tone map
-        image_crop(work_dir)
+        image_crop(work_dir, self.crop_image_max_processes, self.pan_msi_pairing)
 
         # stop local timer
         local_timer.mark('image cropping done')

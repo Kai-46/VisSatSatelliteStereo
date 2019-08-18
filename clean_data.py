@@ -20,6 +20,16 @@ import logging
 #     return cleaned_name
 
 
+def clean_image_info(file_name):
+    file_name = os.path.basename(file_name)
+    # get order_id, prod_id
+    idx = file_name.find('-P1BS-')
+    order_id = file_name[idx + 6:idx + 21]
+    prod_id = file_name[idx + 6:idx + 26]
+    img_name = file_name[idx - 13:idx + 26]
+    return img_name, order_id, prod_id
+
+
 def clean_data(dataset_dirs, out_dir):
     # out_dir must exist and be empty
     if not os.path.exists(out_dir):
@@ -44,11 +54,7 @@ def clean_data(dataset_dirs, out_dir):
             if item[-4:] == '.NTF' and os.path.exists(os.path.join(dataset_dir, '{}.tar'.format(item[:-4]))):
                 logging.info('cleaning {}'.format(item))
 
-                # get order_id, prod_id
-                idx = item.find('-P1BS-')
-                order_id = item[idx+6:idx+21]
-                prod_id = item[idx+6:idx+26]
-                img_name = item[idx - 13:idx + 26]
+                img_name, order_id, prod_id = clean_image_info(item)
 
                 os.symlink(os.path.join(dataset_dir, item), os.path.join(out_dir, '{}.NTF'.format(img_name)))
 

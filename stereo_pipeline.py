@@ -174,7 +174,7 @@ class StereoPipeline(object):
         # check if dataset_dir is a list or tuple
         if not (isinstance(dataset_dir, list) or isinstance(dataset_dir, tuple)):
             dataset_dir = [dataset_dir, ]
-        clean_data(dataset_dir, cleaned_data_dir)
+        clean_data(dataset_dir, cleaned_data_dir, self.pan_msi_pairing)
 
         # stop local timer
         local_timer.mark('Data cleaning done')

@@ -174,8 +174,9 @@ def debug():
     # a plane with height z is written as n^x-z=0
     num_planes = 360
     normal = (0, 0, 1)
-
-    create_warped_images(sfm_perspective_dir, ref_img_id, z_min, z_max, num_planes, normal, out_dir, src_img_ids)
+    
+    max_processes = 16
+    create_warped_images(sfm_perspective_dir, ref_img_id, z_min, z_max, num_planes, normal, out_dir, src_img_ids, max_processes)
 
 def deploy():
     parser = argparse.ArgumentParser(description='Create Warped Images')

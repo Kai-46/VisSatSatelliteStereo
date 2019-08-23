@@ -60,8 +60,12 @@ def create_warped_images(sfm_perspective_dir, ref_img_id, z_min, z_max, num_plan
     with open(os.path.join(sfm_perspective_dir, 'init_ba_camera_dict.json')) as fp:
         camera_dict = json.load(fp)
 
-    if not src_img_ids:
-        useful_img_ids = camera_dict.keys()
+    if len(src_img_ids) == 0:
+        useful_img_ids = []
+        for item in camera_dict.keys():
+            idx = item.find('_')
+            id = int(item[:idx])
+            useful_img_ids.append(id)
     else:
         if ref_img_id in src_img_ids:
             raise Exception('ref_img_id should not appear in src_img_ids')

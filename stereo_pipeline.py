@@ -254,7 +254,7 @@ class StereoPipeline(object):
         with open(os.path.join(out_dir, 'perspective_dict.json'), 'w') as fp:
             json.dump(subset_perspective_dict, fp, indent=2)
 
-    def run_colmap_sfm_perspective(self, weight=1):
+    def run_colmap_sfm_perspective(self, weight=0.01):
         work_dir = os.path.abspath(self.config['work_dir'])
         colmap_dir = os.path.join(work_dir, 'colmap')
         subdirs = [

@@ -37,8 +37,9 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
 
     out_dir = os.path.join(sfm_dir, 'init_triangulate')
     # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2, 2)
-    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 2.0, 3.0, 3.0)
-
+    # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 2.0, 3.0, 3.0)
+    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 4.0, 4.0, 20.0)
+    
     # global bundle adjustment
     in_dir = os.path.join(sfm_dir, 'init_triangulate')
     out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
@@ -52,8 +53,9 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
     write_template_perspective(camera_dict, init_ba_template)
 
     out_dir = os.path.join(sfm_dir, 'init_ba_triangulate')
-    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 1.5, 2, 2)
-
+    # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 1.5, 2, 2)
+    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 4.0, 4.0, 4.0)
+    
     # for later uses: check how big the image-space translations are
     with open(os.path.join(sfm_dir, 'init_camera_dict.json')) as fp:
         pre_bundle_cameras = json.load(fp)

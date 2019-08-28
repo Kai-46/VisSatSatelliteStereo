@@ -40,16 +40,16 @@ def run_point_triangulation(img_dir, db_file, out_dir, template_file, tri_merge_
 
     # create initial poses
     create_init_files(db_file, template_file, out_dir)
-
+    
     # triangulate points
     cmd = 'colmap point_triangulator --Mapper.ba_refine_principal_point 1 \
                                              --database_path {} \
                                              --image_path {} \
                                              --input_path {} \
                                              --output_path {} \
-                                             --Mapper.filter_min_tri_angle 9.999 \
+                                             --Mapper.filter_min_tri_angle 4.99 \
                                              --Mapper.init_max_forward_motion 1e20 \
-                                             --Mapper.tri_min_angle 10 \
+                                             --Mapper.tri_min_angle 5.00 \
                                              --Mapper.tri_merge_max_reproj_error {} \
                                              --Mapper.tri_complete_max_reproj_error {} \
                                              --Mapper.filter_max_reproj_error {} \

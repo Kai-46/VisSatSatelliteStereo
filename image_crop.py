@@ -185,11 +185,11 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None):
         idx = img_file.rfind(':')
         sensor = sensor_ids[img_file]
         time = img_file[idx+1:idx+8]
-        target_img_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, img_file[idx+9:])
+        target_img_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, img_file[idx+8:])
 
         idx = meta_file.rfind(':')
         time = img_file[idx+1:idx+8]
-        target_xml_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, meta_file[idx+9:])
+        target_xml_name = '{:04d}_{}_{}_{}'.format(i, sensor, time, meta_file[idx+8:])
 
         shutil.copyfile(img_file, os.path.join(images_subdir, target_img_name))
         shutil.copyfile(meta_file, os.path.join(metas_subdir, target_xml_name))

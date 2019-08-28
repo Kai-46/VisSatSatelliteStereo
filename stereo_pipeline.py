@@ -276,7 +276,9 @@ class StereoPipeline(object):
         # create a hard link to avoid copying of images
         if os.path.exists(os.path.join(colmap_dir, 'sfm_perspective/images')):
             os.unlink(os.path.join(colmap_dir, 'sfm_perspective/images'))
-        os.symlink(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
+        # os.symlink(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
+        os.symlink(os.path.relpath(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective')),
+                   os.path.join(colmap_dir, 'sfm_perspective/images'))
         init_camera_file = os.path.join(work_dir, 'colmap/subset_for_sfm/perspective_dict.json')
         colmap_sfm_perspective.run_sfm(work_dir, sfm_dir, init_camera_file, weight)
 
@@ -401,7 +403,9 @@ class StereoPipeline(object):
             os.mkdir(sfm_dir)
         if os.path.exists(os.path.join(colmap_dir, 'sfm_pinhole/images')):
             os.unlink(os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        os.symlink(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole/images'))
+        # os.symlink(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole/images'))
+        os.symlink(os.path.relpath(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole')),
+                   os.path.join(colmap_dir, 'sfm_pinhole/images'))
         init_camera_file = os.path.join(colmap_dir, 'subset_for_mvs/pinhole_dict.json')
 
         colmap_sfm_pinhole.run_sfm(work_dir, sfm_dir, init_camera_file)

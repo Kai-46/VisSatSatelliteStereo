@@ -109,11 +109,15 @@ def skew_correct(work_dir):
 
     if os.path.exists(os.path.join(out_dir, 'perspective_images')):
         os.unlink(os.path.join(out_dir, 'perspective_images'))
-    os.symlink(perspective_img_dir, os.path.join(out_dir, 'perspective_images'))
+    # os.symlink(perspective_img_dir, os.path.join(out_dir, 'perspective_images'))
+    os.symlink(os.path.relpath(perspective_img_dir, out_dir),
+               os.path.join(out_dir, 'perspective_images'))
 
     if os.path.exists(os.path.join(out_dir, 'perspective_dict.json')):
         os.unlink(os.path.join(out_dir, 'perspective_dict.json'))
-    os.symlink(perspective_file, os.path.join(out_dir, 'perspective_dict.json'))
+    # os.symlink(perspective_file, os.path.join(out_dir, 'perspective_dict.json'))
+    os.symlink(os.path.relpath(perspective_file, out_dir),
+               os.path.join(out_dir, 'perspective_dict.json'))
 
 
 def add_skew_to_pinhole_tracks(sparse_dir, warping_file):

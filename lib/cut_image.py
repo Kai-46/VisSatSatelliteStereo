@@ -18,7 +18,7 @@ def load_rpc(file):
 
 def apply_rpc(ntf, out_file):
     logging.info("Applying RPC: {}".format(ntf))
-    cmd = "gdalwarp -q -overwrite -multi -wo NUM_THREADS=ALL_CPUS -r cubic -rpc " \
+    cmd = "gdalwarp -q -overwrite -multi -wo NUM_THREADS=ALL_CPUS -r cubicspline -rpc " \
           "-co BIGTIFF=IF_SAFER -dstnodata 0 -srcnodata 0 -wo INIT_DEST=0 {} {}" \
         .format(ntf, out_file)
     run_cmd(cmd)
@@ -177,16 +177,16 @@ pan_sharpen_weights = {
 
     'WV02_RGB': [0.00, 0.25, 0.23, 0.00, 0.53, 0.00, 0.00, 0.00],
     'WV03_RGB': [0.00, 0.25, 0.23, 0.00, 0.53, 0.00, 0.00, 0.00],
-    'GE01_RGB': [0.25, 0.23,0.53, 0.00],
+    'GE01_RGB': [0.25, 0.23, 0.53, 0.00],
 
     'WV02_MS': [0.005, 0.142, 0.209, 0.144, 0.234, 0.157, 0.116, 0.000],  # MSI
     'WV03_MS': [0.005, 0.142, 0.209, 0.144, 0.234, 0.157, 0.116, 0.000],  # MSI
     'GE01_MS': [0.142, 0.209, 0.234, 0.116],  # MSI
 }
 gdal_bands = {
-    'WV02_MS': { 'C': 1, 'B':2 , 'G': 3, 'Y': 4, 'R': 5, 'RE': 6, 'N1': 7, 'N2': 8},
-    'WV03_MS': { 'C': 1, 'B':2 , 'G': 3, 'Y': 4, 'R': 5, 'RE': 6, 'N1': 7, 'N2': 8},
-    'GE01_MS': { 'B': 1, 'G':2 , 'R': 3, 'N': 4}
+    'WV02_MS': {'C': 1, 'B': 2, 'G': 3, 'Y': 4, 'R': 5, 'RE': 6, 'N1': 7, 'N2': 8},
+    'WV03_MS': {'C': 1, 'B': 2, 'G': 3, 'Y': 4, 'R': 5, 'RE': 6, 'N1': 7, 'N2': 8},
+    'GE01_MS': {'B': 1, 'G': 2, 'R': 3, 'N': 4}
 }
 
 
@@ -198,12 +198,17 @@ def pan_sharpen(pan_name, msi_name, out_name, weights, bands=None):
     if bands is None:
         bands = [x+1 for x in range(len(weights))]
 
-    cmd = 'gdal_pansharpen.py -q -threads ALL_CPUS -co BIGTIFF=YES '
+    cmd = 'gdal_pansharpen.py -r cubicspline -q -threads ALL_CPUS -co BIGTIFF=YES '
     cmd_b = ' {}'.format(pan_name)
     for b in bands:
         cmd = cmd + " -w {}".format(weights[b-1])
         cmd_b = cmd_b + " {},band={}".format(msi_name, b)
     run_cmd(cmd + cmd_b + ' ' + out_name)
+
+
+def pan_sharpen_unweighted(pan_name, msi_name, out_name):
+    cmd = 'gdal_pansharpen.py -r cubicspline -q -threads ALL_CPUS -co BIGTIFF=YES {} {} {}'.format(pan_name, msi_name, out_name)
+    os.system(cmd)
 
 
 def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
@@ -229,6 +234,10 @@ def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
     # pan sharpen the using the pan and msi data that are now aligned by their rpc
     weights = pan_sharpen_weights[get_sat_key(msi_meta)]
     b = gdal_bands[get_sat_key(msi_meta)]
+
+    # pan_sharpened_ps = os.path.join('/home/wdixon/jacksonville/', os.path.basename(output_png).replace(".png", "_ps.tif"))
+    # pan_sharpen_unweighted(pan_rpc_applied, msi_rpc_applied, pan_sharpened_ps)
+
     pan_sharpen(pan_rpc_applied, msi_rpc_applied, pan_sharpened_rgb, weights, bands=[b['R'], b['G'], b['B']])
     to_rgb_adjusted_new(pan_sharpened_rgb, pan_sharpened_rgb_equalized, hist_eq=True, nodata=0)
 
@@ -247,19 +256,19 @@ def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
     # convert the utm coordinates to the pixel coordinates in the clr image
     rgb_ds = gdal.Open(pan_sharpened_rgb_equalized)
     rgb_xf = gdal.Transformer(rgb_ds, None, [])
-    rgb_cc_rr, rgb_cc_rr_success = rgb_xf.TransformPoints(1, ntf_lon_lat)
-    rgb_cc_rr = np.round(np.array(rgb_cc_rr)[:, :2]).astype(np.int32)
+    rgb_cc_rr_f, rgb_cc_rr_success = rgb_xf.TransformPoints(1, ntf_lon_lat)
+    rgb_cc_rr_f = np.array(rgb_cc_rr_f)
 
     rgb, *_ = read_image(pan_sharpened_rgb_equalized)
-
-    # ensure the bounds of the mapping into the color image
     idx = np.where(np.logical_and(rgb_cc_rr_success, np.logical_and(
-        np.logical_and(rgb_cc_rr[:, 1] >= 0, rgb_cc_rr[:, 1] < rgb.shape[0]),
-        np.logical_and(rgb_cc_rr[:, 0] >= 0, rgb_cc_rr[:, 0] < rgb.shape[1]))))
+        np.logical_and(rgb_cc_rr_f[:, 1] >= 0, rgb_cc_rr_f[:, 1] < rgb.shape[0]),
+        np.logical_and(rgb_cc_rr_f[:, 0] >= 0, rgb_cc_rr_f[:, 0] < rgb.shape[1]))))
 
-    # allocate the pixel array matching the NTF image - and update the desired pixels with the color data
-    c_pan = np.zeros((ds.RasterYSize, ds.RasterXSize, rgb.shape[2]), dtype=np.uint8)
-    c_pan[ntf_rr.ravel()[idx], ntf_cc.ravel()[idx]] = rgb[rgb_cc_rr[idx, 1], rgb_cc_rr[idx, 0]]
+    # create map of the indices that are in bounds
+    rgb_cc_rr_map = rgb_cc_rr_f[idx].astype(np.float32)
+    xy_map = np.zeros((ds.RasterYSize, ds.RasterXSize, 2), dtype=np.float32)
+    xy_map[ntf_rr.ravel()[idx], ntf_cc.ravel()[idx]] = rgb_cc_rr_map[:, :2]
+    c_pan = cv2.remap(rgb, xy_map, None, cv2.INTER_LANCZOS4)
 
     # write out color image in the pixel space of the pan image
     logging.info("Writing out color image...")
@@ -286,7 +295,8 @@ def cut_image(in_ntf, out_png, ntf_size, bbx_size, msi_ntf=None):
             and ul_row >= 0 and ul_row + height - 1 < ntf_height)
 
     logging.info('ntf image to cut: {}, width, height: {}, {}'.format(in_ntf, ntf_width, ntf_height))
-    logging.info('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row, width, height))
+    logging.info('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row,
+                                                                                                width, height))
     logging.info('png image to save: {}'.format(out_png))
 
     if msi_ntf is not None:

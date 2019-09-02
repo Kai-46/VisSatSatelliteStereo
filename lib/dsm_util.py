@@ -1,5 +1,5 @@
 import numpy as np
-from osgeo import gdal, gdal_array
+from osgeo import gdal, gdal_array, osr
 import os
 
 
@@ -81,26 +81,46 @@ def get_driver(file):
     return None
 
 
-def write_dsm_tif(image, meta_dict, out_file):
-    image = image.copy()    # avoid modify source data
-    driver = get_driver(out_file)
+# out_file: .tif file to write
+# geo: (ul_e, ul_n, e_resolution, n_resolution)
+# utm_zone: (zone number, N or S)
 
-    # replace nan with no_data
-    image[np.isnan(image)] = meta_dict['nodata']
-
+def write_dsm_tif(image, out_file, geo, utm_zone, nodata_val=None):
     assert (len(image.shape) == 2)      # image should only be 2D
 
+    ul_e, ul_n, e_resolution, n_resolution = geo
+    zone_number, hemisphere = utm_zone
+
+    # replace nan with no_data
+    if nodata_val is not None:
+        image = image.copy()    # avoid modify source data
+        image[np.isnan(image)] = nodata_val
+    else:
+        nodata_val = np.nan
+
+    driver = get_driver(out_file)
     out = driver.Create(out_file, image.shape[1], image.shape[0], 1,
                         gdal_array.NumericTypeCodeToGDALTypeCode(np.float32))
-
     band = out.GetRasterBand(1)     # one-based index
     band.WriteArray(image.astype(np.float32), 0, 0)
-    band.SetNoDataValue(meta_dict['nodata'])
+    band.SetNoDataValue(nodata_val)
     band.FlushCache()
 
-    out.SetGeoTransform(meta_dict['geo'])
-    out.SetProjection(meta_dict['proj'])
-    out.SetMetadata(meta_dict['meta'])
+    # syntax for geotransform
+    # geotransform[0] = top left x
+    # geotransform[1] = w-e pixel resolution
+    # geotransform[2] = 0
+    # geotransform[3] = top left y
+    # geotransform[4] = 0
+    # geotransform[5] = n-s pixel resolution (negative value)
+    out.SetGeoTransform((ul_e, e_resolution, 0, ul_n, 0, -n_resolution))
+
+    srs = osr.SpatialReference();
+    srs.SetProjCS('WGS84 / UTM zone {}{}'.format(zone_number, hemisphere));
+    srs.SetWellKnownGeogCS('WGS84');
+    srs.SetUTM(zone_number, hemisphere=='N');
+    out.SetProjection(srs.ExportToWkt())
+    out.SetMetadata({'AREA_OR_POINT': 'Area'})
 
     del out
 
@@ -112,11 +132,13 @@ def modify_dsm_tif_nodata(in_file, out_file, nodata):
 
 
 if __name__ == "__main__":
-    gt_tif = '/data2/kz298/mvs3dm_result/MasterSequesteredPark/evaluation/eval_ground_truth.tif'
+    gt_tif = '/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D4-Jacksonville/AOI-D4-DSM.tif'
     image, meta_dict = read_dsm_tif(gt_tif)
+    print(meta_dict['geo'])
+    print(type(meta_dict['geo']))
 
-    import json
-    with open('/data2/kz298/tmp.json', 'w') as fp:
-        json.dump(meta_dict, fp, indent=2)
-    write_dsm_tif(image, meta_dict, '/data2/kz298/tmp.tif')
-    print('hello')
+    # import json
+    # with open('/data2/kz298/tmp.json', 'w') as fp:
+    #     json.dump(meta_dict, fp, indent=2)
+    # write_dsm_tif(image, meta_dict, '/data2/kz298/tmp.tif')
+    # print('hello')

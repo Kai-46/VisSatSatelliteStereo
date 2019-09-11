@@ -15,8 +15,8 @@ def robust_depth_range(depth_range):
                                                                 max_val, max_val / min_val))
             tmp = sorted(depth_range[img_name])
             cnt = len(tmp)
-            min_depth = tmp[int(0.01 * cnt)]
-            max_depth = tmp[int(0.99 * cnt)]
+            min_depth = tmp[int(0.02 * cnt)]
+            max_depth = tmp[int(0.98 * cnt)]
 
             lower_stretch = 10
             upper_stretch = 30
@@ -35,7 +35,9 @@ def robust_depth_range(depth_range):
 
 # e.g. last_row=[0, 0, 1, 0] represents the plane z=0
 # the first three elements should be a unit vector
-def reparam_depth(sparse_dir, save_dir):
+def reparam_depth(sparse_dir, save_dir, camera_model='perspective'):
+    assert (camera_model == 'perspective' or camera_model == 'pinhole')
+
     # this method is documented in colmap src/mvs/model.cc
     colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, ext='.txt')
 
@@ -89,10 +91,17 @@ def reparam_depth(sparse_dir, save_dir):
             R = Quaternion(qvec[0], qvec[1], qvec[2], qvec[3]).rotation_matrix
 
             cam_id = colmap_images[img_id].camera_id
-            fx, fy, cx, cy = colmap_cameras[cam_id].params
-            K = np.array([[fx, 0., cx],
-                          [0., fy, cy],
-                          [0., 0., 1.]])
+            if camera_model == 'pinhole':
+                fx, fy, cx, cy = colmap_cameras[cam_id].params
+                K = np.array([[fx, 0., cx],
+                              [0., fy, cy],
+                              [0., 0., 1.]])
+            else:
+                fx, fy, cx, cy, s = colmap_cameras[cam_id].params
+                K = np.array([[fx, s, cx],
+                              [0., fy, cy],
+                              [0., 0., 1.]])
+
             P_3by4 = np.dot(K, np.hstack((R, tvec)))
 
             depth_min = depth_range[img_name][0]
@@ -108,9 +117,6 @@ def reparam_depth(sparse_dir, save_dir):
             # depth is the fourth component, instead of its inverse
             depth = tmp[3, 0] / tmp[2, 0]
             if depth > 0:
-                # depth_new = np.dot(last_row, x1)
-                # assert (np.abs(depth - depth_new) < 2.0)
-
                 reparam_depth_range[img_name].append(depth)
 
         if depth > 0:
@@ -143,12 +149,16 @@ def reparam_depth(sparse_dir, save_dir):
     cnt = len(common_reparam_depth_range)
     lower_stretch = 10
     upper_stretch = 100.
-    min_depth = common_reparam_depth_range[int(0.01 * cnt)] - lower_stretch
-    max_depth = common_reparam_depth_range[int(0.99 * cnt)] + upper_stretch
+    min_depth = common_reparam_depth_range[int(0.02 * cnt)] - lower_stretch
+    max_depth = common_reparam_depth_range[int(0.98 * cnt)] + upper_stretch
     logging.info('{} points, depth_min: {}, depth_max: {}'.format(cnt, min_depth, max_depth))
 
-    with open(os.path.join(save_dir, 'reparam_depth_range.txt'), 'w') as fp:
-        fp.write('{} {}\n'.format(min_depth, max_depth))
+    # with open(os.path.join(save_dir, 'reparam_depth_range.txt'), 'w') as fp:
+    #     fp.write('{} {}\n'.format(min_depth, max_depth))
+
+    with open(os.path.join(save_dir, 'depth_ranges.txt'), 'w') as fp:
+        for img_name in sorted(last_rows.keys()):
+            fp.write('{} {} {}\n'.format(img_name, min_depth, max_depth))
 
 
 if __name__ == '__main__':

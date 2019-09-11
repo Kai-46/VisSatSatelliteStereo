@@ -80,26 +80,13 @@ def run_global_ba(in_dir, out_dir, weight):
                                     --BundleAdjustment.refine_principal_point 1 \
                                     --BundleAdjustment.refine_extra_params 0 \
                                     --BundleAdjustment.refine_extrinsics 0 \
-                                    --BundleAdjustment.function_tolerance 1e-6 \
-                                    --BundleAdjustment.gradient_tolerance 1e-8 \
-                                    --BundleAdjustment.parameter_tolerance 1e-8 \
+                                    --BundleAdjustment.function_tolerance 0 \
+                                    --BundleAdjustment.gradient_tolerance 0 \
+                                    --BundleAdjustment.parameter_tolerance 1e-10 \
                                     --BundleAdjustment.constrain_points 1 \
                                     --BundleAdjustment.constrain_points_loss_weight {weight}'.format(in_dir=in_dir, out_dir=out_dir, weight=weight)
 
     run_cmd(cmd)
-
-    # cmd = 'colmap bundle_adjuster --input_path {in_dir} --output_path {out_dir} \
-    #                                 --BundleAdjustment.max_num_iterations 5000 \
-    #                                 --BundleAdjustment.refine_principal_point 1 \
-    #                                 --BundleAdjustment.function_tolerance 1e-6 \
-    #                                 --BundleAdjustment.gradient_tolerance 1e-8 \
-    #                                 --BundleAdjustment.parameter_tolerance 1e-8 \
-    #                                 --BundleAdjustment.refine_extra_params 0 \
-    #                                 --BundleAdjustment.refine_focal_length 0 \
-    #                                 --BundleAdjustment.refine_extrinsics 0\
-    #                                 --BundleAdjustment.constrain_points 1 \
-    #                                 --BundleAdjustment.constrain_points_loss_weight 1'.format(in_dir=in_dir, out_dir=out_dir)
-    # run_cmd(cmd)
 
 
 # def run_normalize(in_dir, out_dir, tform_file):

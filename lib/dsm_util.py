@@ -15,6 +15,8 @@ def parse_proj_str(proj_str):
 
 
 def read_dsm_tif(file):
+    assert (os.path.exists(file))
+
     ds = gdal.Open(file)
     geo = ds.GetGeoTransform()
     proj = ds.GetProjection()

@@ -144,7 +144,11 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None):
     for i in range(cnt):
         ntf_file = ntf_list[i]
         xml_file = xml_list[i]
-        msi_file = associated_msi[os.path.basename(ntf_file)]
+
+        if os.path.basename(ntf_file) in associated_msi:
+            msi_file = associated_msi[os.path.basename(ntf_file)]
+        else:
+            msi_file = None
 
         utm_bbx_file = os.path.join(work_dir, 'aoi.json')
         out_dir = tmp_dir

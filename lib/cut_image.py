@@ -6,7 +6,11 @@ from osgeo import gdal, gdal_array
 from skimage import exposure
 from lib.run_cmd import run_cmd
 import logging
-from s2p import rpc_utils
+
+try:
+    from s2p import rpc_utils                    
+except ImportError:
+    print('Not supporting Pan-sharpening')
 
 
 def load_rpc(file):

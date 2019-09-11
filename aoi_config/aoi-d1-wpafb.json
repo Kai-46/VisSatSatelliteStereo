@@ -11,26 +11,19 @@
   },
   "steps_to_run": {
     "clean_data": true,
-    "process_dsm_gt": false,
     "crop_image": true,
     "derive_approx": true,
     "choose_subset": true,
     "colmap_sfm_perspective": true,
-    "inspect_sfm_perspective": false,
-    "debug_approx": false,
-    "skew_correct": true,
-    "select_subset": true,
-    "colmap_sfm_pinhole": true,
-    "inspect_sfm_pinhole": false,
+    "inspect_sfm_perspective": true,
     "reparam_depth": true,
     "colmap_mvs": true,
-    "inspect_mvs": false,
-    "aggregate_2p5d": false,
+    "aggregate_2p5d": true,
     "aggregate_3d": true,
-    "evaluate": false
+    "evaluate_2p5d": true,
+    "evaluate_3d": true
   },
   "alt_min": 170.0,
   "alt_max": 280.0,
-  "ground_truth" : "/home/cornell/kz298/evaluation/core3d-disclosed-tests/data/AOI-D1-WPAFB/ground_truth/AOI-D1-DSM.tif",
-  "evaluate_config": "/data2/kz298/core3d_evaluate/aoi-d1-wpafb.config"
+  "ground_truth" : "/home/cornell/kz298/evaluation/core3d-disclosed-tests/data/AOI-D1-WPAFB/ground_truth/AOI-D1-DSM.tif"
 }

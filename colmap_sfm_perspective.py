@@ -5,20 +5,14 @@ import colmap_sfm_commands
 from colmap.extract_sfm import extract_camera_dict
 import logging
 import shutil
+from debuggers.inspect_sfm import SparseInspector
 
 
 def make_subdirs(sfm_dir):
-#     subdirs = [
-#                 sfm_dir,
-#                 os.path.join(sfm_dir, 'init_triangulate'),
-#                 os.path.join(sfm_dir, 'init_triangulate_ba'),
-#                 os.path.join(sfm_dir, 'init_ba_triangulate')
-#     ]
-
     subdirs = [
                 sfm_dir,
-                os.path.join(sfm_dir, 'init_triangulate'),
-                os.path.join(sfm_dir, 'init_triangulate_ba')
+                os.path.join(sfm_dir, 'tri'),
+                os.path.join(sfm_dir, 'tri_ba')
     ]
 
     for item in subdirs:
@@ -29,39 +23,48 @@ def make_subdirs(sfm_dir):
 def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
     make_subdirs(sfm_dir)
 
-    with open(init_camera_file) as fp:
-        init_camera_dict = json.load(fp)
-    with open(os.path.join(sfm_dir, 'init_camera_dict.json'), 'w') as fp:
-        json.dump(init_camera_dict, fp, indent=2, sort_keys=True)
-    init_template = os.path.join(sfm_dir, 'init_template.json')
-    write_template_perspective(init_camera_dict, init_template)
-
     img_dir = os.path.join(sfm_dir, 'images')
     db_file = os.path.join(sfm_dir, 'database.db')
 
     colmap_sfm_commands.run_sift_matching(img_dir, db_file, camera_model='PERSPECTIVE')
 
-    out_dir = os.path.join(sfm_dir, 'init_triangulate')
-    # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 1.5, 2, 2)
-    # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 2.0, 3.0, 3.0)
-    colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_template, 4.0, 4.0, 20.0)
-    
-    # global bundle adjustment
-    in_dir = os.path.join(sfm_dir, 'init_triangulate')
-    out_dir = os.path.join(sfm_dir, 'init_triangulate_ba')
-    colmap_sfm_commands.run_global_ba(in_dir, out_dir, weight)
+    with open(init_camera_file) as fp:
+        init_camera_dict = json.load(fp)
+    with open(os.path.join(sfm_dir, 'init_camera_dict.json'), 'w') as fp:
+        json.dump(init_camera_dict, fp, indent=2, sort_keys=True)
 
-    # retriangulate
-    camera_dict = extract_camera_dict(out_dir)
+    # iterate between triangulation and bundle adjustment
+    max_iter = 6
+    for i in range(1, max_iter):
+        # triangulate
+        init_template = os.path.join(sfm_dir, 'init_template.json')
+        write_template_perspective(init_camera_dict, init_template)
+        tri_dir = os.path.join(sfm_dir, 'tri')
+        reproj_err_threshold = 2 ** (max_iter - i)
+        colmap_sfm_commands.run_point_triangulation(img_dir, db_file, tri_dir, init_template,
+                                                    reproj_err_threshold, reproj_err_threshold, reproj_err_threshold)
+
+        # global bundle adjustment
+        tri_ba_dir = os.path.join(sfm_dir, 'tri_ba')
+        colmap_sfm_commands.run_global_ba(tri_dir, tri_ba_dir, weight)
+
+        # # output statistics
+        # inspect_dir = os.path.join(sfm_dir, 'inspect_{}'.format(i))
+        # if not os.path.exists(inspect_dir):
+        #     os.mkdir(inspect_dir)
+
+        # sfm_inspector = SparseInspector(tri_dir, os.path.join(inspect_dir, 'tri'), camera_model='PERSPECTIVE')
+        # sfm_inspector.inspect_all()
+
+        # sfm_inspector = SparseInspector(tri_ba_dir, os.path.join(inspect_dir, 'tri_ba'), camera_model='PERSPECTIVE')
+        # sfm_inspector.inspect_all()
+
+        # update camera dict
+        init_camera_dict = extract_camera_dict(tri_ba_dir)
+
     with open(os.path.join(sfm_dir, 'init_ba_camera_dict.json'), 'w') as fp:
-        json.dump(camera_dict, fp, indent=2, sort_keys=True)
-    
-#     init_ba_template = os.path.join(sfm_dir, 'init_ba_template.json')
-#     write_template_perspective(camera_dict, init_ba_template)
-#     out_dir = os.path.join(sfm_dir, 'init_ba_triangulate')
-#     # colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 1.5, 2, 2)
-#     colmap_sfm_commands.run_point_triangulation(img_dir, db_file, out_dir, init_ba_template, 4.0, 4.0, 4.0)
-    
+        json.dump(init_camera_dict, fp, indent=2, sort_keys=True)
+
     # for later uses: check how big the image-space translations are
     with open(os.path.join(sfm_dir, 'init_camera_dict.json')) as fp:
         pre_bundle_cameras = json.load(fp)

@@ -25,5 +25,5 @@
   },
   "alt_min": 200.0,
   "alt_max": 350.0,
-  "ground_truth" : "/home/cornell/kz298/evaluation/core3d-disclosed-tests/data/AOI-D2-WPAFB/ground_truth/AOI-D2-DSM.tif"
+  "ground_truth" : "/bigdata/kz298/dataset/core3d_phase1b/latest_ground_truth/20190701_GT/AOI-D2-WPAFB/AOI-D2-DSM.tif"
 }

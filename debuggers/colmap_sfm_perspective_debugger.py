@@ -18,7 +18,7 @@ def check_sfm(work_dir, sfm_dir):
         sfm_inspector = SparseInspector(dir, inspect_dir, camera_model='PERSPECTIVE')
         sfm_inspector.inspect_all()
 
-        _, xyz_file, track_file = extract_all_to_dir(dir, inspect_dir)
+        # _, xyz_file, track_file = extract_all_to_dir(dir, inspect_dir)
 
         # triangulate points
         # meta_file = os.path.join(work_dir, 'metas.json')

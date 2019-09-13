@@ -33,9 +33,9 @@ def read_tracks(colmap_images, colmap_points3D):
             pixels.append((img_name, point2D[0], point2D[1]))
 
             if img_name not in view_keypoints:
-                view_keypoints[img_name] = [(point2D[0], point2D[1]) + cur_track['xyz'], ]
+                view_keypoints[img_name] = [(point2D[0], point2D[1]) + cur_track['xyz'] + (cur_track_len, ), ]
             else:
-                view_keypoints[img_name].append((point2D[0], point2D[1]) + cur_track['xyz'])
+                view_keypoints[img_name].append((point2D[0], point2D[1]) + cur_track['xyz'] + (cur_track_len, ))
 
         cur_track['pixels'] = sorted(pixels, key=lambda x: x[0]) # sort pixels by the img_name
         all_tracks.append(cur_track)

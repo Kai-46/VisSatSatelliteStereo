@@ -76,6 +76,7 @@ class SparseInspector(object):
     def inspect_image_key_points(self):
         # per-view re-projection errors and depth ranges
         view_reproj_errs = np.zeros((self.img_cnt, 2))
+        view_track_lens = np.zeros((self.img_cnt, 2))
         view_depth_ranges = np.zeros((self.img_cnt, 2))
         used_keypoint_cnt = np.zeros((self.img_cnt, ), dtype=np.int64)
         locations = []
@@ -85,12 +86,13 @@ class SparseInspector(object):
             used_keypoint_cnt[idx] = cnt
 
             reproj_errs = np.zeros((cnt, ))
+            track_lens = np.zeros((cnt, ))
             depth_ranges = np.zeros((cnt, ))
             K, R, tvec = self.camera_mats[img_name]
             w, h = self.img_sizes[img_name]
             location_image = np.zeros((h, w), dtype=np.uint8)
             for key_point_idx, key_point in enumerate(keypoints):
-                u, v, x, y, z = key_point
+                u, v, x, y, z, track_len = key_point
                 xyz = np.array([x, y, z]).reshape((3, 1))
                 xyz = np.dot(R, xyz) + tvec
                 
@@ -102,6 +104,8 @@ class SparseInspector(object):
                 err = np.sqrt((u - u1) ** 2 + (v - v1) ** 2)
                 reproj_errs[key_point_idx] = err
 
+                track_lens[key_point_idx] = track_len
+
                 radius = 5
                 col_idx1 = max([int(u) - radius, 0])
                 col_idx2 = min([int(u) + radius, w-1])
@@ -111,15 +115,17 @@ class SparseInspector(object):
 
             locations.append(location_image)
             view_reproj_errs[idx, :] = (np.mean(reproj_errs), np.median(reproj_errs))
+            view_track_lens[idx, :] = (np.mean(track_lens), np.median(track_lens))
             view_depth_ranges[idx, :] = np.percentile(depth_ranges, (1, 99))
 
         # write to text
         with open(os.path.join(self.out_dir, 'sfm_keypoints.txt'), 'w') as fp:
-            fp.write('# img_name, img_width, img_height, used_keypoint_cnt, mean_reproj_err (pixels), median_reproj_err (pixels)\n')
+            fp.write('# img_name, img_width, img_height, used_keypoint_cnt, mean_reproj_err (pixels), median_reproj_err (pixels), mean_track_len, median_track_len\n')
             for idx, img_name in enumerate(self.img_names):
                 w, h = self.img_sizes[img_name]
-                fp.write('{}, {}, {}, {}, {}, {}\n'.format(img_name, w, h,  
-                    used_keypoint_cnt[idx], view_reproj_errs[idx, 0], view_reproj_errs[idx, 1]))
+                fp.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(img_name, w, h,  
+                    used_keypoint_cnt[idx], view_reproj_errs[idx, 0], view_reproj_errs[idx, 1],
+                    view_track_lens[idx, 0], view_track_lens[idx, 1]))
 
         with open(os.path.join(self.out_dir, 'sfm_depth_ranges.txt'), 'w') as fp:
             fp.write('# img_name, depth_min (meters), depth_max (meters)\n')

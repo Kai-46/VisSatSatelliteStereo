@@ -18,7 +18,7 @@ I've kept the necessary steps (set to true) to produce the final point cloud, wi
 &nbsp;&nbsp;&nbsp;&nbsp;    {yyy}.tar \
 &nbsp;&nbsp;&nbsp;&nbsp;    ...
 
-* The output point cloud would be inside "{work_dir}/mvs_results/aggregate_3d/aggregate_3d.ply".
-* Example usage: python3 main.py --config_file aoi_config/aoi-d4-jacksonville.json
+* If you use the 3D aggregation method, the output point cloud and DSM will be inside "{work_dir}/mvs_results/aggregate_3d/"; alternatively, if the 2.5D aggregation is adopted, the output will be inside "{work_dir}/mvs_results/aggregate_2p5d/".
+* Example usage: python3 stereo_pipeline.py --config_file aoi_config/aoi-d4-jacksonville.json
 
 

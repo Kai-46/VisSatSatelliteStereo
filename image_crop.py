@@ -1,3 +1,20 @@
+# ===============================================================================================================
+#  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
+#  Copyright 2019 General Electric Company - All Rights Reserved                                                =
+#  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  -                                                                                                            =
+#  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
+#  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
+#  to General Electric Company and its suppliers and may be covered by U.S. and Foreign Patents, patents        =
+#  in process, and are protected by trade secret or copyright law. Dissemination of this information or         =
+#  reproduction of this material is strictly forbidden unless prior written permission is obtained              =
+#  from General Electric Company.                                                                               =
+#  -                                                                                                            =
+#  The research is based upon work supported by the Office of the Director of National Intelligence (ODNI),     =
+#  Intelligence Advanced Research Projects Activity (IARPA), via DOI/IBC Contract Number D17PC00287.            =
+#  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
+# ===============================================================================================================
+
 # cut the AOI out of the big satellite image
 
 import os
@@ -20,7 +37,7 @@ import glob
 import dateutil.parser
 
 
-def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, result_file, msi_file=None):
+def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, result_file, image_template, msi_file=None):
     with open(utm_bbx_file) as fp:
         utm_bbx = json.load(fp)
     ul_easting = utm_bbx['ul_easting']
@@ -80,7 +97,7 @@ def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, r
         base_name = ntf_file[idx1+1:idx2]
         out_png = os.path.join(out_dir, '{}:{:04d}:{}.png'.format(pid, n, base_name))
 
-        cut_image(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height), msi_file)
+        cut_image(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height), image_template, msi_file)
 
         # tone mapping
         if msi_file is None:
@@ -118,7 +135,7 @@ def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, r
             json.dump(effective_file_list, fp, indent=2)
 
 
-def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None):
+def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_template=None):
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
     ntf_list = glob.glob('{}/*.NTF'.format(cleaned_data_dir))
     xml_list = [item[:-4] + '.XML' for item in ntf_list]
@@ -150,7 +167,7 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None):
         out_dir = tmp_dir
         result_file = os.path.join(tmp_dir, 'image_crop_result_{}.json'.format(i))
         result_file_list.append(result_file)
-        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file, msi_file)))
+        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file, image_template, msi_file)))
     for r in results:
         r.get()
     pool.close()

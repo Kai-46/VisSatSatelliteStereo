@@ -8,6 +8,7 @@ from visualization.plot_reproj_err import plot_reproj_err
 from lib.ply_np_converter import np2ply
 import shutil
 from colmap.extract_sfm import extract_all_to_dir
+from colmap.extract_raw_matches import extract_raw_matches
 import json
 import imageio
 
@@ -23,12 +24,14 @@ def vector_angle(vec1, vec2):
 
 
 class SparseInspector(object):
-    def __init__(self, sparse_dir, out_dir, camera_model, ext='.txt'):
+    def __init__(self, sparse_dir, db_path, out_dir, camera_model, ext='.txt'):
         assert (camera_model == 'PINHOLE' or camera_model == 'PERSPECTIVE')
         self.camera_model = camera_model
         self.out_dir = out_dir
         if not os.path.exists(self.out_dir):
             os.mkdir(self.out_dir)
+
+        self.db_path = db_path
 
         # extract colmap sfm results
         extract_all_to_dir(sparse_dir, self.out_dir, ext)
@@ -68,10 +71,31 @@ class SparseInspector(object):
         self.img_cnt = len(self.camera_mats.keys())
 
     def inspect_all(self):
+        self.inspect_raw_matches()
         self.inspect_tracks()
         self.inspect_image_key_points()
         self.inspect_scene_points()
         self.inspect_angles()
+
+    def inspect_raw_matches(self):
+        raw_matches_cnt = extract_raw_matches(self.db_path)
+
+        out_subdir = os.path.join(self.out_dir, 'raw_matches')
+        if not os.path.exists(out_subdir):
+            os.mkdir(out_subdir)
+
+        for img_name1 in self.img_names:
+            tmp_dict = raw_matches_cnt[img_name1]
+            with open(os.path.join(out_subdir, img_name1[:-4]+'.txt'), 'w') as fp:
+                fp.write(img_name1 + '\n')
+                for img_name2 in self.img_names:
+                    if img_name2 == img_name1:
+                        continue
+
+                    if img_name2 in tmp_dict:
+                        fp.write('{}, {}\n'.format(img_name2, tmp_dict[img_name2]))
+                    else:
+                        fp.write('{}, 0\n'.format(img_name2))
 
     def inspect_image_key_points(self):
         # per-view re-projection errors and depth ranges

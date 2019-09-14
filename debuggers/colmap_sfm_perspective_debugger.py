@@ -7,6 +7,7 @@ from debuggers.check_align import check_align
 from debuggers.inspect_sfm import SparseInspector
 import logging
 from coordinate_system import global_to_local
+import shutil
 
 
 def check_sfm(work_dir, sfm_dir):
@@ -15,7 +16,11 @@ def check_sfm(work_dir, sfm_dir):
         logging.info('\ninspecting {} ...'.format(dir))
 
         inspect_dir = os.path.join(sfm_dir, 'inspect_' + subdir)
-        sfm_inspector = SparseInspector(dir, inspect_dir, camera_model='PERSPECTIVE')
+        if os.path.exists(inspect_dir):
+            shutil.rmtree(inspect_dir)
+
+        db_path = os.path.join(sfm_dir, 'database.db')
+        sfm_inspector = SparseInspector(dir, db_path, inspect_dir, camera_model='PERSPECTIVE')
         sfm_inspector.inspect_all()
 
         # _, xyz_file, track_file = extract_all_to_dir(dir, inspect_dir)

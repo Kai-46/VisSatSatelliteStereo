@@ -18,6 +18,7 @@ import utm
 from register_tif_global import register
 from debuggers import colmap_sfm_perspective_debugger
 import multiprocessing
+from datetime import datetime
 
 
 class StereoPipeline(object):
@@ -48,41 +49,136 @@ class StereoPipeline(object):
         if 'pan_msi_pairing' in self.config:
             self.pan_msi_pairing = self.config['pan_msi_pairing']
 
+        per_step_time = []  # (whether to run, step name, time in minutes)
+
         if self.config['steps_to_run']['clean_data']:
+            start_time = datetime.now()
             self.clean_data()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'clean_data', duration))
+            print('step clean_data:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'clean_data', 0.0))
+            print('step clean_data:\tskipped')
 
         if self.config['steps_to_run']['crop_image']:
+            start_time = datetime.now()
             self.run_crop_image()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'crop_image', duration))
+            print('step crop_image:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'crop_image', 0.0))
+            print('step crop_image:\tskipped')
 
         if self.config['steps_to_run']['derive_approx']:
+            start_time = datetime.now()
             self.run_derive_approx()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'drive_approx', duration))
+            print('step derive_approx:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'drive_approx', 0.0))
+            print('step derive_approx:\tskipped')
 
         if self.config['steps_to_run']['choose_subset']:
+            start_time = datetime.now()
             self.run_choose_subset()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'choose_subset', duration))
+            print('step choose_subset:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'choose_subset', 0.0))
+            print('step choose_subset:\tskipped')
 
         if self.config['steps_to_run']['colmap_sfm_perspective']:
+            start_time = datetime.now()
             self.run_colmap_sfm_perspective()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'colmap_sfm_perspective', duration))
+            print('step colmap_sfm_perspective:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'colmap_sfm_perspective', 0.0))
+            print('step colmap_sfm_perspective:\tskipped')
 
         if self.config['steps_to_run']['inspect_sfm_perspective']:
+            start_time = datetime.now()
             self.run_inspect_sfm_perspective()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'inspect_sfm_perspective', duration))
+            print('step inspect_sfm_perspective:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'inspect_sfm_perspective', 0.0))
+            print('step inspect_sfm_perspective:\tskipped')
 
         if self.config['steps_to_run']['reparam_depth']:
+            start_time = datetime.now()
             self.run_reparam_depth()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'reparam_depth', duration))
+            print('step reparam_depth:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'reparam_depth', 0.0))
+            print('step reparam_depth:\tskipped')
 
         if self.config['steps_to_run']['colmap_mvs']:
+            start_time = datetime.now()
             self.run_colmap_mvs()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'colmap_mvs', duration))
+            print('step colmap_mvs:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'colmap_mvs', 0.0))
+            print('step colmap_mvs:\tskipped')
 
         if self.config['steps_to_run']['aggregate_2p5d']:
+            start_time = datetime.now()
             self.run_aggregate_2p5d()
-
-        if self.config['steps_to_run']['evaluate_2p5d']:
-            self.run_evaluate_2p5d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'aggregate_2p5d', duration))
+            print('step aggregate_2p5d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'aggregate_2p5d', 0.0))
+            print('step aggregate_2p5d:\tskipped')
 
         if self.config['steps_to_run']['aggregate_3d']:
+            start_time = datetime.now()
             self.run_aggregate_3d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'aggregate_3d', duration))
+            print('step aggregate_3d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'aggregate_3d', 0.0))
+            print('step aggregate_3d:\tskipped')
+
+        if self.config['steps_to_run']['evaluate_2p5d']:
+            start_time = datetime.now()
+            self.run_evaluate_2p5d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'evaluate_2p5d', duration))
+            print('step evaluate_2p5d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'evaluate_2p5d', 0.0))
+            print('step evaluate_2p5d:\tskipped')
 
         if self.config['steps_to_run']['evaluate_3d']:
+            start_time = datetime.now()
             self.run_evaluate_3d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'evaluate_3d', duration))
+            print('step evaluate_3d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'evaluate_3d', 0.0))
+            print('step evaluate_3d:\tskipped')
+
+        with open(os.path.join(self.config['work_dir'], 'runtime.txt'), 'w') as fp:
+            fp.write('step_name, status, duration (minutes)\n')
+            for (has_run, step_name, duration) in per_step_time:
+                if has_run:
+                    fp.write('{}, success, {}\n'.format(step_name, duration))
+                else:
+                    fp.write('{}, skipped\n'.format(step_name))
+
 
     def write_aoi(self):
         # write aoi.json

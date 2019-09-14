@@ -16,10 +16,11 @@ def run_sift_matching(img_dir, db_file, camera_model):
                                     --image_path {} \
                                     --ImageReader.camera_model {} \
                                     --SiftExtraction.max_image_size 10000  \
-                                    --SiftExtraction.estimate_affine_shape 1 \
+                                    --SiftExtraction.estimate_affine_shape 0 \
                                     --SiftExtraction.domain_size_pooling 1 \
                                     --SiftExtraction.max_num_features 25000 \
                                     --SiftExtraction.num_threads 6 \
+                                    --SiftExtraction.use_gpu 1 \
                                     --SiftExtraction.gpu_index {}'.format(db_file, img_dir, camera_model, gpu_index)
     run_cmd(cmd)
 

@@ -173,12 +173,14 @@ class StereoPipeline(object):
 
         with open(os.path.join(self.config['work_dir'], 'runtime.txt'), 'w') as fp:
             fp.write('step_name, status, duration (minutes)\n')
+            total = 0.0
             for (has_run, step_name, duration) in per_step_time:
                 if has_run:
                     fp.write('{}, success, {}\n'.format(step_name, duration))
                 else:
                     fp.write('{}, skipped\n'.format(step_name))
-
+                total += duration
+            fp.write('\ntotal: {} minutes\n'.format(total))
 
     def write_aoi(self):
         # write aoi.json

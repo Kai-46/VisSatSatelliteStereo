@@ -147,7 +147,7 @@ class SparseInspector(object):
             fp.write('# img_name, img_width, img_height, used_keypoint_cnt, mean_reproj_err (pixels), median_reproj_err (pixels), mean_track_len, median_track_len\n')
             for idx, img_name in enumerate(self.img_names):
                 w, h = self.img_sizes[img_name]
-                fp.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(img_name, w, h,  
+                fp.write('{}, {}, {}, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}\n'.format(img_name, w, h,  
                     used_keypoint_cnt[idx], view_reproj_errs[idx, 0], view_reproj_errs[idx, 1],
                     view_track_lens[idx, 0], view_track_lens[idx, 1]))
 

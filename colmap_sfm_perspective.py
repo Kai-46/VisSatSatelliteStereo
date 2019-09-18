@@ -34,13 +34,11 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
         json.dump(init_camera_dict, fp, indent=2, sort_keys=True)
 
     # iterate between triangulation and bundle adjustment
-    max_iter = 6
-    for i in range(1, max_iter):
+    for reproj_err_threshold in [32.0, 8.0, 2.0]:
         # triangulate
         init_template = os.path.join(sfm_dir, 'init_template.json')
         write_template_perspective(init_camera_dict, init_template)
         tri_dir = os.path.join(sfm_dir, 'tri')
-        reproj_err_threshold = 2 ** (max_iter - i)
         colmap_sfm_commands.run_point_triangulation(img_dir, db_file, tri_dir, init_template,
                                                     reproj_err_threshold, reproj_err_threshold, reproj_err_threshold)
 

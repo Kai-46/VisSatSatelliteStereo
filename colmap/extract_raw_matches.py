@@ -14,34 +14,53 @@
 #  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
 # ===============================================================================================================
 
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')
+import os
+import sqlite3
 import numpy as np
 
 
-# reproj_errs should be a numpy array
-def plot_reproj_err(reproj_errs, fpath):
-    plt.figure(figsize=(14, 5), dpi=80)
-    min_val = np.min(reproj_errs)
-    mean_val = np.mean(reproj_errs)
-    median_val = np.median(reproj_errs)
-    max_val = np.max(reproj_errs)
+def pair_id_to_image_ids(pair_id):
+    image_id2 = pair_id % 2147483647
+    image_id1 = (pair_id - image_id2) / 2147483647
+    return image_id1, image_id2
 
-    # clip reproj_errs at 4 pixels for better visualization
-    reproj_errs = np.clip(reproj_errs, 0.0, 4.0)
 
-    plt.hist(reproj_errs, bins=50, density=True, cumulative=False)
-    max_points_err = np.max(reproj_errs)
-    plt.xticks(np.arange(0, max_points_err + 0.01, 0.1))
-    plt.yticks(np.arange(0, 1.01, 0.1))
-    plt.xlabel('reprojection error (# pixels)')
-    plt.ylabel('pdf')
-    plt.title(
-        'total # of sparse 3D points: {}\nreproj. err. (pixels): min {:.6f}, mean {:.6f}, median {:.6f}, max {:.6f}'
-        .format(reproj_errs.size, min_val, mean_val,
-                median_val, max_val))
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(fpath)
-    plt.close('all')
+def extract_raw_matches(database_path):
+    connection = sqlite3.connect(database_path)
+    cursor = connection.cursor()
+
+    images = {}
+    cursor.execute("SELECT image_id, camera_id, name FROM images;")
+    for row in cursor:
+        image_id = row[0]
+        image_name = row[2]
+        images[image_id] = image_name
+
+    cursor.execute("SELECT pair_id, data FROM two_view_geometries WHERE rows>=1;")
+    raw_matches_cnt = {}
+    for row in cursor:
+        pair_id = row[0]
+        inlier_matches = np.fromstring(row[1],
+                                       dtype=np.uint32).reshape(-1, 2)
+        image_id1, image_id2 = pair_id_to_image_ids(pair_id)
+        image_name1 = images[image_id1]
+        image_name2 = images[image_id2]
+
+        if image_name1 not in raw_matches_cnt:
+            raw_matches_cnt[image_name1] = [(image_name2, inlier_matches.shape[0]), ]
+        else:
+            raw_matches_cnt[image_name1].append((image_name2, inlier_matches.shape[0]))
+
+        if image_name2 not in raw_matches_cnt:
+            raw_matches_cnt[image_name2] = [(image_name1, inlier_matches.shape[0]), ]
+        else:
+            raw_matches_cnt[image_name2].append((image_name1, inlier_matches.shape[0]))
+
+    for img_name in raw_matches_cnt:
+        tmp = raw_matches_cnt[img_name]
+        raw_matches_cnt[img_name] = dict(tmp)
+
+    cursor.close()
+    connection.close()
+
+    return raw_matches_cnt

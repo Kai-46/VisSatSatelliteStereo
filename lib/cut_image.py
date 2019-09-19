@@ -1,3 +1,20 @@
+# ===============================================================================================================
+#  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
+#  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  Copyright 2019 General Electric Company - All Rights Reserved                                                =
+#  -                                                                                                            =
+#  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
+#  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
+#  to General Electric Company and its suppliers and may be covered by U.S. and Foreign Patents, patents        =
+#  in process, and are protected by trade secret or copyright law. Dissemination of this information or         =
+#  reproduction of this material is strictly forbidden unless prior written permission is obtained              =
+#  from General Electric Company.                                                                               =
+#  -                                                                                                            =
+#  The research is based upon work supported by the Office of the Director of National Intelligence (ODNI),     =
+#  Intelligence Advanced Research Projects Activity (IARPA), via DOI/IBC Contract Number D17PC00287.            =
+#  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
+# ===============================================================================================================
+
 import os
 import tempfile
 import cv2
@@ -6,11 +23,13 @@ from osgeo import gdal, gdal_array
 import datetime
 from skimage import exposure, color
 from skimage.transform import match_histograms
-from skimage.morphology import square, disk, binary_dilation, binary_opening, binary_closing, reconstruction
-from PIL import Image
 from lib.run_cmd import run_cmd
 import logging
-from s2p import rpc_utils
+
+try:
+    from s2p import rpc_utils                    
+except ImportError:
+    print('Not supporting Pan-sharpening')
 
 
 def Image_byte(img_16bit, multi_channel=False):

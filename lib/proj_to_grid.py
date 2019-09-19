@@ -94,21 +94,22 @@ import numpy_groupies as npg
 # xsize: width
 # ysize: height
 def proj_to_grid(points, xoff, yoff, xresolution, yresolution, xsize, ysize, propagate=False):
-    # first create a place holder
-    group_idx = np.arange(xsize * ysize).astype(dtype=np.int)
-    group_val = np.empty(xsize * ysize)
-    group_val.fill(np.nan)
-
     row = np.floor((yoff - points[:, 1]) / xresolution).astype(dtype=np.int)
     col = np.floor((points[:, 0] - xoff) / yresolution).astype(dtype=np.int)
     points_group_idx = row * xsize + col
     points_val = points[:, 2]
 
     # remove points that lie out of the dsm boundary
-    mask = np.logical_and(points_group_idx >=0, points_group_idx < xsize * ysize)
+    mask = ((row >= 0) * (col >= 0) * (row < ysize) * (col < xsize)) > 0
     points_group_idx = points_group_idx[mask]
     points_val = points_val[mask]
 
+    # create a place holder for all pixels in the dsm
+    group_idx = np.arange(xsize * ysize).astype(dtype=np.int)
+    group_val = np.empty(xsize * ysize)
+    group_val.fill(np.nan)
+
+    # concatenate place holders with the real valuies, then aggregate
     group_idx = np.concatenate((group_idx, points_group_idx))
     group_val = np.concatenate((group_val, points_val))
 

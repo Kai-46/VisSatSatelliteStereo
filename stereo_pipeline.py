@@ -14,14 +14,12 @@
 #  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
 # ===============================================================================================================
 
-import multiprocessing
 import os
 import json
 from clean_data import clean_data
 from image_crop import image_crop
 from camera_approx import CameraApprox
-import colmap_sfm_perspective, colmap_sfm_pinhole
-from skew_correct import skew_correct
+import colmap_sfm_perspective
 import shutil
 import logging
 from lib.run_cmd import run_cmd
@@ -30,10 +28,13 @@ import numpy as np
 from lib.logger import GlobalLogger
 from reparam_depth import reparam_depth
 from colmap_mvs_commands import run_photometric_mvs, run_consistency_check
-from process_dsm_gt import process_dsm_gt
 import aggregate_2p5d
 import aggregate_3d
 import utm
+from register_tif_global import register
+from debuggers import colmap_sfm_perspective_debugger
+import multiprocessing
+from datetime import datetime
 
 
 class StereoPipeline(object):
@@ -64,59 +65,138 @@ class StereoPipeline(object):
         if 'pan_msi_pairing' in self.config:
             self.pan_msi_pairing = self.config['pan_msi_pairing']
 
-        if self.config['steps_to_run']['clean_data']:
-            self.clean_data()
+        per_step_time = []  # (whether to run, step name, time in minutes)
 
-        if self.config['steps_to_run']['process_dsm_gt']:
-            process_dsm_gt(self.config['work_dir'], self.config['ground_truth'])
+        if self.config['steps_to_run']['clean_data']:
+            start_time = datetime.now()
+            self.clean_data()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'clean_data', duration))
+            print('step clean_data:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'clean_data', 0.0))
+            print('step clean_data:\tskipped')
 
         if self.config['steps_to_run']['crop_image']:
+            start_time = datetime.now()
             self.run_crop_image()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'crop_image', duration))
+            print('step crop_image:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'crop_image', 0.0))
+            print('step crop_image:\tskipped')
 
         if self.config['steps_to_run']['derive_approx']:
+            start_time = datetime.now()
             self.run_derive_approx()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'drive_approx', duration))
+            print('step derive_approx:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'drive_approx', 0.0))
+            print('step derive_approx:\tskipped')
 
         if self.config['steps_to_run']['choose_subset']:
+            start_time = datetime.now()
             self.run_choose_subset()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'choose_subset', duration))
+            print('step choose_subset:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'choose_subset', 0.0))
+            print('step choose_subset:\tskipped')
 
         if self.config['steps_to_run']['colmap_sfm_perspective']:
+            start_time = datetime.now()
             self.run_colmap_sfm_perspective()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'colmap_sfm_perspective', duration))
+            print('step colmap_sfm_perspective:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'colmap_sfm_perspective', 0.0))
+            print('step colmap_sfm_perspective:\tskipped')
 
         if self.config['steps_to_run']['inspect_sfm_perspective']:
+            start_time = datetime.now()
             self.run_inspect_sfm_perspective()
-
-        if self.config['steps_to_run']['debug_approx']:
-            self.run_debug_approx()
-
-        if self.config['steps_to_run']['skew_correct']:
-            self.run_skew_correct()
-
-        if self.config['steps_to_run']['select_subset']:
-            self.run_select_subset()
-
-        if self.config['steps_to_run']['colmap_sfm_pinhole']:
-            self.run_colmap_sfm_pinhole()
-
-        if self.config['steps_to_run']['inspect_sfm_pinhole']:
-            self.run_inspect_sfm_pinhole()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'inspect_sfm_perspective', duration))
+            print('step inspect_sfm_perspective:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'inspect_sfm_perspective', 0.0))
+            print('step inspect_sfm_perspective:\tskipped')
 
         if self.config['steps_to_run']['reparam_depth']:
+            start_time = datetime.now()
             self.run_reparam_depth()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'reparam_depth', duration))
+            print('step reparam_depth:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'reparam_depth', 0.0))
+            print('step reparam_depth:\tskipped')
 
         if self.config['steps_to_run']['colmap_mvs']:
+            start_time = datetime.now()
             self.run_colmap_mvs()
-
-        if self.config['steps_to_run']['inspect_mvs']:
-            self.run_inspect_mvs()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'colmap_mvs', duration))
+            print('step colmap_mvs:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'colmap_mvs', 0.0))
+            print('step colmap_mvs:\tskipped')
 
         if self.config['steps_to_run']['aggregate_2p5d']:
+            start_time = datetime.now()
             self.run_aggregate_2p5d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'aggregate_2p5d', duration))
+            print('step aggregate_2p5d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'aggregate_2p5d', 0.0))
+            print('step aggregate_2p5d:\tskipped')
 
         if self.config['steps_to_run']['aggregate_3d']:
+            start_time = datetime.now()
             self.run_aggregate_3d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'aggregate_3d', duration))
+            print('step aggregate_3d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'aggregate_3d', 0.0))
+            print('step aggregate_3d:\tskipped')
 
-        if self.config['steps_to_run']['evaluate']:
-            self.run_evaluation()
+        if self.config['steps_to_run']['evaluate_2p5d']:
+            start_time = datetime.now()
+            self.run_evaluate_2p5d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'evaluate_2p5d', duration))
+            print('step evaluate_2p5d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'evaluate_2p5d', 0.0))
+            print('step evaluate_2p5d:\tskipped')
+
+        if self.config['steps_to_run']['evaluate_3d']:
+            start_time = datetime.now()
+            self.run_evaluate_3d()
+            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
+            per_step_time.append((True, 'evaluate_3d', duration))
+            print('step evaluate_3d:\tfinished in {} minutes'.format(duration))
+        else:
+            per_step_time.append((False, 'evaluate_3d', 0.0))
+            print('step evaluate_3d:\tskipped')
+
+        with open(os.path.join(self.config['work_dir'], 'runtime.txt'), 'w') as fp:
+            fp.write('step_name, status, duration (minutes)\n')
+            total = 0.0
+            for (has_run, step_name, duration) in per_step_time:
+                if has_run:
+                    fp.write('{}, success, {}\n'.format(step_name, duration))
+                else:
+                    fp.write('{}, skipped\n'.format(step_name))
+                total += duration
+            fp.write('\ntotal: {} minutes\n'.format(total))
 
     def write_aoi(self):
         # write aoi.json
@@ -267,23 +347,20 @@ class StereoPipeline(object):
         for img_id in subset_img_ids:
             img_name = img_id2name[img_id]
             subset_perspective_dict[img_name] = perspective_dict[img_name]
-            shutil.copy2(os.path.join(work_dir, 'images', img_name),
-                         image_subdir)
+            # create symbolic link to avoid data copy
+            os.symlink(os.path.relpath(os.path.join(work_dir, 'images', img_name), image_subdir),
+                       os.path.join(image_subdir, img_name))
+            # shutil.copy2(os.path.join(work_dir, 'images', img_name),
+            #              image_subdir)
 
         with open(os.path.join(out_dir, 'perspective_dict.json'), 'w') as fp:
             json.dump(subset_perspective_dict, fp, indent=2)
 
     def run_colmap_sfm_perspective(self, weight=0.01):
         work_dir = os.path.abspath(self.config['work_dir'])
-        colmap_dir = os.path.join(work_dir, 'colmap')
-        subdirs = [
-            colmap_dir,
-            os.path.join(colmap_dir, 'sfm_perspective')
-        ]
-
-        for item in subdirs:
-            if not os.path.exists(item):
-                os.mkdir(item)
+        sfm_dir = os.path.join(work_dir, 'colmap/sfm_perspective')
+        if not os.path.exists(sfm_dir):
+            os.mkdir(sfm_dir)
 
         log_file = os.path.join(work_dir, 'logs/log_sfm_perspective.txt')
         self.logger.set_log_file(log_file)
@@ -291,13 +368,11 @@ class StereoPipeline(object):
         local_timer = Timer('Colmap SfM Module, perspective camera')
         local_timer.start()
 
-        sfm_dir = os.path.join(colmap_dir, 'sfm_perspective')
         # create a hard link to avoid copying of images
-        if os.path.exists(os.path.join(colmap_dir, 'sfm_perspective/images')):
-            os.unlink(os.path.join(colmap_dir, 'sfm_perspective/images'))
-        # os.symlink(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective/images'))
-        os.symlink(os.path.relpath(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), os.path.join(colmap_dir, 'sfm_perspective')),
-                   os.path.join(colmap_dir, 'sfm_perspective/images'))
+        if os.path.exists(os.path.join(sfm_dir, 'images')):
+            os.unlink(os.path.join(sfm_dir, 'images'))
+        os.symlink(os.path.relpath(os.path.join(work_dir, 'colmap/subset_for_sfm/images'), sfm_dir),
+                   os.path.join(sfm_dir, 'images'))
         init_camera_file = os.path.join(work_dir, 'colmap/subset_for_sfm/perspective_dict.json')
         colmap_sfm_perspective.run_sfm(work_dir, sfm_dir, init_camera_file, weight)
 
@@ -315,138 +390,11 @@ class StereoPipeline(object):
 
         # inspect sfm perspective
         sfm_dir = os.path.join(work_dir, 'colmap/sfm_perspective')
-        import debuggers.colmap_sfm_perspective_debugger
-        debuggers.colmap_sfm_perspective_debugger.check_sfm(work_dir, sfm_dir)
+
+        colmap_sfm_perspective_debugger.check_sfm(work_dir, sfm_dir)
 
         # stop local timer
         local_timer.mark('inspect sfm perspective done')
-        logging.info(local_timer.summary())
-
-    def run_debug_approx(self):
-        work_dir = os.path.abspath(self.config['work_dir'])
-
-        log_file = os.path.join(work_dir, 'logs/log_debug_approx.txt')
-        self.logger.set_log_file(log_file)
-        local_timer = Timer('debug approx')
-        local_timer.start()
-
-        import debuggers.perspective_approx_debugger
-        debuggers.perspective_approx_debugger.debug_approx(work_dir)
-
-        # stop local timer
-        local_timer.mark('debug approx done')
-        logging.info(local_timer.summary())
-
-    def run_skew_correct(self):
-        work_dir = os.path.abspath(self.config['work_dir'])
-        colmap_dir = os.path.join(work_dir, 'colmap')
-        subdirs = [
-            colmap_dir,
-            os.path.join(colmap_dir, 'skew_correct')
-        ]
-
-        for item in subdirs:
-            if not os.path.exists(item):
-                os.mkdir(item)
-
-        # second time SfM
-        log_file = os.path.join(work_dir, 'logs/log_skew_correct.txt')
-        self.logger.set_log_file(log_file)
-        # create a local timer
-        local_timer = Timer('Skew correct module')
-        local_timer.start()
-
-        # skew-correct images
-        skew_correct(work_dir)
-
-        # stop local timer
-        local_timer.mark('Skew correct done')
-        logging.info(local_timer.summary())
-
-    def run_select_subset(self):
-        work_dir = os.path.abspath(self.config['work_dir'])
-        out_dir = os.path.join(work_dir, 'colmap/subset_for_mvs')
-        if os.path.exists(out_dir):
-            shutil.rmtree(out_dir)
-        os.mkdir(out_dir)
-
-        image_subdir = os.path.join(out_dir, 'images')
-        if not os.path.exists(image_subdir):
-            os.mkdir(image_subdir)
-
-        log_file = os.path.join(work_dir, 'logs/log_select_subset.txt')
-        self.logger.set_log_file(log_file)
-        # create a local timer
-        local_timer = Timer('select subset')
-        local_timer.start()
-
-        with open(os.path.join(work_dir, 'colmap/skew_correct/pinhole_dict.json')) as fp:
-            pinhole_dict = json.load(fp)
-
-        # build image id to name mapping
-        img_id2name = {}
-        for img_name in pinhole_dict.keys():
-            id = int(img_name[:img_name.find('_')])
-            img_id2name[id] = img_name
-
-        #subset_img_ids = list(range(15)) + list(range(33, 40))
-        subset_img_ids = img_id2name.keys()     # select all
-        subset_pinhole_dict = {}
-
-        for img_id in subset_img_ids:
-            img_name = img_id2name[img_id]
-            subset_pinhole_dict[img_name] = pinhole_dict[img_name]
-            shutil.copy2(os.path.join(work_dir, 'colmap/skew_correct/images', img_name),
-                         image_subdir)
-
-        with open(os.path.join(out_dir, 'pinhole_dict.json'), 'w') as fp:
-            json.dump(subset_pinhole_dict, fp, indent=2)
-
-        # stop local timer
-        local_timer.mark('select_subset')
-        logging.info(local_timer.summary())
-
-    def run_colmap_sfm_pinhole(self):
-        work_dir = os.path.abspath(self.config['work_dir'])
-
-        log_file = os.path.join(work_dir, 'logs/log_sfm_pinhole.txt')
-        self.logger.set_log_file(log_file)
-        # create a local timer
-        local_timer = Timer('Colmap SfM Module, pinhole camera')
-        local_timer.start()
-
-        # create a hard link to avoid copying of images
-        colmap_dir = os.path.join(work_dir, 'colmap')
-        sfm_dir = os.path.join(colmap_dir, 'sfm_pinhole')
-        if not os.path.exists(sfm_dir):
-            os.mkdir(sfm_dir)
-        if os.path.exists(os.path.join(colmap_dir, 'sfm_pinhole/images')):
-            os.unlink(os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        # os.symlink(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        os.symlink(os.path.relpath(os.path.join(colmap_dir, 'subset_for_mvs/images'), os.path.join(colmap_dir, 'sfm_pinhole')),
-                   os.path.join(colmap_dir, 'sfm_pinhole/images'))
-        init_camera_file = os.path.join(colmap_dir, 'subset_for_mvs/pinhole_dict.json')
-
-        colmap_sfm_pinhole.run_sfm(work_dir, sfm_dir, init_camera_file)
-
-        # stop local timer
-        local_timer.mark('Colmap SfM done')
-        logging.info(local_timer.summary())
-
-    def run_inspect_sfm_pinhole(self):
-        work_dir = os.path.abspath(self.config['work_dir'])
-        log_file = os.path.join(work_dir, 'logs/log_inspect_sfm_pinhole.txt')
-        self.logger.set_log_file(log_file)
-        local_timer = Timer('inspect sfm')
-        local_timer.start()
-
-        sfm_dir = os.path.join(work_dir, 'colmap/sfm_pinhole')
-        warping_file = os.path.join(work_dir, 'colmap/skew_correct/affine_warpings.json')
-        import debuggers.colmap_sfm_pinhole_debugger
-        debuggers.colmap_sfm_pinhole_debugger.check_sfm(work_dir, sfm_dir, warping_file)
-
-        # stop local timer
-        local_timer.mark('inspect sfm pinhole done')
         logging.info(local_timer.summary())
 
     def run_reparam_depth(self):
@@ -466,15 +414,49 @@ class StereoPipeline(object):
         if not os.path.exists(mvs_dir):
             os.mkdir(mvs_dir)
 
-        # prepare dense workspace
-        cmd = 'colmap image_undistorter --max_image_size 10000 \
-                            --image_path {colmap_dir}/sfm_pinhole/images  \
-                            --input_path {colmap_dir}/sfm_pinhole/init_triangulate \
-                            --output_path {colmap_dir}/mvs'.format(colmap_dir=colmap_dir)
-        run_cmd(cmd)
+        # link to sfm_perspective
+        if os.path.exists(os.path.join(mvs_dir, 'images')):
+           os.unlink(os.path.join(mvs_dir, 'images'))
+        os.symlink(os.path.relpath(os.path.join(colmap_dir, 'sfm_perspective/images'), mvs_dir),
+                  os.path.join(mvs_dir, 'images'))
+
+        if os.path.exists(os.path.join(mvs_dir, 'sparse')):
+           os.unlink(os.path.join(mvs_dir, 'sparse'))
+        os.symlink(os.path.relpath(os.path.join(colmap_dir, 'sfm_perspective/tri_ba'), mvs_dir),
+                   os.path.join(mvs_dir, 'sparse'))
 
         # compute depth ranges and generate last_rows.txt
-        reparam_depth(os.path.join(mvs_dir, 'sparse'), mvs_dir)
+        reparam_depth(os.path.join(mvs_dir, 'sparse'), mvs_dir, camera_model='perspective')
+
+        # prepare stereo directory
+        stereo_dir = os.path.join(mvs_dir, 'stereo')
+        for subdir in [stereo_dir, 
+                       os.path.join(stereo_dir, 'depth_maps'),
+                       os.path.join(stereo_dir, 'normal_maps'),
+                       os.path.join(stereo_dir, 'consistency_graphs')]:
+            if not os.path.exists(subdir):
+                os.mkdir(subdir)
+
+        # write patch-match.cfg and fusion.cfg
+        image_names = sorted(os.listdir(os.path.join(mvs_dir, 'images')))
+        from random import shuffle
+
+        with open(os.path.join(stereo_dir, 'patch-match.cfg'), 'w') as fp:
+            for img_name in image_names:
+                fp.write(img_name + '\n__auto__, 20\n')
+                
+                # use all images
+                #fp.write(img_name + '\n__all__\n')
+                
+                # randomly choose 20 images
+                # candi_src_images = [x for x in image_names if x != img_name]
+                # shuffle(candi_src_images)
+                # max_src_images = 10
+                # fp.write(img_name + '\n' + ', '.join(candi_src_images[:max_src_images]) + '\n')
+
+        with open(os.path.join(stereo_dir, 'fusion.cfg'), 'w') as fp:
+            for img_name in image_names:
+                fp.write(img_name + '\n')
 
         # stop local timer
         local_timer.mark('reparam depth done')
@@ -491,37 +473,14 @@ class StereoPipeline(object):
         local_timer = Timer('Colmap MVS Module')
         local_timer.start()
 
-        with open(os.path.join(mvs_dir, 'reparam_depth_range.txt')) as fp:
-            tmp = fp.read().strip().split(' ')
-            min_depth = float(tmp[0])
-            max_depth = float(tmp[1])
-
         # first run PMVS without filtering
-        run_photometric_mvs(mvs_dir, window_radius, depth_range=(min_depth, max_depth))
+        run_photometric_mvs(mvs_dir, window_radius)
 
         # next do forward-backward checking and filtering
-        run_consistency_check(mvs_dir, window_radius, depth_range=(min_depth, max_depth))
+        run_consistency_check(mvs_dir, window_radius)
 
         # stop local timer
         local_timer.mark('Colmap MVS done')
-        logging.info(local_timer.summary())
-
-    def run_inspect_mvs(self):
-        work_dir = self.config['work_dir']
-
-        log_file = os.path.join(work_dir, 'logs/log_inspect_mvs.txt')
-        self.logger.set_log_file(log_file)
-        local_timer = Timer('inspect mvs')
-        local_timer.start()
-
-        logging.info('inspecting mvs ...')
-        from convert_mvs_results import convert_depth_maps, convert_normal_maps
-        type_name = 'geometric'
-        #type_name = 'photometric'
-        convert_depth_maps(work_dir, depth_type=type_name)
-        convert_normal_maps(work_dir, normal_type=type_name)
-
-        local_timer.mark('inspect mvs done')
         logging.info(local_timer.summary())
 
     def run_aggregate_3d(self):
@@ -554,8 +513,51 @@ class StereoPipeline(object):
         local_timer.mark('2.5D aggregation done')
         logging.info(local_timer.summary())
 
-    def run_evaluation(self):
-        pass
+    def run_evaluate_3d(self):
+        work_dir = self.config['work_dir']
+        # set log file
+        log_file = os.path.join(work_dir, 'logs/log_evaluate_3d.txt')
+        self.logger.set_log_file(log_file)
+        # create a local timer
+        local_timer = Timer('evaluate dsm by 3d aggregation')
+        local_timer.start()
+
+        out_dir = os.path.join(work_dir, 'mvs_results/aggregate_3d/evaluate')
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+
+        tif_to_eval = os.path.join(work_dir, 'mvs_results/aggregate_3d/aggregate_3d_dsm.tif')
+        tif_gt = self.config['ground_truth']
+        shutil.copy2(tif_gt, os.path.join(out_dir, 'ground_truth.tif'))
+
+        register(tif_to_eval, tif_gt, out_dir)
+
+        # stop local timer
+        local_timer.mark('evaluate dsm by 3d aggregation done')
+        logging.info(local_timer.summary())
+
+    def run_evaluate_2p5d(self):
+        work_dir = self.config['work_dir']
+        # set log file
+        log_file = os.path.join(work_dir, 'logs/log_evaluate_2p5d.txt')
+        self.logger.set_log_file(log_file)
+        # create a local timer
+        local_timer = Timer('evaluate dsm by 2p5d aggregation')
+        local_timer.start()
+
+        out_dir = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/evaluate')
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+
+        tif_to_eval = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d_dsm.tif')
+        tif_gt = self.config['ground_truth']
+        shutil.copy2(tif_gt, os.path.join(out_dir, 'ground_truth.tif'))
+
+        register(tif_to_eval, tif_gt, out_dir)
+
+        # stop local timer
+        local_timer.mark('evaluate dsm by 2p5d aggregation done')
+        logging.info(local_timer.summary())
 
 
 if __name__ == '__main__':

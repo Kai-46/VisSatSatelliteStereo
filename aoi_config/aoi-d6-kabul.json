@@ -1,6 +1,6 @@
 {
-  "dataset_dir":  "/bigdata/kz298/dataset/core3d_phase1b/san_fernando",
-  "work_dir": "/data2/kz298/core3d_result/aoi-d5-san_fernando",
+  "dataset_dir":  "/bigdata/kz298/dataset/core3d_phase1b/kahul",
+  "work_dir": "/data2/kz298/core3d_result/aoi-d6-kahul",
   "bounding_box": {
       "zone_number" : 21,
       "hemisphere" : "S",
@@ -11,26 +11,19 @@
   },
   "steps_to_run": {
     "clean_data": true,
-    "process_dsm_gt": false,
     "crop_image": true,
     "derive_approx": true,
     "choose_subset": true,
     "colmap_sfm_perspective": true,
-    "inspect_sfm_perspective": false,
-    "debug_approx": false,
-    "skew_correct": true,
-    "select_subset": true,
-    "colmap_sfm_pinhole": true,
-    "inspect_sfm_pinhole": false,
+    "inspect_sfm_perspective": true,
     "reparam_depth": true,
     "colmap_mvs": true,
-    "inspect_mvs": false,
-    "aggregate_2p5d": false,
+    "aggregate_2p5d": true,
     "aggregate_3d": true,
-    "evaluate": false
+    "evaluate_2p5d": true,
+    "evaluate_3d": true
   },
   "alt_min": -20.0,
   "alt_max": 170.0,
-  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D5-SanFernando/AOI-D5-DSM.tif",
-  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d5-san_fernando.config"
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/latest_ground_truth/20190701_GT/AOI-D6-Kahul/AOI-D6-DSM.tif"
 }

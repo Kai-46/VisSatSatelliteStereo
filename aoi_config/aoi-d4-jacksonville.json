@@ -1,8 +1,5 @@
 {
-  "dataset_dir":  [
-      "/bigdata/kz298/dataset/jacksonville/satellite_imagery/WV3/PAN",
-      "/bigdata/kz298/dataset/jacksonville/satellite_imagery/WV2/PAN"
-  ],
+  "dataset_dir": "/bigdata/kz298/dataset/core3d_phase1b/jacksonville",
   "work_dir": "/data2/kz298/core3d_result/aoi-d4-jacksonville",
   "bounding_box": {
       "zone_number" : 17,
@@ -13,27 +10,20 @@
       "height" : 1413.0
   },
   "steps_to_run": {
-    "clean_data": true,
-    "process_dsm_gt": false,
-    "crop_image": true,
-    "derive_approx": true,
-    "choose_subset": true,
-    "colmap_sfm_perspective": true,
-    "inspect_sfm_perspective": false,
-    "debug_approx": false,
-    "skew_correct": true,
-    "select_subset": true,
-    "colmap_sfm_pinhole": true,
-    "inspect_sfm_pinhole": false,
-    "reparam_depth": true,
-    "colmap_mvs": true,
-    "inspect_mvs": false,
+    "clean_data": false,
+    "crop_image": false,
+    "derive_approx": false,
+    "choose_subset": false ,
+    "colmap_sfm_perspective": false,
+    "inspect_sfm_perspective": true,
+    "reparam_depth": false,
+    "colmap_mvs": false,
     "aggregate_2p5d": false,
-    "aggregate_3d": true,
-    "evaluate": false
+    "aggregate_3d": false,
+    "evaluate_2p5d": false,
+    "evaluate_3d": false
   },
   "alt_min": -60.0,
   "alt_max": 190.0,
-  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D4-Jacksonville/AOI-D4-DSM.tif",
-  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d4-jacksonville.config"
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/latest_ground_truth/20190701_GT/AOI-D4-Jacksonville/AOI-D4-DSM.tif"
 }

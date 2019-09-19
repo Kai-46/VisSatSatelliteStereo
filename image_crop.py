@@ -1,7 +1,7 @@
 # ===============================================================================================================
 #  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
-#  Copyright 2019 General Electric Company - All Rights Reserved                                                =
 #  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  Copyright 2019 General Electric Company - All Rights Reserved                                                =
 #  -                                                                                                            =
 #  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
 #  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
@@ -18,6 +18,7 @@
 # cut the AOI out of the big satellite image
 
 import os
+import re
 
 from clean_data import clean_image_info
 from lib.rpc_model import RPCModel
@@ -145,14 +146,28 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_t
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
+    img_source_names = {}
     associated_msi = {}
     if pan_msi_pairing is not None:
         for pair in pan_msi_pairing:
+            input_files = {"pan": os.path.basename(pair[0])}
+
             pan = pair[0]
             name = clean_image_info(pan)[0] + '.NTF'
             associated_msi[name] = None
             if(len(pair)) > 1:
                 associated_msi[name] = pair[1]
+                input_files["msi"] = os.path.basename(pair[1])
+
+            key_search = re.search('-P1BS-([^_]+_[^_]+_[^_]+)_', pan)
+            if key_search:
+                img_source_names[key_search.group(1)] = input_files
+
+    # To output some of the metadata data IARPA is asking for - write out the mapping between the names
+    # used by texturing - and the images
+    image_source_file = os.path.join(work_dir, "image_source.json")
+    with open(image_source_file, 'w') as fp:
+        json.dump(img_source_names, fp, sort_keys=True, indent=4)
 
     pool = multiprocessing.Pool(crop_image_max_processes)
     results = []
@@ -161,7 +176,11 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_t
     for i in range(cnt):
         ntf_file = ntf_list[i]
         xml_file = xml_list[i]
-        msi_file = associated_msi[os.path.basename(ntf_file)]
+
+        if os.path.basename(ntf_file) in associated_msi:
+            msi_file = associated_msi[os.path.basename(ntf_file)]
+        else:
+            msi_file = None
 
         utm_bbx_file = os.path.join(work_dir, 'aoi.json')
         out_dir = tmp_dir

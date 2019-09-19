@@ -14,57 +14,60 @@
 #  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
 # ===============================================================================================================
 
-from lib.run_cmd import run_cmd
 import os
-from lib.ply_np_converter import ply2np, np2ply
 import json
-from coordinate_system import local_to_global
 import numpy as np
-from lib.latlon_utm_converter import latlon_to_eastnorh
-from produce_dsm import produce_dsm_from_points
+from visualization.plot_height_map import plot_height_map
+from lib.dsm_util import write_dsm_tif
+from lib.proj_to_grid import proj_to_grid
 import cv2
 
-# the unit of max_depth_error is now in meter
-def fuse(colmap_dir):
-    cmd = 'colmap stereo_fusion --workspace_path {colmap_dir}/mvs \
-                         --output_path {colmap_dir}/mvs/fused.ply \
-                         --input_type geometric \
-                         --StereoFusion.min_num_pixels 4\
-                         --StereoFusion.max_reproj_error 2\
-                         --StereoFusion.max_depth_error 1.0\
-                         --StereoFusion.max_normal_error 10'.format(colmap_dir=colmap_dir)
-    run_cmd(cmd)
+e_resolution = 0.5  # 0.5 meters per pixel
+n_resolution = 0.5 
 
-
-def run_fuse(work_dir):
-    fuse(os.path.join(work_dir, 'colmap'))
-
-    if not os.path.exists(os.path.join(work_dir, 'mvs_results')):
-        os.mkdir(os.path.join(work_dir, 'mvs_results'))
-
-    out_dir = os.path.join(work_dir, 'mvs_results/aggregate_3d')
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
-
-    points, color, comments = ply2np(os.path.join(work_dir, 'colmap/mvs/fused.ply'))
-
-    lat, lon, alt = local_to_global(work_dir, points[:, 0:1], points[:, 1:2], points[:, 2:3])
-
-    # convert to utm coordinate frame
-    # note the normals are in ENU system, not sure how to convert to UTM
-    east, north = latlon_to_eastnorh(lat, lon)
-    points = np.hstack((east, north, alt))
+# points is in UTM
+def produce_dsm_from_points(work_dir, points, tif_to_write, jpg_to_write=None):
     with open(os.path.join(work_dir, 'aoi.json')) as fp:
         aoi_dict = json.load(fp)
-    comment_1 = 'projection: UTM {}{}'.format(aoi_dict['zone_number'], aoi_dict['hemisphere'])
-    comments = [comment_1,]
-    np2ply(points, os.path.join(out_dir, 'aggregate_3d.ply'), color=color, comments=comments, use_double=True)
 
     # write dsm to tif
-    tif_to_write = os.path.join(out_dir, 'aggregate_3d_dsm.tif')
-    jpg_to_write = os.path.join(out_dir, 'aggregate_3d_dsm.jpg')
-    produce_dsm_from_points(work_dir, points, tif_to_write, jpg_to_write)
+    ul_e = aoi_dict['ul_easting']
+    ul_n = aoi_dict['ul_northing']
 
+    e_size = int(aoi_dict['width'] / e_resolution) + 1
+    n_size = int(aoi_dict['height'] / n_resolution) + 1
+    dsm = proj_to_grid(points, ul_e, ul_n, e_resolution, n_resolution, e_size, n_size, propagate=True)
+    # median filter
+    dsm = cv2.medianBlur(dsm.astype(np.float32), 3)
+    write_dsm_tif(dsm, tif_to_write, 
+                  (ul_e, ul_n, e_resolution, n_resolution), 
+                  (aoi_dict['zone_number'], aoi_dict['hemisphere']), nodata_val=-10000)
+    # create a preview file
+    if jpg_to_write is not None:
+        dsm = np.clip(dsm, aoi_dict['alt_min'], aoi_dict['alt_max'])
+        plot_height_map(dsm, jpg_to_write, save_cbar=True)
+
+    return (ul_e, ul_n, e_size, n_size, e_resolution, n_resolution)
+    
+# points is in UTM
+def produce_dsm_from_height(work_dir, height, tif_to_write, jpg_to_write=None):
+    with open(os.path.join(work_dir, 'aoi.json')) as fp:
+        aoi_dict = json.load(fp)
+
+    # write dsm to tif
+    ul_e = aoi_dict['ul_easting']
+    ul_n = aoi_dict['ul_northing']
+    n_size, e_size = height.shape[:2]
+    
+    write_dsm_tif(height, tif_to_write, 
+                  (ul_e, ul_n, e_resolution, n_resolution), 
+                  (aoi_dict['zone_number'], aoi_dict['hemisphere']), nodata_val=-10000)
+    # create a preview file
+    if jpg_to_write is not None:
+        height = np.clip(height, aoi_dict['alt_min'], aoi_dict['alt_max'])
+        plot_height_map(height, jpg_to_write, save_cbar=True)
+
+    return (ul_e, ul_n, e_size, n_size, e_resolution, n_resolution)
 
 if __name__ == '__main__':
     pass

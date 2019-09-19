@@ -14,20 +14,19 @@
 #  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
 # ===============================================================================================================
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import imageio
 import numpy as np
-from lib.latlon_utm_converter import latlon_to_eastnorh
-from lib.proj_to_grid import proj_to_grid
+import cv2
 
 
-# points: (lat, lon, alt)
-# xoff: ul_easting
-# yoff: ul_northing
-# xsize: width
-# ysize: height
-def proj_to_utm_grid(points, xoff, yoff, xresolution, yresolution, xsize, ysize, propagate=False):
-    east, north = latlon_to_eastnorh(points[:, 0:1], points[:, 1:2])
-    points = np.hstack((east, north, points[:, 2:3]))
-
-    dsm = proj_to_grid(points, xoff, yoff, xresolution, yresolution, xsize, ysize, propagate)
-
-    return dsm
+def plot_err_dist(err, out_img):
+    plt.figure()
+    err = np.clip(err, 0, 2)
+    plt.hist(err, bins='auto', cumulative=True, density=True)
+    plt.xlabel('Error (meters) (clipped at 2 meters)')
+    plt.ylabel('CDF')
+    plt.savefig(out_img)
+    plt.close()

@@ -10,27 +10,20 @@
       "height" : 1297.0
   },
   "steps_to_run": {
-    "clean_data": true,
-    "process_dsm_gt": false,
-    "crop_image": true,
-    "derive_approx": true,
-    "choose_subset": true,
+    "clean_data": false,
+    "crop_image": false,
+    "derive_approx": false,
+    "choose_subset": false,
     "colmap_sfm_perspective": true,
-    "inspect_sfm_perspective": false,
-    "debug_approx": false,
-    "skew_correct": true,
-    "select_subset": true,
-    "colmap_sfm_pinhole": true,
-    "inspect_sfm_pinhole": false,
+    "inspect_sfm_perspective": true,
     "reparam_depth": true,
     "colmap_mvs": true,
-    "inspect_mvs": false,
-    "aggregate_2p5d": false,
+    "aggregate_2p5d": true,
     "aggregate_3d": true,
-    "evaluate": false
+    "evaluate_2p5d": true,
+    "evaluate_3d": true
   },
   "alt_min": 270.0,
   "alt_max": 420.0,
-  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D7-Omaha/AOI-D7-DSM.tif",
-  "evaluate_config": "/data2/kz298/core3d-metrics/core3d_evaluate/aoi-d7-omaha.config"
+  "ground_truth": "/bigdata/kz298/dataset/core3d_phase1b/latest_ground_truth/20190701_GT/AOI-D7-Omaha/AOI-D7-DSM.tif"
 }

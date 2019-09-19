@@ -462,7 +462,9 @@ class StereoPipeline(object):
         local_timer.mark('reparam depth done')
         logging.info(local_timer.summary())
 
-    def run_colmap_mvs(self, window_radius=5):
+    def run_colmap_mvs(self, window_radius=3):
+#        print('MVS window radius: {}'.format(window_radius))
+        
         work_dir = self.config['work_dir']
         mvs_dir = os.path.join(work_dir, 'colmap/mvs')
 

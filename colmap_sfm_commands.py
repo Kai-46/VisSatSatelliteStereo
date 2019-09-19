@@ -78,7 +78,7 @@ def run_point_triangulation(img_dir, db_file, out_dir, template_file, tri_merge_
                                              --Mapper.ba_local_max_num_iterations 100 \
                                              --Mapper.ba_global_images_ratio 1.0000001\
                                              --Mapper.ba_global_max_num_iterations 100 \
-                                             --Mapper.tri_ignore_two_view_tracks 0'.format(db_file, img_dir, out_dir, out_dir,
+                                             --Mapper.tri_ignore_two_view_tracks 1'.format(db_file, img_dir, out_dir, out_dir,
                                                                                                tri_merge_max_reproj_error,
                                                                                                tri_complete_max_reproj_error,
                                                                                                filter_max_reproj_error)

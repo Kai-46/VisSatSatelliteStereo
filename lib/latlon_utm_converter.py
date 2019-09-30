@@ -29,8 +29,8 @@ def map_to_utm(latlon):
 def latlon_to_eastnorh(lat, lon):
     latlon = np.concatenate((lat, lon), axis=1)
 
-    # tmp = np.apply_along_axis(map_to_utm, 1, latlonalt)
-    tmp = parallel_apply_along_axis(map_to_utm, 1, latlon)
+    tmp = np.apply_along_axis(map_to_utm, 1, latlon)
+    # tmp = parallel_apply_along_axis(map_to_utm, 1, latlon)
     east = tmp[:, 0:1]
     north = tmp[:, 1:2]
 

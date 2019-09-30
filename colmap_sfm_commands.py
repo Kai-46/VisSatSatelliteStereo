@@ -35,7 +35,7 @@ def run_sift_matching(img_dir, db_file, camera_model):
                                     --SiftExtraction.estimate_affine_shape 0 \
                                     --SiftExtraction.domain_size_pooling 1 \
                                     --SiftExtraction.max_num_features 25000 \
-                                    --SiftExtraction.num_threads 24 \
+                                    --SiftExtraction.num_threads 32 \
                                     --SiftExtraction.use_gpu 1 \
                                     --SiftExtraction.gpu_index {}'.format(db_file, img_dir, camera_model, gpu_index)
     run_cmd(cmd)
@@ -43,7 +43,7 @@ def run_sift_matching(img_dir, db_file, camera_model):
     # feature matching
     cmd = 'colmap exhaustive_matcher --database_path {} \
                                             --SiftMatching.guided_matching 1 \
-                                            --SiftMatching.num_threads 24 \
+                                            --SiftMatching.num_threads 6 \
                                             --SiftMatching.max_error 3 \
                                             --SiftMatching.max_num_matches 30000 \
                                             --SiftMatching.gpu_index {}'.format(db_file, gpu_index)

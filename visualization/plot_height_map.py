@@ -31,7 +31,8 @@ def plot_height_map(height_map, out_file, maskout=None, save_cbar=False, force_r
     height_map[0, 0] = min_val
     height_map[0, 1] = max_val
 
-    colors = np.loadtxt('visualization/colormap_height.txt')
+    cmap_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'colormap_height.txt')
+    colors = np.loadtxt(cmap_file)
     colors = (np.float32(colors) / 255.0).tolist()
     cmap = ListedColormap(colors)
 

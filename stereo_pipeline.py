@@ -509,10 +509,9 @@ class StereoPipeline(object):
         local_timer = Timer('2.5D aggregation module')
         local_timer.start()
 
+        max_processes = -1
         if 'aggregate_max_processes' in self.config:
             max_processes = self.config['aggregate_max_processes']
-        else:
-            max_processes = 8
 
         aggregate_2p5d.run_fuse(work_dir, max_processes=max_processes)
 

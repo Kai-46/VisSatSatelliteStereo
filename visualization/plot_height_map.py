@@ -18,6 +18,7 @@ import os
 import numpy as np
 from visualization.save_image_only import save_image_only
 from matplotlib.colors import ListedColormap
+import os
 
 
 def plot_height_map(height_map, out_file, maskout=None, save_cbar=False, force_range=None):

@@ -109,7 +109,7 @@ def split_big_list(big_list, num_small_lists):
     return small_lists
 
 
-def convert_depth_maps(work_dir, out_dir, depth_type, max_processes=20):
+def convert_depth_maps(work_dir, out_dir, depth_type, max_processes=-1):
     mvs_dir = os.path.join(work_dir, 'colmap/mvs')
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
@@ -122,8 +122,10 @@ def convert_depth_maps(work_dir, out_dir, depth_type, max_processes=20):
             all_items.append(item)
 
     logging.info('{} to be processed...'.format(len(all_items)))
+    if max_processes <= 0:
+        max_processes = multiprocessing.cpu_count()
 
-    pool = multiprocessing.Pool(max(max_processes, len(all_items)))
+    pool = multiprocessing.Pool(min(max_processes, len(all_items)))
     for item in all_items:
         pool.apply_async(convert_depth_map_worker, args=(work_dir, out_dir, item, depth_type))
 

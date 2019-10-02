@@ -1,3 +1,19 @@
+# ===============================================================================================================
+#  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
+#  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  -                                                                                                            =
+#  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
+#  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
+#  to General Electric Company and its suppliers and may be covered by U.S. and Foreign Patents, patents        =
+#  in process, and are protected by trade secret or copyright law. Dissemination of this information or         =
+#  reproduction of this material is strictly forbidden unless prior written permission is obtained              =
+#  from General Electric Company.                                                                               =
+#  -                                                                                                            =
+#  The research is based upon work supported by the Office of the Director of National Intelligence (ODNI),     =
+#  Intelligence Advanced Research Projects Activity (IARPA), via DOI/IBC Contract Number D17PC00287.            =
+#  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
+# ===============================================================================================================
+
 import os
 import json
 from clean_data import clean_data
@@ -262,6 +278,9 @@ class StereoPipeline(object):
 
     def run_crop_image(self):
         work_dir = self.config['work_dir']
+        image_template = None
+        if 'image_template' in self.config:
+            image_template = self.config['image_template']
 
         # set log file
         log_file = os.path.join(work_dir, 'logs/log_crop_image.txt')
@@ -272,7 +291,7 @@ class StereoPipeline(object):
         local_timer.start()
 
         # crop image and tone map
-        image_crop(work_dir, self.crop_image_max_processes, self.pan_msi_pairing)
+        image_crop(work_dir, self.crop_image_max_processes, self.pan_msi_pairing, image_template)
 
         # stop local timer
         local_timer.mark('image cropping done')
@@ -490,7 +509,11 @@ class StereoPipeline(object):
         local_timer = Timer('2.5D aggregation module')
         local_timer.start()
 
-        aggregate_2p5d.run_fuse(work_dir)
+        max_processes = -1
+        if 'aggregate_max_processes' in self.config:
+            max_processes = self.config['aggregate_max_processes']
+
+        aggregate_2p5d.run_fuse(work_dir, max_processes=max_processes)
 
         # stop local timer
         local_timer.mark('2.5D aggregation done')

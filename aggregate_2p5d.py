@@ -1,3 +1,19 @@
+# ===============================================================================================================
+#  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
+#  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  -                                                                                                            =
+#  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
+#  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
+#  to General Electric Company and its suppliers and may be covered by U.S. and Foreign Patents, patents        =
+#  in process, and are protected by trade secret or copyright law. Dissemination of this information or         =
+#  reproduction of this material is strictly forbidden unless prior written permission is obtained              =
+#  from General Electric Company.                                                                               =
+#  -                                                                                                            =
+#  The research is based upon work supported by the Office of the Director of National Intelligence (ODNI),     =
+#  Intelligence Advanced Research Projects Activity (IARPA), via DOI/IBC Contract Number D17PC00287.            =
+#  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
+# ===============================================================================================================
+
 import numpy as np
 import os
 from aggregate_2p5d_util import convert_depth_maps
@@ -12,10 +28,10 @@ import cv2
 import imageio
 
 
-def run_fuse(work_dir):
+def run_fuse(work_dir, max_processes=-1):
     # first convert depth maps
     dsm_dir = os.path.join(work_dir, 'colmap/mvs/dsm')
-    convert_depth_maps(work_dir, dsm_dir, depth_type='geometric')
+    convert_depth_maps(work_dir, dsm_dir, depth_type='geometric', max_processes=max_processes)
 
     if not os.path.exists(os.path.join(work_dir, 'mvs_results')):
         os.mkdir(os.path.join(work_dir, 'mvs_results'))

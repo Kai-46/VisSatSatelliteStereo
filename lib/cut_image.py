@@ -1,9 +1,28 @@
+# ===============================================================================================================
+#  This file is part of Creation of Operationally Realistic 3D Environment (CORE3D).                            =
+#  Copyright 2019 Cornell University - All Rights Reserved                                                      =
+#  Copyright 2019 General Electric Company - All Rights Reserved                                                =
+#  -                                                                                                            =
+#  NOTICE: All information contained herein is, and remains the property of General Electric Company            =
+#  and its suppliers, if any. The intellectual and technical concepts contained herein are proprietary          =
+#  to General Electric Company and its suppliers and may be covered by U.S. and Foreign Patents, patents        =
+#  in process, and are protected by trade secret or copyright law. Dissemination of this information or         =
+#  reproduction of this material is strictly forbidden unless prior written permission is obtained              =
+#  from General Electric Company.                                                                               =
+#  -                                                                                                            =
+#  The research is based upon work supported by the Office of the Director of National Intelligence (ODNI),     =
+#  Intelligence Advanced Research Projects Activity (IARPA), via DOI/IBC Contract Number D17PC00287.            =
+#  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes. =
+# ===============================================================================================================
+
 import os
 import tempfile
 import cv2
 import numpy as np
 from osgeo import gdal, gdal_array
-from skimage import exposure
+import datetime
+from skimage import exposure, color
+from skimage.transform import match_histograms
 from lib.run_cmd import run_cmd
 import logging
 
@@ -11,6 +30,30 @@ try:
     from s2p import rpc_utils                    
 except ImportError:
     print('Not supporting Pan-sharpening')
+
+
+def Image_byte(img_16bit, multi_channel=False):
+    if multi_channel:
+        nd_image = np.zeros(img_16bit.shape)
+        for i in range(img_16bit.shape[-1]):
+            band = img_16bit[:, :, i].copy()
+            max_val = np.percentile(band, 98)
+            min_val = np.percentile(band, 2)
+            band = np.maximum(0, band - min_val)
+            band = np.minimum(1, band / (max_val - min_val))
+            band = band * 255.0
+            band = band.astype(np.uint8)
+            nd_image[:, :, i] = band.copy()
+        return nd_image
+    else:
+        band = img_16bit.copy()
+        max_val = np.percentile(band, 98)
+        min_val = np.percentile(band, 2)
+        band = np.maximum(0, band - min_val)
+        band = np.minimum(1, band / (max_val - min_val))
+        band = band * 255.0
+        band = band.astype(np.uint8)
+        return band
 
 
 def load_rpc(file):
@@ -136,7 +179,33 @@ def read_image(file, np_type=None, bands=None, squeeze=False):
     return image, geo, proj, meta, width, height
 
 
-def to_rgb_adjusted_new(rgb_in_name, rgb_out_name, percentiles=None, bands=None, hist_eq=True, nodata=None):
+def to_rgb(ps_corr_name, rgb_name, image_template, flag):
+    ps_image, geo, proj, meta, width, height = read_image(ps_corr_name)
+
+    red = Image_byte(ps_image[:, :, 4])
+    green = Image_byte(ps_image[:, :, 2])
+    blue = Image_byte(ps_image[:, :, 1])
+
+    rgb = np.dstack((red, green, blue))
+
+    if flag and image_template is not None:
+
+        ref_img = read_image(image_template)[0]
+        lab_ref = color.rgb2lab(ref_img)
+        lab_rgb = color.rgb2lab(rgb)
+        lab_rgb = match_histograms(lab_rgb, lab_ref, multichannel=True)
+        rgb = color.lab2rgb(lab_rgb)
+        rgb = Image_byte(rgb)
+
+    if rgb_name.endswith(".jpg"):
+        cv2.imwrite(rgb_name, rgb, [cv2.IMWRITE_JPEG_QUALITY, 100])
+    elif rgb_name.endswith(".png"):
+        cv2.imwrite(rgb_name, rgb)
+    else:
+        write_image(rgb, rgb_name, geo, proj, meta, np_type=np.uint8)
+
+
+def to_rgb_adjusted_new(rgb_in_name, rgb_out_name, percentiles=None, bands=None, hist_eq=True, histmatch=False, nodata=None):
     if percentiles is None:
         percentiles = [1, 99]
     if bands is None:
@@ -215,13 +284,33 @@ def pan_sharpen_unweighted(pan_name, msi_name, out_name):
     os.system(cmd)
 
 
-def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
+def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png, image_template):
     pan_crop_out = tempfile.mktemp(".tif")
     msi_crop_out = tempfile.mktemp(".tif")
     pan_rpc_applied = tempfile.mktemp(".tif")
     msi_rpc_applied = tempfile.mktemp(".tif")
     pan_sharpened_rgb_equalized = tempfile.mktemp(".tif")
     pan_sharpened_rgb = tempfile.mktemp(".tif")
+
+    # reading the meta data so we can get a flag to ignore processing snow images depending on Lat location
+    ds = gdal.Open(pan_ntf)
+    meta = ds.GetMetadata()
+    rpc_meta = ds.GetMetadata('RPC')
+
+    dt = None
+    if 'NITF_STDIDC_ACQUISITION_DATE' in meta:
+        dss = meta['NITF_STDIDC_ACQUISITION_DATE']
+        dt = datetime.datetime(year=int(dss[0:4]), month=int(dss[4:6]), day=int(dss[6:8]),
+                               hour=int(dss[8:10]), minute=int(dss[10:12]), second=int(dss[12:14]))
+
+    north_snow = np.float(rpc_meta['LAT_OFF']) > 35.0 and dt.month in [12, 1, 2]
+    south_snow = np.float(rpc_meta['LAT_OFF']) < -35.0 and dt.month in [6, 7, 8]
+    if north_snow or south_snow:
+        flag = False
+    else:
+        flag = True
+
+    del ds
 
     pan_rpc = load_rpc(pan_ntf)
     crop_roi(pan_ntf, x, y, w, h, pan_crop_out)
@@ -239,11 +328,13 @@ def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
     weights = pan_sharpen_weights[get_sat_key(msi_meta)]
     b = gdal_bands[get_sat_key(msi_meta)]
 
-    # pan_sharpened_ps = os.path.join('/home/wdixon/jacksonville/', os.path.basename(output_png).replace(".png", "_ps.tif"))
+    # pan_sharpened_ps = os.path.join('/media/user/ExtraDrive5/de741362/aug_test6/omaha_d7/ps_images', os.path.basename(output_png).replace(".png", "_ps.tif"))
     # pan_sharpen_unweighted(pan_rpc_applied, msi_rpc_applied, pan_sharpened_ps)
 
-    pan_sharpen(pan_rpc_applied, msi_rpc_applied, pan_sharpened_rgb, weights, bands=[b['R'], b['G'], b['B']])
-    to_rgb_adjusted_new(pan_sharpened_rgb, pan_sharpened_rgb_equalized, hist_eq=True, nodata=0)
+    pan_sharpen(pan_rpc_applied, msi_rpc_applied, pan_sharpened_rgb, weights)
+    to_rgb(pan_sharpened_rgb, pan_sharpened_rgb_equalized, image_template, flag)
+    # pan_sharpen(pan_rpc_applied, msi_rpc_applied, pan_sharpened_rgb, weights, bands=[b['R'], b['G'], b['B']])
+    # to_rgb_adjusted_new(pan_sharpened_rgb, pan_sharpened_rgb_equalized, hist_eq=False, histmatch=True, nodata=0)
 
     logging.info("Mapping color space...")
     # setup the rpc transformers
@@ -290,7 +381,7 @@ def create_rgb_aligned_with_pan(pan_ntf, x, y, w, h, msi_ntf, output_png):
     os.remove(pan_sharpened_rgb)
 
 
-def cut_image(in_ntf, out_png, ntf_size, bbx_size, msi_ntf=None):
+def cut_image(in_ntf, out_png, ntf_size, bbx_size, image_template, msi_ntf=None):
     (ntf_width, ntf_height) = ntf_size
     (ul_col, ul_row, width, height) = bbx_size
 
@@ -305,7 +396,7 @@ def cut_image(in_ntf, out_png, ntf_size, bbx_size, msi_ntf=None):
 
     if msi_ntf is not None:
         logging.info("Found MSI: {} for PAN {}".format(msi_ntf, in_ntf))
-        create_rgb_aligned_with_pan(in_ntf, ul_col, ul_row, width, height, msi_ntf, out_png)
+        create_rgb_aligned_with_pan(in_ntf, ul_col, ul_row, width, height, msi_ntf, out_png, image_template)
     else:
         logging.info("No MSI match for {}".format(in_ntf))
         # note the coordinate system of .ntf

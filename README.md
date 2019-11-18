@@ -42,7 +42,7 @@ You need to enable {“clean_data”, “crop_image”, “derive_approx”, “
 Step [1-4] transform the (.ntf, .tar) data into more accessible conventional formats. Step 5 approximates the RPC cameras with perspective cameras. Step [6-7] selects a subset of images (by default, all the images), performs bundle adjustment, and writes bundle-adjusted camera parameters to {work_dir}/colmap/sfm_perspective/init_ba_camera_dict.json. 
 For perspective cameras in the .json files mentioned in Step [5-7], the camera parameters are organized as:
 ```{r, engine='bash'}
-w,h,f_x,f_y,c_x,c_y,s,q_w,q_x,q_y,q_z,t_x,t_y,t_z
+w, h, f_x, f_y, c_x, c_y, s, q_w, q_x, q_y, q_z, t_x, t_y, t_z
 ```
 , where (w,h) is image size, (f_{x,y}, c_{x,y}, s) are camera intrinsics, q_{w,x,y,z} is the quaternion representation of the rotation matrix, and t_{x,y,z}is the translation vector.
 

@@ -229,7 +229,7 @@ def image_crop(work_dir):
 
         shutil.copyfile(img_file, os.path.join(images_subdir, target_img_name))
         shutil.copyfile(meta_file, os.path.join(metas_subdir, target_xml_name))
-    
+
     # remove tmp_dir
     shutil.rmtree(tmp_dir)
 

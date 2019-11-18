@@ -283,7 +283,6 @@ class StereoPipeline(object):
         # derive approximations for later uses
         appr = CameraApprox(work_dir)
 
-        appr.approx_perspective_utmalt()
         appr.approx_affine_latlonalt()
         appr.approx_perspective_enu()
 

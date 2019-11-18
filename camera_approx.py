@@ -147,63 +147,6 @@ class CameraApprox(object):
         with open(os.path.join(self.out_dir, 'bbx_latlonalt.json'), 'w') as fp:
             json.dump(bbx, fp, indent=2)
 
-    def approx_perspective_utmalt(self):
-        logging.info('deriving a perspective camera approximation...')
-        logging.info('scene coordinate frame is in local UTM, alt')
-
-        perspective_dict = {}
-
-        errors_txt = 'img_name, mean_proj_err (pixels), median_proj_err (pixels), max_proj_err (pixels), mean_inv_proj_err (meters), median_inv_proj_err (meters), max_inv_proj_err (meters)\n'
-
-        lat_points = self.latlonalt[:, 0:1]
-        lon_points = self.latlonalt[:, 1:2]
-        alt_points = self.latlonalt[:, 2:3]
-
-        xx = self.utm_local[:, 0:1]
-        yy = self.utm_local[:, 1:2]
-        zz = self.utm_local[:, 2:3]
-
-        for i in range(self.cnt):
-
-            col, row = self.rpc_models[i].projection(lat_points, lon_points, alt_points)
-
-            # make sure all the points lie inside the image
-            width = self.rpc_models[i].width
-            height = self.rpc_models[i].height
-            keep_mask = np.logical_and(col >= 0, row >= 0)
-            keep_mask = np.logical_and(keep_mask, col < width)
-            keep_mask = np.logical_and(keep_mask, row < height)
-
-            K, R, t = solve_perspective(xx, yy, zz, col, row, keep_mask)
-
-            qvec = Quaternion(matrix=R)
-            # fx, fy, cx, cy, s, qvec, t
-            params = [width, height, K[0, 0], K[1, 1], K[0, 2], K[1, 2], K[0, 1],
-                       qvec[0], qvec[1], qvec[2], qvec[3],
-                       t[0, 0], t[1, 0], t[2, 0]]
-
-            img_name = self.img_names[i]
-            perspective_dict[img_name] = params
-
-            # check approximation error
-            tmp = check_perspective_error(xx, yy, zz, col, row, K, R, t, keep_mask)
-            errors_txt += '{}, {}, {}, {}, {}, {}, {}\n'.format(img_name, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5])
-
-        with open(os.path.join(self.out_dir, 'perspective_utmalt.json'), 'w') as fp:
-            json.dump(perspective_dict, fp, indent=2)
-
-        with open(os.path.join(self.out_dir, 'perspective_utmalt_error.csv'), 'w') as fp:
-            fp.write(errors_txt)
-
-        bbx = { 'xx_min': np.min(xx),
-                'xx_max': np.max(xx),
-                'yy_min': np.min(yy),
-                'yy_max': np.max(yy),
-                'zz_min': np.min(zz),
-                'zz_max': np.max(zz)}
-        with open(os.path.join(self.out_dir, 'bbx_utmalt.json'), 'w') as fp:
-            json.dump(bbx, fp, indent=2)
-
     def approx_perspective_enu(self):
         logging.info('deriving a perspective camera approximation...')
         logging.info('scene coordinate frame is in ENU')

@@ -7,6 +7,7 @@ This is the python interface for VISion-based SATellite stereo (VisSat) that is 
 
 ## Installation
 * Install [our adapted COLMAP](https://github.com/Kai-46/ColmapForSatelliteStereo.git) first.
+* Install GDAL and GDAL for python on your machine according to [this page](https://mothergeo-py.readthedocs.io/en/latest/development/how-to/gdal-ubuntu-pkg.html).
 * Use python3 instead of python2.
 * All the python dependent packages can be installed via:
 

@@ -63,7 +63,7 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
         json.dump(init_camera_dict, fp, indent=2, sort_keys=True)
 
     # iterate between triangulation and bundle adjustment
-    for reproj_err_threshold in [32.0, 8.0, 2.0]:
+    for reproj_err_threshold in [32.0, 2.0]:
         # triangulate
         init_template = os.path.join(sfm_dir, 'init_template.json')
         write_template_perspective(init_camera_dict, init_template)

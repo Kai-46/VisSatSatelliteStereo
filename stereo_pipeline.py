@@ -45,7 +45,7 @@ from colmap_mvs_commands import run_photometric_mvs, run_consistency_check
 import aggregate_2p5d
 import aggregate_3d
 import utm
-from debuggers import colmap_sfm_perspective_debugger
+from debuggers.inspect_sfm import SparseInspector
 import multiprocessing
 from datetime import datetime
 
@@ -382,7 +382,17 @@ class StereoPipeline(object):
         # inspect sfm perspective
         sfm_dir = os.path.join(work_dir, 'colmap/sfm_perspective')
 
-        colmap_sfm_perspective_debugger.check_sfm(work_dir, sfm_dir)
+        for subdir in ['tri', 'tri_ba']:
+            dir = os.path.join(sfm_dir, subdir)
+            logging.info('\ninspecting {} ...'.format(dir))
+
+            inspect_dir = os.path.join(sfm_dir, 'inspect_' + subdir)
+            if os.path.exists(inspect_dir):
+                shutil.rmtree(inspect_dir)
+
+            db_path = os.path.join(sfm_dir, 'database.db')
+            sfm_inspector = SparseInspector(dir, db_path, inspect_dir, camera_model='PERSPECTIVE')
+            sfm_inspector.inspect_all()
 
         # stop local timer
         local_timer.mark('inspect sfm perspective done')

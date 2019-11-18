@@ -220,7 +220,6 @@ class SparseInspector(object):
         for idx, img_name in enumerate(self.img_names):
             imageio.imwrite(os.path.join(out_subdir, img_name[:-4]+'.jpg'), locations[idx])
 
-
     def inspect_tracks(self):
         reproj_errs = self.points[:, 3]
         track_len = self.points[:, 4]   # fourth column
@@ -252,8 +251,6 @@ class SparseInspector(object):
         img_updown_angles = []
         img_angle_variations = []
 
-        # all_rotations = []
-        # all_translations = []
         for img_name in self.img_names:
             width, height = self.img_sizes[img_name]
             K, R, t = self.camera_mats[img_name]
@@ -274,9 +271,6 @@ class SparseInspector(object):
 
             img_angle_variations.append(max([img_leftright_angles[-1], img_updown_angles[-1]]))
 
-            # all_rotations.append(R)
-            # all_translations.append(t)
-
         # compute pair-wise triangulation angles
         cnt = len(cam_center_positions)
         plt.figure(figsize=(14, 8))
@@ -289,25 +283,6 @@ class SparseInspector(object):
         plt.tight_layout()
         plt.savefig(os.path.join(self.out_dir, 'field_of_view.jpg'))
         plt.close()
-
-        # # compute pair-wise forward motions
-        # pairwise_motions = np.zeros((cnt, cnt))
-        # for i in range(cnt):
-        #     for j in range(cnt):
-        #         # j with respect to i
-        #         relative_translation = -np.dot(np.dot(all_rotations[i], all_rotations[j].T), all_translations[j]) + all_translations[i]
-        #         pairwise_motions[i, j] = relative_translation[2, 0]
-        # plt.figure(figsize=(14, 10))
-        # plt.imshow(pairwise_motions, cmap='magma')
-        # plt.colorbar()
-        # plt.xticks(range(0, cnt, 1))
-        # plt.xlabel('image index')
-        # plt.yticks(range(0, cnt, 1))
-        # plt.ylabel('image index')
-        # plt.title('pairwise forward motions (meters)')
-        # plt.tight_layout()
-        # plt.savefig(os.path.join(self.out_dir, 'pairwise_forward_motions.jpg'))
-        # plt.close()
 
         cam_center_angles = np.zeros((cnt, cnt))
         img_center_angles = np.zeros((cnt, cnt))

@@ -1,6 +1,6 @@
 {
   "dataset_dir": "/bigdata/kz298/dataset/mvs3dm/WV3/PAN",
-  "work_dir": "/data2/kz298/mvs3dm_result_paper/explorer",
+  "work_dir": "/data2/kz298/explorer",
   "bounding_box": {
     "zone_number": 21,
     "hemisphere": "S",

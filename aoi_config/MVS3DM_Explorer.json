@@ -15,7 +15,7 @@
     "derive_approx": true,
     "choose_subset": true,
     "colmap_sfm_perspective": true,
-    "inspect_sfm_perspective": true,
+    "inspect_sfm_perspective": false,
     "reparam_depth": true,
     "colmap_mvs": true,
     "aggregate_2p5d": true,

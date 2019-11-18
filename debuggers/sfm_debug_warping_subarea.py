@@ -35,10 +35,9 @@ import json
 import numpy as np
 import shutil
 import cv2
-import sys
 from pyquaternion import Quaternion
-import argparse
 import multiprocessing
+
 
 # compute the homography directly from the 3*4 projection matrix
 # plane_vec is a 4 by 1 vector
@@ -56,6 +55,7 @@ def compute_homography(ref_P, src_P, plane_vec):
 
     H = H / np.max(np.abs(H))   # increase numeric stability
     return H
+
 
 def create_warped_images_worker(sweep_plane, camera_mat_dict, image_dir, ref_img_name, src_img_names, out_subdir_dict, avg_img_out_dir, subarea=None):
     i, plane_vec = sweep_plane
@@ -188,11 +188,6 @@ def create_warped_images(sfm_perspective_dir, ref_img_id, z_min, z_max, num_plan
         shutil.rmtree(avg_img_out_dir)
     os.mkdir(avg_img_out_dir)
 
-    # debug
-    # create_warped_images_worker(sweep_plane_sequence[0], camera_mat_dict, image_dir, ref_img_name, src_img_names, out_subdir_dict, avg_img_out_dir, subarea)
-    # exit(-1)
-
-
     if max_processes is None:
         max_processes = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(max_processes)
@@ -219,56 +214,15 @@ def debug():
     # src_img_ids = [6, 7]
     src_img_ids = []      # if set to empty list, then all the other images except the reference image will be warped
 
-    # # aoi-d4-jacksonville
-    # # {work_dir}/colmap/sfm_perspective
-    # sfm_perspective_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/colmap/sfm_perspective'
-    # out_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville/debug_warping'
-    # # height range
-    # z_min = 20  # meters
-    # z_max = 100 
-    # # number of sweeping planes and normal direction
-    # # a plane with height z is written as n^x-z=0
-    # num_planes = 540
-    # # num_planes = 80
-    # normal = (0, 0, 1)
-    # subarea = (3340, 3850, 128, 128) 
-
-    # aoi-d9-usc
-    # sfm_perspective_dir = '/data2/kz298/core3d_result/aoi-d9-usc/colmap/sfm_perspective'
-    # out_dir = '/data2/kz298/core3d_result/aoi-d9-usc/debug_warping'
-    # # height range
-    # z_min = 30  # meters
-    # z_max = 70 
-    # # number of sweeping planes and normal direction
-    # # a plane with height z is written as n^x-z=0
-    # num_planes = 270
-    # # num_planes = 80
-    # normal = (0, 0, 1)
-    # subarea = (1070, 1944, 128, 128) 
-
-    # aoi-d5-sanfernando
-    # ref_img_id = 1
-    # sfm_perspective_dir = '/data2/kz298/core3d_result/aoi-d5-san_fernando/colmap/sfm_perspective'
-    # out_dir = '/data2/kz298/core3d_result/aoi-d5-san_fernando/debug_warping'
-    # # height range
-    # z_min = 10  # meters
-    # z_max = 50 
-    # # number of sweeping planes and normal direction
-    # # a plane with height z is written as n^x-z=0
-    # num_planes = 270
-    # # num_planes = 80
-    # normal = (0, 0, 1)
-    # subarea = (1182, 500, 128, 128) 
-
-    # aoi-d7-omaha
-    sfm_perspective_dir = '/data2/kz298/core3d_result/aoi-d7-omaha/colmap/sfm_perspective'
-    out_dir = '/data2/kz298/core3d_result/aoi-d7-omaha/debug_warping'
+    # mvs3dm explorer
+    sfm_perspective_dir = '/data2/kz298/core3d_result/explorer/colmap/sfm_perspective'
+    out_dir = '/data2/kz298/core3d_result/explorer/debug_warping'
     # height range
-    z_min = 280  # meters
-    z_max = 320 
+    z_min = -30  # meters
+    z_max = 120
     # number of sweeping planes and normal direction
     # a plane with height z is written as n^x-z=0
-    num_planes = 270
+    num_planes = 500
     # num_planes = 80
     normal = (0, 0, 1)
     subarea = (2573, 1449, 128, 128) 

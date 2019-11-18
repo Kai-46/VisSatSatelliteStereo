@@ -1,12 +1,12 @@
-# Satellite Stereo
+# VisSat Satellite Stereo
 
 ## Introduction
 This is the python interface for VISion-based SATellite stereo (VisSat) that is backed by [our adapted COLMAP](https://github.com/Kai-46/ColmapForSatelliteStereo.git). You can run both SfM and MVS on a set of satellite images.
 
 ## Installation
 * Install [our adapted COLMAP](https://github.com/Kai-46/ColmapForSatelliteStereo.git) first.
-* Use python3 instead of python2
-* All the python dependent packages can be installed via
+* Use python3 instead of python2.
+* All the python dependent packages can be installed via:
 
 ```{r, engine='bash', count_lines}
 pip3 install -r requirements.txt
@@ -14,14 +14,14 @@ pip3 install -r requirements.txt
 
 ## Quick Start
 * Download the [MVS3DM](https://spacenetchallenge.github.io/datasets/mvs_summary.html) satellite stereo dataset.
-* The file "aoi_config/MVS3DM_Explore.json" is an template configuration for the site 'Explorer' in the MVS3DM dataset. Basically, you only need to set two fields, i.e., "dataset_dir" and "work_dir", in order to get started. 
-* Then, launch our pipeline with:
+* The file "aoi_config/MVS3DM_Explore.json" is a template configuration for the site 'Explorer' in the MVS3DM dataset. Basically, you only need to set two fields, i.e., "dataset_dir" and "work_dir", in order to get started for this site.
+* Launch our pipeline with:
 ```{r, engine='bash', count_lines}
 python3 stereo_pipeline.py --config_file aoi_config/MVS3DM_Explorer.json
 ```
-* If you use the 3D aggregation method, the output point cloud and DSM will be inside "{work_dir}/mvs_results/aggregate_3d/"; alternatively, if the 2.5D aggregation is adopted, the output will be inside "{work_dir}/mvs_results/aggregate_2p5d/".
+* If you enable "aggregate_3d, the output point cloud and DSM will be inside "{work_dir}/mvs_results/aggregate_3d/"; alternatively, if "aggregate_2p5d" is adopted, the output will be inside "{work_dir}/mvs_results/aggregate_2p5d/".
 * Our pipeline is written in a module way; you can run it step by step by choosing what steps to execute in the configuration file. 
-* You can also navigate inside {work_dir} to get intermediate results.
+* You can navigate inside {work_dir} to get intermediate results.
 
 ## For Hackers
 ### General Program Logic
@@ -29,7 +29,7 @@ We use a specific directory structure to help organize the program logic. The ba
 
 **SfM stage**
 
-You need to enable {“clean_data”, “crop_image”, “derive_approx”, “choose_subset”, “colmap_sfm_perspective”} in the configuration.
+You need to enable {“clean_data”, “crop_image”, “derive_approx”, “choose_subset”, “colmap_sfm_perspective”} in the configuration. Then note the following files. 
 
 1. (.ntf, .tar) pairs inside {dataset_dir}
 2. (.ntf, .xml) pairs inside {work_dir}/cleaned_data
@@ -58,6 +58,6 @@ For conversion between (lat, lon) and (utm east, utm north), please refer to: li
 
 **MVS stage**
 
-To run a complete MVS after the SfM stage is done, you need to enable {“reparam_depth”, “colmap_mvs”, “aggregate_3d”} or {“reparam_depth”, “colmap_mvs”, “aggregate_2p5d”}.
+To run MVS after the SfM stage is done, you need to enable {“reparam_depth”, “colmap_mvs”, “aggregate_3d”} or {“reparam_depth”, “colmap_mvs”, “aggregate_2p5d”}.
 
 

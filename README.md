@@ -65,7 +65,7 @@ To run MVS after the SfM stage is done, you need to enable {“reparam_depth”,
 
 If you enable "aggregate_2p5d", you will be able to see the per-view DSM in {work_dir}/colmap/mvs/dsm.
 
-## Citation
+## Cite Us
 ```{r, engine='bash', count_lines}
 @inproceedings{VisSat-2019,
  title={Leveraging Vision Reconstruction Pipelines for Satellite Imagery},

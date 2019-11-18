@@ -19,7 +19,7 @@ pip3 install -r requirements.txt
 ```{r, engine='bash', count_lines}
 python3 stereo_pipeline.py --config_file aoi_config/MVS3DM_Explorer.json
 ```
-* If you enable "aggregate_3d, the output point cloud and DSM will be inside "{work_dir}/mvs_results/aggregate_3d/"; alternatively, if "aggregate_2p5d" is adopted, the output will be inside "{work_dir}/mvs_results/aggregate_2p5d/".
+* If you enable "aggregate_3d", the output point cloud and DSM will be inside "{work_dir}/mvs_results/aggregate_3d/"; alternatively, if "aggregate_2p5d" is adopted, the output will be inside "{work_dir}/mvs_results/aggregate_2p5d/".
 * Our pipeline is written in a module way; you can run it step by step by choosing what steps to execute in the configuration file. 
 * You can navigate inside {work_dir} to get intermediate results.
 

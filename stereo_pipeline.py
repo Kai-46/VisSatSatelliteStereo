@@ -45,7 +45,6 @@ from colmap_mvs_commands import run_photometric_mvs, run_consistency_check
 import aggregate_2p5d
 import aggregate_3d
 import utm
-from register_tif_global import register
 from debuggers import colmap_sfm_perspective_debugger
 import multiprocessing
 from datetime import datetime
@@ -180,26 +179,6 @@ class StereoPipeline(object):
         else:
             per_step_time.append((False, 'aggregate_3d', 0.0))
             print('step aggregate_3d:\tskipped')
-
-        if self.config['steps_to_run']['evaluate_2p5d']:
-            start_time = datetime.now()
-            self.run_evaluate_2p5d()
-            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
-            per_step_time.append((True, 'evaluate_2p5d', duration))
-            print('step evaluate_2p5d:\tfinished in {} minutes'.format(duration))
-        else:
-            per_step_time.append((False, 'evaluate_2p5d', 0.0))
-            print('step evaluate_2p5d:\tskipped')
-
-        if self.config['steps_to_run']['evaluate_3d']:
-            start_time = datetime.now()
-            self.run_evaluate_3d()
-            duration = (datetime.now() - start_time).total_seconds() / 60.0  # minutes
-            per_step_time.append((True, 'evaluate_3d', duration))
-            print('step evaluate_3d:\tfinished in {} minutes'.format(duration))
-        else:
-            per_step_time.append((False, 'evaluate_3d', 0.0))
-            print('step evaluate_3d:\tskipped')
 
         with open(os.path.join(self.config['work_dir'], 'runtime.txt'), 'w') as fp:
             fp.write('step_name, status, duration (minutes)\n')
@@ -364,8 +343,6 @@ class StereoPipeline(object):
             # create symbolic link to avoid data copy
             os.symlink(os.path.relpath(os.path.join(work_dir, 'images', img_name), image_subdir),
                        os.path.join(image_subdir, img_name))
-            # shutil.copy2(os.path.join(work_dir, 'images', img_name),
-            #              image_subdir)
 
         with open(os.path.join(out_dir, 'perspective_dict.json'), 'w') as fp:
             json.dump(subset_perspective_dict, fp, indent=2)
@@ -453,16 +430,16 @@ class StereoPipeline(object):
 
         # write patch-match.cfg and fusion.cfg
         image_names = sorted(os.listdir(os.path.join(mvs_dir, 'images')))
-        from random import shuffle
 
         with open(os.path.join(stereo_dir, 'patch-match.cfg'), 'w') as fp:
             for img_name in image_names:
                 fp.write(img_name + '\n__auto__, 20\n')
                 
                 # use all images
-                #fp.write(img_name + '\n__all__\n')
-                
+                # fp.write(img_name + '\n__all__\n')
+
                 # randomly choose 20 images
+                # from random import shuffle
                 # candi_src_images = [x for x in image_names if x != img_name]
                 # shuffle(candi_src_images)
                 # max_src_images = 10
@@ -477,8 +454,6 @@ class StereoPipeline(object):
         logging.info(local_timer.summary())
 
     def run_colmap_mvs(self, window_radius=3):
-#        print('MVS window radius: {}'.format(window_radius))
-        
         work_dir = self.config['work_dir']
         mvs_dir = os.path.join(work_dir, 'colmap/mvs')
 
@@ -531,52 +506,6 @@ class StereoPipeline(object):
 
         # stop local timer
         local_timer.mark('2.5D aggregation done')
-        logging.info(local_timer.summary())
-
-    def run_evaluate_3d(self):
-        work_dir = self.config['work_dir']
-        # set log file
-        log_file = os.path.join(work_dir, 'logs/log_evaluate_3d.txt')
-        self.logger.set_log_file(log_file)
-        # create a local timer
-        local_timer = Timer('evaluate dsm by 3d aggregation')
-        local_timer.start()
-
-        out_dir = os.path.join(work_dir, 'mvs_results/aggregate_3d/evaluate')
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
-
-        tif_to_eval = os.path.join(work_dir, 'mvs_results/aggregate_3d/aggregate_3d_dsm.tif')
-        tif_gt = self.config['ground_truth']
-        shutil.copy2(tif_gt, os.path.join(out_dir, 'ground_truth.tif'))
-
-        register(tif_to_eval, tif_gt, out_dir)
-
-        # stop local timer
-        local_timer.mark('evaluate dsm by 3d aggregation done')
-        logging.info(local_timer.summary())
-
-    def run_evaluate_2p5d(self):
-        work_dir = self.config['work_dir']
-        # set log file
-        log_file = os.path.join(work_dir, 'logs/log_evaluate_2p5d.txt')
-        self.logger.set_log_file(log_file)
-        # create a local timer
-        local_timer = Timer('evaluate dsm by 2p5d aggregation')
-        local_timer.start()
-
-        out_dir = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/evaluate')
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
-
-        tif_to_eval = os.path.join(work_dir, 'mvs_results/aggregate_2p5d/aggregate_2p5d_dsm.tif')
-        tif_gt = self.config['ground_truth']
-        shutil.copy2(tif_gt, os.path.join(out_dir, 'ground_truth.tif'))
-
-        register(tif_to_eval, tif_gt, out_dir)
-
-        # stop local timer
-        local_timer.mark('evaluate dsm by 2p5d aggregation done')
         logging.info(local_timer.summary())
 
 

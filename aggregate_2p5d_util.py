@@ -36,8 +36,6 @@ import shutil
 from colmap.read_dense import read_array
 from produce_dsm import produce_dsm_from_points
 from visualization.plot_height_map import plot_height_map
-from visualization.save_image_only import save_image_only
-import json
 import logging
 import multiprocessing
 from coordinate_system import local_to_global
@@ -150,6 +148,4 @@ def convert_depth_maps(work_dir, out_dir, depth_type, max_processes=-1):
 
 
 if __name__ == '__main__':
-    work_dir = '/data2/kz298/core3d_result/aoi-d4-jacksonville'
-    depth_type = 'photometric'
-    convert_depth_maps(work_dir, depth_type)
+    pass

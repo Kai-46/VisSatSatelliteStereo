@@ -178,7 +178,6 @@ def image_crop(work_dir):
         os.mkdir(tmp_dir)
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    results = []
     result_file_list = []
     cnt = len(ntf_list)
     for i in range(cnt):
@@ -189,9 +188,7 @@ def image_crop(work_dir):
         out_dir = tmp_dir
         result_file = os.path.join(tmp_dir, 'image_crop_result_{}.json'.format(i))
         result_file_list.append(result_file)
-        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file)))
-    for r in results:
-        r.get()
+        pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file))
     pool.close()
     pool.join()
 

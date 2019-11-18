@@ -41,6 +41,7 @@ import cv2
 e_resolution = 0.5  # 0.5 meters per pixel
 n_resolution = 0.5 
 
+
 # points is in UTM
 def produce_dsm_from_points(work_dir, points, tif_to_write, jpg_to_write=None):
     with open(os.path.join(work_dir, 'aoi.json')) as fp:
@@ -64,7 +65,8 @@ def produce_dsm_from_points(work_dir, points, tif_to_write, jpg_to_write=None):
         plot_height_map(dsm, jpg_to_write, save_cbar=True)
 
     return (ul_e, ul_n, e_size, n_size, e_resolution, n_resolution)
-    
+
+
 # points is in UTM
 def produce_dsm_from_height(work_dir, height, tif_to_write, jpg_to_write=None):
     with open(os.path.join(work_dir, 'aoi.json')) as fp:
@@ -84,6 +86,7 @@ def produce_dsm_from_height(work_dir, height, tif_to_write, jpg_to_write=None):
         plot_height_map(height, jpg_to_write, save_cbar=True)
 
     return (ul_e, ul_n, e_size, n_size, e_resolution, n_resolution)
+
 
 if __name__ == '__main__':
     pass

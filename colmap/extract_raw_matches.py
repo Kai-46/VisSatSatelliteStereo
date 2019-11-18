@@ -29,8 +29,6 @@
 #  The U.S. Government is authorized to reproduce and distribute copies of this work for Governmental purposes.
 #  ===============================================================================================================
 
-
-import os
 import sqlite3
 import numpy as np
 

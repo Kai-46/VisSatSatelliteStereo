@@ -38,9 +38,7 @@ from camera_approx import CameraApprox
 import colmap_sfm_perspective
 import shutil
 import logging
-from lib.run_cmd import run_cmd
 from lib.timer import Timer
-import numpy as np
 from lib.logger import GlobalLogger
 from reparam_depth import reparam_depth
 from colmap_mvs_commands import run_photometric_mvs, run_consistency_check

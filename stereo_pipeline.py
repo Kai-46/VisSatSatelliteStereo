@@ -180,6 +180,7 @@ class StereoPipeline(object):
                     fp.write('{}, skipped\n'.format(step_name))
                 total += duration
             fp.write('\ntotal: {} minutes\n'.format(total))
+            print('total:\t{} minutes'.format(total))
 
     def write_aoi(self):
         # write aoi.json

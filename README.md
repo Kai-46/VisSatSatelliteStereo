@@ -16,7 +16,7 @@ pip3 install -r requirements.txt
 
 ## Quick Start
 * Download the [MVS3DM](https://spacenetchallenge.github.io/datasets/mvs_summary.html) satellite stereo dataset.
-* The file "aoi_config/MVS3DM_Explore.json" is a template configuration for the site 'Explorer' in the MVS3DM dataset. Basically, you only need to set two fields, i.e., "dataset_dir" and "work_dir", in order to get started for this site.
+* The file "aoi_config/MVS3DM_Explorer.json" is a template configuration for the site 'Explorer' in the MVS3DM dataset. Basically, you only need to set two fields, i.e., "dataset_dir" and "work_dir", in order to get started for this site.
 * Launch our pipeline with:
 ```{r, engine='bash', count_lines}
 python3 stereo_pipeline.py --config_file aoi_config/MVS3DM_Explorer.json

@@ -46,7 +46,6 @@ import aggregate_2p5d
 import aggregate_3d
 import utm
 from debuggers.inspect_sfm import SparseInspector
-import multiprocessing
 from datetime import datetime
 
 

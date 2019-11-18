@@ -229,17 +229,7 @@ def image_crop(work_dir):
 
         shutil.copyfile(img_file, os.path.join(images_subdir, target_img_name))
         shutil.copyfile(meta_file, os.path.join(metas_subdir, target_xml_name))
-
-    # create a big meta file
-    big_meta_dict = {}
-    for item in os.listdir(metas_subdir):
-        img_name = item[:-5] + '.png'
-        with open(os.path.join(metas_subdir, item)) as fp:
-            big_meta_dict[img_name] = json.load(fp)
-
-    with open(os.path.join(work_dir, 'metas.json'), 'w') as fp:
-        json.dump(big_meta_dict, fp, indent=2)
-
+    
     # remove tmp_dir
     shutil.rmtree(tmp_dir)
 

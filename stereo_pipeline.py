@@ -253,9 +253,6 @@ class StereoPipeline(object):
 
     def run_crop_image(self):
         work_dir = self.config['work_dir']
-        image_template = None
-        if 'image_template' in self.config:
-            image_template = self.config['image_template']
 
         # set log file
         log_file = os.path.join(work_dir, 'logs/log_crop_image.txt')

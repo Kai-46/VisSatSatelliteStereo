@@ -63,4 +63,4 @@ For conversion between (lat, lon) and (utm east, utm north), please refer to: li
 
 To run MVS after the SfM stage is done, you need to enable {“reparam_depth”, “colmap_mvs”, “aggregate_3d”} or {“reparam_depth”, “colmap_mvs”, “aggregate_2p5d”}.
 
-
+If you enable "aggregate_2p5d", you will be able to see the per-view DSM in {work_dir}/colmap/mvs/dsm.

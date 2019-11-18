@@ -38,7 +38,7 @@ from coordinate_system import local_to_global
 import numpy as np
 from lib.latlon_utm_converter import latlon_to_eastnorh
 from produce_dsm import produce_dsm_from_points
-import cv2
+
 
 # the unit of max_depth_error is now in meter
 def fuse(colmap_dir):

@@ -159,20 +159,8 @@ def write_dsm_tif(image, out_file, geo, utm_zone, nodata_val=None):
     del out
 
 
-def modify_dsm_tif_nodata(in_file, out_file, nodata):
-    image, meta_dict = read_dsm_tif(in_file)
-    meta_dict['nodata'] = nodata
-    write_dsm_tif(image, meta_dict, out_file)
-
-
 if __name__ == "__main__":
     gt_tif = '/bigdata/kz298/dataset/core3d_phase1b/Unclassified_Ground_Truth_D4-D9/AOI-D4-Jacksonville/AOI-D4-DSM.tif'
     image, meta_dict = read_dsm_tif(gt_tif)
     print(meta_dict['geo'])
     print(type(meta_dict['geo']))
-
-    # import json
-    # with open('/data2/kz298/tmp.json', 'w') as fp:
-    #     json.dump(meta_dict, fp, indent=2)
-    # write_dsm_tif(image, meta_dict, '/data2/kz298/tmp.tif')
-    # print('hello')

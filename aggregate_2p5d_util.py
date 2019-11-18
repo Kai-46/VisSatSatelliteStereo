@@ -62,7 +62,6 @@ def convert_depth_map_worker(work_dir, out_dir, item, depth_type):
 
     # then read the depth maps
     depth_dir = os.path.join(mvs_dir, 'stereo/depth_maps')
-    image_dir = os.path.join(mvs_dir, 'images')
 
     idx = item.rfind('.{}.bin'.format(depth_type))
     if idx == -1:

@@ -38,8 +38,6 @@ import json
 import logging
 from lib.dsm_util import read_dsm_tif
 from produce_dsm import produce_dsm_from_height
-from visualization.plot_height_map import plot_height_map
-from visualization.plot_error_map import plot_error_map
 import cv2
 import imageio
 

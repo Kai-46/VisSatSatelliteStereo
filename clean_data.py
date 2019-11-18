@@ -39,18 +39,6 @@ import logging
 # first find .NTF file, and extract order_id, prod_id, standard name
 # then extract rpc file and preview image from the .tar file
 
-# def raw_name_to_cleaned_name(raw_name):
-#     idx = raw_name.find('-P1BS-')
-#     img_name = raw_name[idx - 13:idx + 26]
-#
-#     idx = raw_name.find('WV')
-#     sensor = raw_name[idx:idx + 4]
-#
-#     # prepend sensor to img_name
-#     cleaned_name = sensor + '_' + img_name
-#
-#     return cleaned_name
-
 
 def clean_image_info(file_name):
     file_name = os.path.basename(file_name)

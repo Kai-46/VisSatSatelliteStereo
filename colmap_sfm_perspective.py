@@ -35,9 +35,6 @@ from colmap_sfm_utils import write_template_perspective
 import json
 import colmap_sfm_commands
 from colmap.extract_sfm import extract_camera_dict
-import logging
-import shutil
-from debuggers.inspect_sfm import SparseInspector
 
 
 def make_subdirs(sfm_dir):
@@ -77,17 +74,6 @@ def run_sfm(work_dir, sfm_dir, init_camera_file, weight):
         # global bundle adjustment
         tri_ba_dir = os.path.join(sfm_dir, 'tri_ba')
         colmap_sfm_commands.run_global_ba(tri_dir, tri_ba_dir, weight)
-
-        # # output statistics
-        # inspect_dir = os.path.join(sfm_dir, 'inspect_{}'.format(i))
-        # if not os.path.exists(inspect_dir):
-        #     os.mkdir(inspect_dir)
-
-        # sfm_inspector = SparseInspector(tri_dir, os.path.join(inspect_dir, 'tri'), camera_model='PERSPECTIVE')
-        # sfm_inspector.inspect_all()
-
-        # sfm_inspector = SparseInspector(tri_ba_dir, os.path.join(inspect_dir, 'tri_ba'), camera_model='PERSPECTIVE')
-        # sfm_inspector.inspect_all()
 
         # update camera dict
         init_camera_dict = extract_camera_dict(tri_ba_dir)

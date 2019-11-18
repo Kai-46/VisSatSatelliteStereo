@@ -55,12 +55,6 @@ class StereoPipeline(object):
         with open(config_file) as fp:
             self.config = json.load(fp)
 
-        self.pan_msi_pairing = None
-
-        self.crop_image_max_processes = multiprocessing.cpu_count()
-        if 'crop_image_max_processes' in self.config:
-            self.crop_image_max_processes = self.config['crop_image_max_processes']
-
         # make work_dir
         if not os.path.exists(self.config['work_dir']):
             os.mkdir(self.config['work_dir'])
@@ -74,9 +68,6 @@ class StereoPipeline(object):
         print(self.config)
 
         self.write_aoi()
-
-        if 'pan_msi_pairing' in self.config:
-            self.pan_msi_pairing = self.config['pan_msi_pairing']
 
         per_step_time = []  # (whether to run, step name, time in minutes)
 
@@ -235,16 +226,7 @@ class StereoPipeline(object):
             json.dump(aoi_dict, fp, indent=2)
 
     def clean_data(self):
-        dataset_dir = []
-        if self.pan_msi_pairing is not None:
-            # if pan_msi_pairing present - build the dataset_dir from the pan files
-            for f in self.pan_msi_pairing:
-                d = os.path.dirname(f[0])
-                if d not in dataset_dir:
-                    dataset_dir.append(d)
-        elif 'dataset_dir' in self.config:
-            dataset_dir = self.config['dataset_dir']
-
+        dataset_dir = self.config['dataset_dir']
         work_dir = self.config['work_dir']
 
         # set log file and timer
@@ -263,7 +245,7 @@ class StereoPipeline(object):
         # check if dataset_dir is a list or tuple
         if not (isinstance(dataset_dir, list) or isinstance(dataset_dir, tuple)):
             dataset_dir = [dataset_dir, ]
-        clean_data(dataset_dir, cleaned_data_dir, self.pan_msi_pairing)
+        clean_data(dataset_dir, cleaned_data_dir)
 
         # stop local timer
         local_timer.mark('Data cleaning done')
@@ -284,7 +266,7 @@ class StereoPipeline(object):
         local_timer.start()
 
         # crop image and tone map
-        image_crop(work_dir, self.crop_image_max_processes, self.pan_msi_pairing, image_template)
+        image_crop(work_dir)
 
         # stop local timer
         local_timer.mark('image cropping done')

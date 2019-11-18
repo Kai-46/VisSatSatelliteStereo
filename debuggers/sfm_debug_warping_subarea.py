@@ -78,8 +78,6 @@ def create_warped_images_worker(sweep_plane, camera_mat_dict, image_dir, ref_img
                                                                         img_name, ref_img_name))
         # compute homography
         H = compute_homography(camera_mat_dict[ref_img_name], camera_mat_dict[img_name], plane_vec)
-        # debug
-        # print('H: {}'.format(H))
 
         # warp image
         im = np.float32(cv2.imread(os.path.join(image_dir, img_name))) / 255.0

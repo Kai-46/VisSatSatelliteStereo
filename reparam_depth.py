@@ -70,7 +70,6 @@ def robust_depth_range(depth_range):
 def reparam_depth(sparse_dir, save_dir, camera_model='perspective'):
     assert (camera_model == 'perspective' or camera_model == 'pinhole')
 
-    # this method is documented in colmap src/mvs/model.cc
     colmap_cameras, colmap_images, colmap_points3D = read_model(sparse_dir, ext='.txt')
 
     depth_range = {}
@@ -184,9 +183,6 @@ def reparam_depth(sparse_dir, save_dir, camera_model='perspective'):
     min_depth = common_reparam_depth_range[int(0.02 * cnt)] - lower_stretch
     max_depth = common_reparam_depth_range[int(0.98 * cnt)] + upper_stretch
     logging.info('{} points, depth_min: {}, depth_max: {}'.format(cnt, min_depth, max_depth))
-
-    # with open(os.path.join(save_dir, 'reparam_depth_range.txt'), 'w') as fp:
-    #     fp.write('{} {}\n'.format(min_depth, max_depth))
 
     with open(os.path.join(save_dir, 'depth_ranges.txt'), 'w') as fp:
         for img_name in sorted(last_rows.keys()):

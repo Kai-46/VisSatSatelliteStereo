@@ -32,11 +32,6 @@
 
 import numpy as np
 
-# point_cnt = x_point_cnt * y_point_cnt * z_point_cnt
-#
-# x_points = np.linspace(x_min, x_max, x_point_cnt)
-# y_points = np.linspace(y_min, y_max, y_point_cnt)
-# z_points = np.linspace(z_min, z_max, z_point_cnt)
 
 # generate a 3D grid
 # x_points, y_points, z_points are numpy array

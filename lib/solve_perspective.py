@@ -125,10 +125,5 @@ def solve_perspective(xx, yy, zz, col, row, keep_mask=None):
     # factorize into standard form
     r, q, t = factorize(P)
 
-    # with open('/data2/ex1_perspective.txt', 'w') as fp:
-    #     fp.write('K:\n{}\n\n'.format(r))
-    #     fp.write('R:\n{}\n\n'.format(q))
-    #     fp.write('t:\n{}\n'.format(t))
-
     return r, q, t
 

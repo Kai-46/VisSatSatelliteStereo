@@ -32,28 +32,45 @@
 
 # cut the AOI out of the big satellite image
 
-import os
-import re
-
-from clean_data import clean_image_info
 from lib.rpc_model import RPCModel
 from lib.parse_meta import parse_meta
 from lib.gen_grid import gen_grid
 from lib.check_bbx import check_bbx
-from lib.cut_image import cut_image
 from lib.tone_map import tone_map
 import utm
 import json
 import numpy as np
-import logging
 import shutil
 from lib.blank_ratio import blank_ratio
 import multiprocessing
 import glob
 import dateutil.parser
+import os
+from lib.run_cmd import run_cmd
+import logging
 
 
-def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, result_file, image_template, msi_file=None):
+def crop_ntf(in_ntf, out_png, ntf_size, bbx_size):
+    (ntf_width, ntf_height) = ntf_size
+    (ul_col, ul_row, width, height) = bbx_size
+
+    # assert bounding box is completely inside the image
+    assert (ul_col >= 0 and ul_col + width - 1 < ntf_width
+            and ul_row >= 0 and ul_row + height - 1 < ntf_height)
+
+    logging.info('ntf image to cut: {}, width, height: {}, {}'.format(in_ntf, ntf_width, ntf_height))
+    logging.info('cut image bounding box, ul_col, ul_row, width, height: {}, {}, {}, {}'.format(ul_col, ul_row,
+                                                                                                width, height))
+    logging.info('png image to save: {}'.format(out_png))
+
+    # note the coordinate system of .ntf
+    cmd = 'gdal_translate -of png -ot UInt16 -srcwin {} {} {} {} {} {}' \
+        .format(ul_col, ul_row, width, height, in_ntf, out_png)
+    run_cmd(cmd)
+    os.remove('{}.aux.xml'.format(out_png))
+
+
+def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, result_file):
     with open(utm_bbx_file) as fp:
         utm_bbx = json.load(fp)
     ul_easting = utm_bbx['ul_easting']
@@ -107,17 +124,16 @@ def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, r
 
         ul_col, ul_row, width, height = intersect
 
-        # cut image
+        # crop ntf
         idx1 = ntf_file.rfind('/')
         idx2 = ntf_file.rfind('.')
         base_name = ntf_file[idx1+1:idx2]
         out_png = os.path.join(out_dir, '{}:{:04d}:{}.png'.format(pid, n, base_name))
 
-        cut_image(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height), image_template, msi_file)
+        crop_ntf(ntf_file, out_png, (ntf_width, ntf_height), (ul_col, ul_row, width, height))
 
         # tone mapping
-        if msi_file is None:
-            tone_map(out_png, out_png)
+        tone_map(out_png, out_png)
 
         ratio = blank_ratio(out_png)
         if ratio > 0.2:
@@ -151,7 +167,7 @@ def image_crop_worker(ntf_file, xml_file, n, total_cnt, utm_bbx_file, out_dir, r
             json.dump(effective_file_list, fp, indent=2)
 
 
-def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_template=None):
+def image_crop(work_dir):
     cleaned_data_dir = os.path.join(work_dir, 'cleaned_data')
     ntf_list = glob.glob('{}/*.NTF'.format(cleaned_data_dir))
     xml_list = [item[:-4] + '.XML' for item in ntf_list]
@@ -161,30 +177,7 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_t
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
-    img_source_names = {}
-    associated_msi = {}
-    if pan_msi_pairing is not None:
-        for pair in pan_msi_pairing:
-            input_files = {"pan": os.path.basename(pair[0])}
-
-            pan = pair[0]
-            name = clean_image_info(pan)[0] + '.NTF'
-            associated_msi[name] = None
-            if(len(pair)) > 1:
-                associated_msi[name] = pair[1]
-                input_files["msi"] = os.path.basename(pair[1])
-
-            key_search = re.search('-P1BS-([^_]+_[^_]+_[^_]+)_', pan)
-            if key_search:
-                img_source_names[key_search.group(1)] = input_files
-
-    # To output some of the metadata data IARPA is asking for - write out the mapping between the names
-    # used by texturing - and the images
-    image_source_file = os.path.join(work_dir, "image_source.json")
-    with open(image_source_file, 'w') as fp:
-        json.dump(img_source_names, fp, sort_keys=True, indent=4)
-
-    pool = multiprocessing.Pool(crop_image_max_processes)
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
     results = []
     result_file_list = []
     cnt = len(ntf_list)
@@ -192,16 +185,11 @@ def image_crop(work_dir, crop_image_max_processes, pan_msi_pairing=None, image_t
         ntf_file = ntf_list[i]
         xml_file = xml_list[i]
 
-        if os.path.basename(ntf_file) in associated_msi:
-            msi_file = associated_msi[os.path.basename(ntf_file)]
-        else:
-            msi_file = None
-
         utm_bbx_file = os.path.join(work_dir, 'aoi.json')
         out_dir = tmp_dir
         result_file = os.path.join(tmp_dir, 'image_crop_result_{}.json'.format(i))
         result_file_list.append(result_file)
-        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file, image_template, msi_file)))
+        results.append(pool.apply_async(image_crop_worker, (ntf_file, xml_file, i, cnt, utm_bbx_file, out_dir, result_file)))
     for r in results:
         r.get()
     pool.close()

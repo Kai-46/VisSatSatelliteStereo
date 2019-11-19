@@ -74,3 +74,6 @@ If you enable "aggregate_2p5d", you will be able to see the per-view DSM in {wor
  year={2019}
 }
 ```
+
+## License
+This software uses the [3-clause BSD license](https://opensource.org/licenses/BSD-3-Clause).

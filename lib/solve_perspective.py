@@ -35,50 +35,42 @@ from scipy import linalg
 import logging
 
 
-def factorize(matrix):
-    # QR factorize the submatrix
-    r, q = linalg.rq(matrix[:, :3])
-    # compute the translation
-    t = linalg.lstsq(r, matrix[:, 3:4])[0]
+def factorize(P):
+    P = P[:3, :4]
+
+    # RQ factorize the submatrix
+    K, R = linalg.rq(P[:3, :3])
 
     # fix the intrinsic and rotation matrix
-    # intrinsic matrix's diagonal entries must be all positive
-    # rotation matrix's determinant must be 1; otherwise there's an reflection component
-    #logging.info('before fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
-
-    neg_sign_cnt = int(r[0, 0] < 0) + int(r[1, 1] < 0) + int(r[2, 2] < 0)
+    ##### intrinsic matrix's diagonal entries must be all positive
+    ##### rotation matrix's determinant must be 1; otherwise there's an reflection component
+    neg_sign_cnt = int(K[0, 0] < 0) + int(K[1, 1] < 0) + int(K[2, 2] < 0)
     if neg_sign_cnt == 1 or neg_sign_cnt == 3:
-        r = -r
+        K = -K
+        R = -R
 
-    new_neg_sign_cnt = int(r[0, 0] < 0) + int(r[1, 1] < 0) + int(r[2, 2] < 0)
+    new_neg_sign_cnt = int(K[0, 0] < 0) + int(K[1, 1] < 0) + int(K[2, 2] < 0)
     assert (new_neg_sign_cnt == 0 or new_neg_sign_cnt == 2)
 
     fix = np.diag((1, 1, 1))
-    if r[0, 0] < 0 and r[1, 1] < 0:
+    if K[0, 0] < 0 and K[1, 1] < 0:
         fix = np.diag((-1, -1, 1))
-    elif r[0, 0] < 0 and r[2, 2] < 0:
+    elif K[0, 0] < 0 and K[2, 2] < 0:
         fix = np.diag((-1, 1, -1))
-    elif r[1, 1] < 0 and r[2, 2] < 0:
+    elif K[1, 1] < 0 and K[2, 2] < 0:
         fix = np.diag((1, -1, -1))
-    r = np.dot(r, fix)
-    q = np.dot(fix, q)
-    t = np.dot(fix, t)
+    K = K @ fix
+    R = fix @ R
 
-    assert (linalg.det(q) > 0)
-    #logging.info('after fixing, diag of r: {}, {}, {}'.format(r[0, 0], r[1, 1], r[2, 2]))
+    # normalize the K matrix
+    scale = K[2, 2]
+    K /= scale
+    P[:3, :4] /= scale
+    t = linalg.lstsq(K, P[:3, 3:4])[0]
 
-    # check correctness
-    # ratio = np.dot(r, np.hstack((q, t))) / matrix
-    # assert (np.all(ratio > 0) or np.all(ratio < 0))
-    # tmp = np.max(np.abs(np.abs(ratio) - np.ones((3, 4))))
-    # logging.info('factorization, max relative error: {}'.format(tmp))
-    # assert (np.max(tmp) < 1e-9)
-
-    # normalize the r matrix
-    r /= r[2, 2]
-
-    return r, q, t
-
+    assert(np.isclose(np.linalg.det(R), 1.))
+    assert(np.all(np.isclose(P[:3, :4], K@np.hstack((R, t)))))
+    return K, R, t
 
 # colmap convention for pixel indices: (col, row)
 def solve_perspective(xx, yy, zz, col, row, keep_mask=None):

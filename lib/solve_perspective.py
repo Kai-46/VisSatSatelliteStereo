@@ -68,9 +68,10 @@ def factorize(P):
     P[:3, :4] /= scale
     # normalize the sign of R's determinant
     R_det = np.linalg.det(R)
-    R /= R_det
-    P[:3, :4] /= R_det
-
+    if R_det < 0.:
+        R *= -1.
+        P[:3, :4] *= -1.
+ 
     t = linalg.lstsq(K, P[:3, 3:4])[0]
 
     assert(np.isclose(np.linalg.det(R), 1.))

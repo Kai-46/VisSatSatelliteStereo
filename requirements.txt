@@ -1,5 +1,5 @@
 #GDAL==2.2.2
-lxml==4.6.3
+lxml==4.6.5
 matplotlib==3.0.0
 numba==0.41.0
 numpy==1.15.4

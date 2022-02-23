@@ -1,5 +1,7 @@
 # VisSat Satellite Stereo
 
+## Note: this repo is not actively maintained; I've been trying to build a new full-stack satellite stereo pipelines in computer vision style: [SatelliteSfM](https://github.com/Kai-46/SatelliteSfM).
+
 ## Introduction
 This is the python interface for VISion-based SATellite stereo (VisSat) that is backed by [our adapted COLMAP](https://github.com/Kai-46/ColmapForSatelliteStereo.git). You can run both SfM and MVS on a set of satellite images.
 
